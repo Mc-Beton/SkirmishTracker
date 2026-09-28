@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Skirmish Chronicle",
-    short_name: "Skirmish",
+    name: "WarBracket",
+    short_name: "WarBracket",
     description: "Eldfall Chronicles tournaments, leagues and skirmishes",
     start_url: "/",
     display: "standalone",

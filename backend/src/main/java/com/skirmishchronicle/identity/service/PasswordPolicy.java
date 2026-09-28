@@ -19,7 +19,7 @@ public class PasswordPolicy {
     private static final Set<String> COMMON = Set.of(
             "123456789012", "password1234", "qwertyuiop12", "111111111111", "aaaaaaaaaaaa",
             "passwordpassword", "iloveyou1234", "zaq12wsxcde3", "haslo1234567", "eldfallchronicles",
-            "skirmishchronicle", "1234567890qwerty", "qwerty123456");
+            "skirmishchronicle", "warbracket", "1234567890qwerty", "qwerty123456");
 
     public void validate(String password, String email, String displayName) {
         if (password == null || password.length() < MIN_LENGTH) {

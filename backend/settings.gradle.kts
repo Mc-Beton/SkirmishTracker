@@ -1,1 +1,1 @@
-rootProject.name = "skirmish-chronicle-backend"
+rootProject.name = "warbracket-backend"

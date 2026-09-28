@@ -1,11 +1,11 @@
-# Skirmish Chronicle – przekazanie projektu
+# WarBracket – przekazanie projektu
 
 Plik dla osoby (i dla Claude) przejmującej pracę na nowym urządzeniu. Stan na **28.09.2026**.
 Claude: przeczytaj najpierw ten plik, potem `CLAUDE.md`, `README.md` i dokumenty z `docs/`.
 
 ## 1. Czym jest projekt
 
-**Skirmish Chronicle** to aplikacja PWA (mobile first) do prowadzenia turniejów, lig i własnych gier
+**WarBracket** (dawniej Skirmish Chronicle) to aplikacja PWA (mobile first) do prowadzenia turniejów, lig i własnych gier
 w bitewniaku **Eldfall Chronicles**. Autor i właściciel produktu: Filip. Interfejs po polsku i angielsku.
 
 Najważniejsze możliwości (wszystko działa lokalnie u Filipa):

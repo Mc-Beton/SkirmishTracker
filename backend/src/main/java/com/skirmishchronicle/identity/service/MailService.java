@@ -29,7 +29,7 @@ public class MailService {
         String link = props.frontendUrl() + "/verify-email?token=" + encode(rawToken);
         boolean pl = "pl".equals(user.getLocale());
         send(user.getEmail(),
-                pl ? "Skirmish Chronicle – potwierdź adres e-mail" : "Skirmish Chronicle – confirm your e-mail",
+                pl ? "WarBracket – potwierdź adres e-mail" : "WarBracket – confirm your e-mail",
                 (pl ? "Cześć " : "Hi ") + user.getDisplayName() + ",\n\n"
                         + (pl ? "Kliknij, aby potwierdzić adres e-mail:\n" : "Click to confirm your e-mail address:\n")
                         + link + "\n\n"
@@ -40,7 +40,7 @@ public class MailService {
         String link = props.frontendUrl() + "/reset-password?token=" + encode(rawToken);
         boolean pl = "pl".equals(user.getLocale());
         send(user.getEmail(),
-                pl ? "Skirmish Chronicle – reset hasła" : "Skirmish Chronicle – password reset",
+                pl ? "WarBracket – reset hasła" : "WarBracket – password reset",
                 (pl ? "Ustaw nowe hasło:\n" : "Set a new password:\n") + link + "\n\n"
                         + (pl ? "Link wygasa po 30 minutach. Jeśli to nie Ty, zignoruj tę wiadomość."
                               : "The link expires in 30 minutes. If this wasn't you, ignore this message."));

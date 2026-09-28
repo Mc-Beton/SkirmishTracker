@@ -1,4 +1,4 @@
-# Skirmish Chronicle — notes for AI assistants
+# WarBracket — notes for AI assistants
 
 - Monorepo: `backend/` (Spring Boot 3.5, Java 21, Gradle Kotlin DSL) and `frontend/` (Next.js 16 — read `frontend/AGENTS.md` before touching it).
 - Game rules and content model: `docs/game-content-model.md`. Project status, decisions and next steps: `HANDOFF.md` (start there).

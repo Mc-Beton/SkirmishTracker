@@ -1,7 +1,7 @@
-# Skirmish Chronicle
+# WarBracket
 
 PWA do prowadzenia turniejów, lig i własnych gier **Eldfall Chronicles**.
-Plan i decyzje produktowe: dokument „Skirmish Chronicle — plan działania” (Claude Docs).
+Stan projektu, decyzje i dalsze kroki: `HANDOFF.md`.
 
 | Część | Technologia |
 | --- | --- |

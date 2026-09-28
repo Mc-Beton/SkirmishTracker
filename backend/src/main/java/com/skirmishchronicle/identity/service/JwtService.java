@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class JwtService {
 
-    public static final String ISSUER = "skirmish-chronicle";
+    public static final String ISSUER = "warbracket";
 
     private final JwtEncoder encoder;
     private final AppProperties props;
