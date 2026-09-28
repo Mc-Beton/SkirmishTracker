@@ -29,7 +29,7 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     // Argon2id password hashing (Spring Security's Argon2PasswordEncoder needs BouncyCastle)
-    implementation("org.bouncycastle:bcprov-jdk18on:1.81")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
 
     runtimeOnly("org.postgresql:postgresql")
 
