@@ -10,12 +10,13 @@
  * device never sees it.
  */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const STATIC_CACHE = `wb-static-${VERSION}`;
 const PAGE_CACHE = `wb-pages-${VERSION}`;
 const API_CACHE = `wb-api-${VERSION}`;
 const OFFLINE_URL = "/offline";
-const PRECACHE = [OFFLINE_URL, "/", "/logo.png", "/icon-192.png", "/icon-512.png", "/favicon.ico"];
+// "?v=2": the previous app on this domain served files under the same names with long cache lifetimes.
+const PRECACHE = [OFFLINE_URL, "/", "/logo.png?v=2", "/icon-192.png?v=2", "/icon-512.png?v=2"];
 const MAX_PAGES = 60;
 const MAX_API = 200;
 const NETWORK_TIMEOUT_MS = 6000;

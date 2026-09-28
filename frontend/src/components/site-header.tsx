@@ -34,7 +34,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-1 px-3 sm:gap-3 sm:px-4">
         <Link href="/" className="flex items-center gap-2 font-display text-lg tracking-wide">
           {/* eslint-disable-next-line @next/next/no-img-element -- tiny static logo, no optimisation needed */}
-          <img src="/logo.png" alt="" width={32} height={32} className="size-8" />
+          <img src="/logo.png?v=2" alt="" width={32} height={32} className="size-8" />
           <span className="hidden sm:inline">{t("app.name")}</span>
         </Link>
         <nav className="ml-2 hidden md:flex" aria-label={t("nav.main")}>
