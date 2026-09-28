@@ -4,6 +4,7 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.skirmishchronicle.identity.oauth.OAuthLoginSuccessHandler;
 import com.skirmishchronicle.identity.service.JwtService;
 import com.skirmishchronicle.identity.web.SessionCookies;
+import jakarta.servlet.DispatcherType;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -57,6 +58,8 @@ public class SecurityConfig {
                 // Authentication is never stored in the HTTP session; every request presents its JWT cookie.
                 .securityContext(c -> c.securityContextRepository(new RequestAttributeSecurityContextRepository()))
                 .authorizeHttpRequests(auth -> auth
+                        // Async dispatches only finish a request that was already authorized (SSE stream).
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .requestMatchers("/actuator/health", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
@@ -76,7 +79,7 @@ public class SecurityConfig {
                                 "/api/tournaments/*/matches/*/game", "/api/tournaments/*/warbands",
                                 "/api/tournaments/*/warbands/*", "/api/content", "/api/content/armies",
                                 "/api/tournaments/*/leagues", "/api/leagues", "/api/leagues/*", "/api/players/*",
-                                "/api/ranking").permitAll()
+                                "/api/ranking", "/api/live").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(rs -> rs

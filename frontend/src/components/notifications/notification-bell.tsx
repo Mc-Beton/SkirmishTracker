@@ -6,6 +6,7 @@ import { useFormatter, useNow, useTranslations } from "next-intl";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { useLiveConnected, useLiveRefresh } from "@/lib/live";
 import { cn } from "@/lib/utils";
 
 type Notification = {
@@ -18,9 +19,13 @@ type Notification = {
 };
 type Inbox = { items: Notification[]; unread: number };
 
+/** Fallback polling while the live stream is unavailable. */
 const POLL_MS = 30_000;
 
-/** In-app notifications: unread badge, dropdown list; polls every 30 s and when the tab gets focus. */
+/**
+ * In-app notifications: unread badge, dropdown list. Refreshes on live hints from the server; polls every
+ * 30 s only while the live stream is down.
+ */
 export function NotificationBell() {
   const t = useTranslations("notifications");
   const format = useFormatter();
@@ -37,12 +42,20 @@ export function NotificationBell() {
     }
   }, []);
 
+  const liveConnected = useLiveConnected();
+  useLiveRefresh(null, refresh);
+
   useEffect(() => {
     let active = true;
     const tick = () => {
       if (active && document.visibilityState === "visible") void refresh();
     };
     tick();
+    if (liveConnected) {
+      return () => {
+        active = false;
+      };
+    }
     const id = setInterval(tick, POLL_MS);
     window.addEventListener("focus", tick);
     return () => {
@@ -50,7 +63,7 @@ export function NotificationBell() {
       clearInterval(id);
       window.removeEventListener("focus", tick);
     };
-  }, [refresh]);
+  }, [refresh, liveConnected]);
 
   useEffect(() => {
     if (!open) return;

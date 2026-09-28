@@ -1,6 +1,6 @@
 # WarBracket – przekazanie projektu
 
-Plik dla osoby (i dla Claude) przejmującej pracę na nowym urządzeniu. Stan na **28.09.2026**.
+Plik dla osoby (i dla Claude) przejmującej pracę na nowym urządzeniu. Stan na **28.09.2026 (wieczór)**.
 Claude: przeczytaj najpierw ten plik, potem `CLAUDE.md`, `README.md` i dokumenty z `docs/`.
 
 ## 1. Czym jest projekt
@@ -20,6 +20,7 @@ Najważniejsze możliwości (wszystko działa lokalnie u Filipa):
 - rozpiski (warbandy) z walidacją z `content/units.xlsx` i `content/items.xlsx`;
 - kary, tabela, klasyfikacja końcowa (dla drużyn: drużyny + wyniki ich graczy), drabinka;
 - zegar rundy, wezwanie sędziego, powiadomienia w aplikacji (dzwonek, bez e-maili);
+- odświeżanie na żywo (SSE) i tryb offline: wyniki i punkty tur wpisane bez zasięgu wysyłają się po powrocie sieci;
 - ligi (punkty z turniejów × mnożnik rangi, gry własne, ELO ligowe), gry własne z rozpiskami;
 - statystyki w profilu (postacie, frakcje, misje – wykresy).
 
@@ -118,27 +119,24 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
 - `docs/pairing.md` – algorytm Swiss.
 - `docs/formats-leagues.md` – eliminacje, round robin, top cut, ligi, ELO, profile, gry własne.
 - `docs/teams-timer-notifications.md` – drużyny, zegar rundy, powiadomienia, wezwanie sędziego.
+- `docs/offline-live.md` – odświeżanie na żywo (SSE), service worker, kolejka zmian offline, test ręczny.
 - Dawny „plan działania” był w Claude Docs na poprzednim koncie – na nowym koncie jest niedostępny;
   jego aktualna treść jest w tym pliku.
 
 ## 8. Co dalej (kolejność proponowana)
 
-1. **Porządki w repo** – ZRÓB NA POCZĄTKU:
-   - w repo jest tylko pierwszy commit („Initial code”); wszystkie późniejsze zmiany trzeba zacommitować;
-   - dodać brakujące pliki z kropką (`.gitignore`, `.github`, `.env.example`, `.editorconfig`, `.gitattributes`),
-     usunąć zbędny `backend/package-lock.json` i ewentualny `skirmish-update.tar.gz` w katalogu głównym;
-   - założyć zdalne repo (np. GitHub, prywatne) i wypchnąć; potem działa CI z `.github`.
-2. **Dokończyć testy turnieju drużynowego** (rundy 2+, parowanie Swiss po poprawce, zakończenie turnieju,
-   klasyfikacja końcowa) i uruchomić `.\gradlew.bat build` z nowymi testami
-   (`TeamsAndTablesIntegrationTest`, `TeamScoringTest`, `SwissPairerTest.leadersMeetWhenAWinnerHasToFloatDown`).
-3. **PWA offline + odświeżanie na żywo:** service worker, cache stron i danych turnieju, kolejka zmian
-   wpisanych bez zasięgu z synchronizacją; SSE/WebSocket zamiast odpytywania co 20–30 s
-   (wyniki, zegar, wezwania, dzwonek). Kryterium: gra wpisana w trybie samolotowym synchronizuje się poprawnie.
-4. **Wydruki:** karty parowań, karty wyników na stoły, tabela końcowa w PDF.
-5. **Start publiczny:** wdrożenie (serwer, domena, HTTPS, backupy bazy, monitoring), polityka prywatności
-   i regulamin (RODO, usuwanie konta), przegląd bezpieczeństwa / pentest.
-6. **Konta:** 2FA (TOTP), sprawdzanie haseł w HIBP.
-7. **Treści:** mapy scenariuszy, wzmocnienia Oni/Goblinów/AG (jeśli istnieją – brak w Excelu), INT postaci
+Zrobione 28.09: **porządki w repo** (repo `github.com/Mc-Beton/SkirmishTracker`, pliki z kropką, CI),
+**testy turnieju drużynowego** (Filip), **zmiana nazwy na WarBracket** (pakiet Java `com.skirmishchronicle`
+i baza `skirmish` bez zmian) oraz **PWA offline + odświeżanie na żywo** (`docs/offline-live.md`).
+Do sprawdzenia u Filipa: `.\gradlew.bat build` z nowymi testami (`LiveEventServiceTest`,
+`GameFlowIntegrationTest.liveStreamIsPublicAndStaysOpen`) i test ręczny offline z `docs/offline-live.md`.
+
+1. **Wydruki:** karty parowań, karty wyników na stoły, tabela końcowa w PDF.
+2. **Start publiczny:** wdrożenie (serwer, domena, HTTPS, backupy bazy, monitoring), polityka prywatności
+   i regulamin (RODO, usuwanie konta), przegląd bezpieczeństwa / pentest. Przy kilku instancjach backendu
+   rejestr połączeń SSE trzeba przenieść na brokera (patrz `docs/offline-live.md`).
+3. **Konta:** 2FA (TOTP), sprawdzanie haseł w HIBP.
+4. **Treści:** mapy scenariuszy, wzmocnienia Oni/Goblinów/AG (jeśli istnieją – brak w Excelu), INT postaci
    z danych zamiast ręcznego wpisywania.
 
 ## 9. Otwarte pytania do Filipa

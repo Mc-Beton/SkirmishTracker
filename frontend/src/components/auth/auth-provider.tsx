@@ -2,6 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api, type Me } from "@/lib/api";
+import { resetLiveConnection } from "@/lib/live";
+import { clearOfflineUserData } from "@/components/pwa/service-worker";
 
 type AuthState = {
   me: Me | null;
@@ -23,6 +25,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setMe(null);
     } finally {
       setLoading(false);
+      // The live stream carries the session's notifications: reopen it for the new session.
+      resetLiveConnection();
     }
   }, []);
 
@@ -31,6 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await api("POST", "/api/auth/logout");
     } finally {
       setMe(null);
+      clearOfflineUserData();
+      resetLiveConnection();
     }
   }, []);
 

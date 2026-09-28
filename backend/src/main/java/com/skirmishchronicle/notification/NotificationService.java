@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.skirmishchronicle.common.ApiException;
 import com.skirmishchronicle.common.CurrentUser;
+import com.skirmishchronicle.live.LiveEventService;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -35,10 +36,12 @@ public class NotificationService {
 
     private final NotificationRepository notifications;
     private final ObjectMapper mapper;
+    private final LiveEventService live;
 
-    public NotificationService(NotificationRepository notifications, ObjectMapper mapper) {
+    public NotificationService(NotificationRepository notifications, ObjectMapper mapper, LiveEventService live) {
         this.notifications = notifications;
         this.mapper = mapper;
+        this.live = live;
     }
 
     @Transactional
@@ -47,6 +50,7 @@ public class NotificationService {
             return;
         }
         notifications.save(new Notification(userId, type.name(), json(params), link));
+        live.notificationsChangedAfterCommit(userId);
     }
 
     @Transactional

@@ -16,6 +16,7 @@ import { useErrorMessage } from "@/components/auth/use-error-message";
 import { StatusBadge } from "@/components/tournaments/status-badge";
 import { TournamentForm } from "@/components/tournaments/tournament-form";
 import { api } from "@/lib/api";
+import { useLiveConnected, useLiveRefresh } from "@/lib/live";
 import { MatchRow } from "@/components/tournaments/match-row";
 import { roundTitle } from "@/components/tournaments/round-title";
 import { LeagueSubmit } from "@/components/leagues/league-submit";
@@ -101,10 +102,16 @@ export function ManageTournament({ id }: { id: string }) {
     };
   }, [loading, me, router, fetchAll, errorMessage]);
 
-  // Judge calls arrive while the organizer has this page open: refresh them every 20 s.
+  // Players report results and call the judge while the organizer has this page open: refresh on live hints.
+  useLiveRefresh(id, () => {
+    if (me) fetchAll().then(setData).catch(() => undefined);
+  });
+
+  // Fallback while the live stream is down: poll judge calls every 20 s.
+  const liveConnected = useLiveConnected();
   const inProgress = data?.tournament.status === "IN_PROGRESS";
   useEffect(() => {
-    if (!inProgress) return;
+    if (!inProgress || liveConnected) return;
     const timer = setInterval(() => {
       if (document.visibilityState !== "visible") return;
       api<JudgeCall[]>("GET", `/api/tournaments/${id}/judge-calls`)
@@ -112,7 +119,7 @@ export function ManageTournament({ id }: { id: string }) {
         .catch(() => undefined);
     }, 20_000);
     return () => clearInterval(timer);
-  }, [inProgress, id]);
+  }, [inProgress, liveConnected, id]);
 
   async function run(action: () => Promise<unknown>, success?: string) {
     setError(null);

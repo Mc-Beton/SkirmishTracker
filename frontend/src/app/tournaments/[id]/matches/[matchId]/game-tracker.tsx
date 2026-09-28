@@ -17,9 +17,38 @@ import { QuestView } from "@/components/game/quest-view";
 import { SchemeCard } from "@/components/game/scheme-card";
 import { RoundTimer } from "@/components/tournaments/round-timer";
 import { api } from "@/lib/api";
+import { useLiveRefresh } from "@/lib/live";
+import { pending, sendOrQueue, type OutboxItem } from "@/lib/offline-queue";
 import { cn } from "@/lib/utils";
 import { cardsFor, useGameContent, type GameContent } from "@/lib/content";
 import type { GamePlayer, GameView } from "@/lib/tournaments";
+
+/** Sets one turn of one player and recomputes the totals (same rule as the server: scenario + scheme). */
+function withTurn(game: GameView, playerId: string, turn: number, scenarioVp: number, schemeVp: number): GameView {
+  return {
+    ...game,
+    players: game.players.map((p) => {
+      if (p.userId !== playerId) return p;
+      const turns = [...p.turns.filter((x) => x.turn !== turn), { turn, scenarioVp, schemeVp }]
+        .sort((x, y) => x.turn - y.turn);
+      const totalScenario = turns.reduce((sum, x) => sum + x.scenarioVp, 0);
+      const totalScheme = turns.reduce((sum, x) => sum + x.schemeVp, 0);
+      return { ...p, turns, totalScenario, totalScheme, total: totalScenario + totalScheme };
+    }),
+  };
+}
+
+type TurnBody = { playerId: string; scenarioVp: number; schemeVp: number };
+
+/** Applies changes still waiting on this device, so the table shows what the players entered offline. */
+function withPending(game: GameView, base: string, items: OutboxItem[]): GameView {
+  return items.reduce((g, item) => {
+    const m = item.path.match(/\/turns\/(\d+)$/);
+    if (!m || !item.path.startsWith(`${base}/`)) return g;
+    const b = item.body as TurnBody;
+    return withTurn(g, b.playerId, Number(m[1]), b.scenarioVp, b.schemeVp);
+  }, game);
+}
 
 export function GameTracker({ tournamentId, matchId }: { tournamentId: string; matchId: string }) {
   const t = useTranslations("game");
@@ -29,19 +58,40 @@ export function GameTracker({ tournamentId, matchId }: { tournamentId: string; m
   const { me } = useAuth();
   const [game, setGame] = useState<GameView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [queued, setQueued] = useState<string[]>([]);
+  const to = useTranslations("offline");
   const base = `/api/tournaments/${tournamentId}/matches/${matchId}`;
+  const meId = me?.id;
 
-  const load = useCallback(async () => setGame(await api<GameView>("GET", `${base}/game`)), [base]);
+  const fetchGame = useCallback(async () => {
+    const g = await api<GameView>("GET", `${base}/game`);
+    if (!meId) return { game: g, waiting: [] as string[] };
+    const mine = (await pending(meId).catch(() => [])).filter((i) => i.path.startsWith(`${base}/`));
+    return { game: withPending(g, base, mine), waiting: mine.map((i) => i.label) };
+  }, [base, meId]);
+
+  const load = useCallback(async () => {
+    const { game: g, waiting } = await fetchGame();
+    setGame(g);
+    setQueued(waiting);
+  }, [fetchGame]);
 
   useEffect(() => {
     let active = true;
-    api<GameView>("GET", `${base}/game`)
-      .then((g) => active && setGame(g))
+    fetchGame()
+      .then(({ game: g, waiting }) => {
+        if (!active) return;
+        setGame(g);
+        setQueued(waiting);
+      })
       .catch((err) => active && setError(errorMessage(err)));
     return () => {
       active = false;
     };
-  }, [base, me?.id, errorMessage]);
+  }, [fetchGame, errorMessage]);
+
+  // The opponent enters points on their phone too: follow their changes live.
+  useLiveRefresh(tournamentId, () => void load().catch(() => undefined));
 
   async function call(method: "POST" | "PUT", path: string, body?: unknown) {
     setError(null);
@@ -51,6 +101,32 @@ export function GameTracker({ tournamentId, matchId }: { tournamentId: string; m
     } catch (err) {
       setError(errorMessage(err));
     }
+  }
+
+  /**
+   * Points, finishing and confirming work without a connection: stored on the device and sent in order once
+   * the network is back. The table updates at once either way.
+   */
+  async function save(method: "POST" | "PUT", path: string, label: string, body?: unknown,
+                      labelParams?: Record<string, string | number>, key = `${label}:${matchId}`) {
+    if (!meId) return call(method, path, body);
+    setError(null);
+    try {
+      const res = await sendOrQueue({
+        key, userId: meId, method, path: `${base}/${path}`, body, label,
+        labelParams: { table: game?.table ?? "–", ...labelParams },
+      });
+      if (res.queued) setQueued((q) => [...q, label]);
+      else await load();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  async function saveTurn(playerId: string, turn: number, scenarioVp: number, schemeVp: number) {
+    setGame((g) => g && withTurn(g, playerId, turn, scenarioVp, schemeVp));
+    await save("PUT", `turns/${turn}`, "turn", { playerId, scenarioVp, schemeVp }, { turn },
+      `turn:${matchId}:${turn}:${playerId}`);
   }
 
   if (!game || !content) {
@@ -93,14 +169,17 @@ export function GameTracker({ tournamentId, matchId }: { tournamentId: string; m
       </div>
 
       {error && <Alert variant="destructive">{error}</Alert>}
+      {queued.length > 0 && (
+        <Alert>{queued.includes("finish") ? to("finishQueued") : to("savedOffline")}</Alert>
+      )}
 
       {game.status === "REPORTED" && game.reportedA != null && (
         <Alert>
           {t("reported", { a: game.reportedA, b: game.reportedB ?? 0 })}
           {amOpponentOfReporter && (
             <span className="ml-3 inline-flex gap-2">
-              <Button size="sm" onClick={() => call("POST", "confirm")}>{tr("confirm")}</Button>
-              <Button size="sm" variant="outline" onClick={() => call("POST", "dispute")}>{tr("dispute")}</Button>
+              <Button size="sm" onClick={() => save("POST", "confirm", "decision")}>{tr("confirm")}</Button>
+              <Button size="sm" variant="outline" onClick={() => save("POST", "dispute", "decision")}>{tr("dispute")}</Button>
             </span>
           )}
         </Alert>
@@ -111,10 +190,9 @@ export function GameTracker({ tournamentId, matchId }: { tournamentId: string; m
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem] [&>*]:min-w-0">
         <div className="grid content-start gap-6 [&>*]:min-w-0">
-          {pb && <TurnGrid game={game} onSave={(playerId, turn, sc, sh) =>
-            call("PUT", `turns/${turn}`, { playerId, scenarioVp: sc, schemeVp: sh })} />}
-          {game.canFinish && pb && (
-            <Button size="lg" className="w-full sm:w-auto sm:justify-self-start" onClick={() => call("POST", "finish")}>
+          {pb && <TurnGrid game={game} onSave={saveTurn} />}
+          {game.canFinish && pb && !queued.includes("finish") && (
+            <Button size="lg" className="w-full sm:w-auto sm:justify-self-start" onClick={() => save("POST", "finish", "finish")}>
               {t("finish", { a: pa.total, b: pb.total })}
             </Button>
           )}
@@ -206,6 +284,14 @@ function TurnCells({ player, turn, onSave, className }: {
   const current = player.turns.find((x) => x.turn === turn) ?? { turn, scenarioVp: 0, schemeVp: 0 };
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [values, setValues] = useState({ sc: current.scenarioVp, sh: current.schemeVp });
+  const [focused, setFocused] = useState(false);
+  // Values changed elsewhere (the opponent's phone, a live refresh) replace ours unless we are typing here.
+  const server = `${current.scenarioVp}:${current.schemeVp}`;
+  const [seen, setSeen] = useState(server);
+  if (!focused && seen !== server) {
+    setSeen(server);
+    setValues({ sc: current.scenarioVp, sh: current.schemeVp });
+  }
 
   const change = (key: "sc" | "sh", raw: string) => {
     const n = Math.max(0, Math.min(100, Number.parseInt(raw || "0", 10) || 0));
@@ -218,7 +304,11 @@ function TurnCells({ player, turn, onSave, className }: {
 
   const cell = (key: "sc" | "sh", label: string) => player.canEdit ? (
     <Input aria-label={label} type="number" inputMode="numeric" min={0} max={100} value={values[key]}
-      onFocus={(e) => e.target.select()} onChange={(e) => change(key, e.target.value)}
+      onFocus={(e) => {
+        setFocused(true);
+        e.target.select();
+      }}
+      onBlur={() => setFocused(false)} onChange={(e) => change(key, e.target.value)}
       className="h-10 w-full min-w-0 appearance-none px-1 text-center tabular-nums [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
   ) : (
     <span className="py-2 text-center tabular-nums">{key === "sc" ? current.scenarioVp : current.schemeVp}</span>

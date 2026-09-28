@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -70,6 +71,17 @@ class GameFlowIntegrationTest {
 
     private JsonNode read(UUID userId, String url) throws Exception {
         return json.readTree(mvc.perform(as(userId, get(url))).andReturn().getResponse().getContentAsString());
+    }
+
+    @Test
+    void liveStreamIsPublicAndStaysOpen() throws Exception {
+        // Anonymous visitors may watch a tournament; the stream is served asynchronously (SSE).
+        mvc.perform(get("/api/live").param("t", UUID.randomUUID().toString()).accept(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(status().isOk())
+                .andExpect(request().asyncStarted());
+        UUID player = user("Live");
+        mvc.perform(as(player, get("/api/live")).accept(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(request().asyncStarted());
     }
 
     @Test

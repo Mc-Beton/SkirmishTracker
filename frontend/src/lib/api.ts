@@ -39,6 +39,8 @@ function refreshSession(): Promise<boolean> {
       try {
         const res = await rawRequest("POST", "/api/auth/refresh");
         return res.ok;
+      } catch {
+        return false;
       } finally {
         refreshing = null;
       }
@@ -47,16 +49,28 @@ function refreshSession(): Promise<boolean> {
   return refreshing;
 }
 
+/** Code of the ApiError thrown when the request never reached the server (no network). */
+export const OFFLINE = "OFFLINE";
+
+export function isOfflineError(error: unknown): boolean {
+  return error instanceof ApiError && error.code === OFFLINE;
+}
+
 async function rawRequest(method: string, path: string, body?: unknown): Promise<Response> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (MUTATING.has(method)) headers["X-XSRF-TOKEN"] = await ensureCsrfToken();
-  return fetch(path, {
-    method,
-    headers,
-    credentials: "same-origin",
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  try {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (MUTATING.has(method)) headers["X-XSRF-TOKEN"] = await ensureCsrfToken();
+    return await fetch(path, {
+      method,
+      headers,
+      credentials: "same-origin",
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    // fetch() rejects only on network failure (offline, DNS, connection reset) – never on HTTP errors.
+    throw new ApiError(0, OFFLINE);
+  }
 }
 
 const NO_REFRESH = ["/api/auth/login", "/api/auth/refresh", "/api/auth/register"];

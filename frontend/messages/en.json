@@ -205,7 +205,11 @@
     "INVALID_TIMER": "Invalid time.",
     "JUDGE_ALREADY_CALLED": "A judge has already been called to this table.",
     "JUDGE_CALL_NOT_FOUND": "Judge call not found.",
-    "NOTIFICATION_NOT_FOUND": "Notification not found."
+    "NOTIFICATION_NOT_FOUND": "Notification not found.",
+    "OFFLINE": "No internet connection. Try again when you are back online.",
+    "LIVE_TOO_MANY_TOPICS": "Too many tournaments watched at once.",
+    "LIVE_TOO_MANY_STREAMS": "Too many open tabs with the app.",
+    "LIVE_UNAVAILABLE": "Live updates are temporarily unavailable."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -992,6 +996,24 @@
       "WARBAND_SUBMITTED": "{tournament}: {player} submitted a warband list for review.",
       "JUDGE_CALL": "{tournament}: round {round}, table {table} ({players}) is calling a judge.",
       "RESULT_RECORDED": "{tournament}: {opponent} entered the result of your game – {score}."
+    }
+  },
+  "offline": {
+    "pageTitle": "You're offline",
+    "pageText": "This page is not stored on your device yet. Go back to a tournament or game you have already opened, or try again once you are online.",
+    "offline": "You're offline. Keep entering results and points – we store them on this device and send them when the connection is back.",
+    "offlineWaiting": "You're offline. {count, plural, one {# change is} other {# changes are}} waiting – we will send them when the connection is back.",
+    "syncing": "Sending stored changes ({count})…",
+    "rejected": "Not saved: {what}. Reason: {reason}",
+    "dismiss": "Dismiss",
+    "savedOffline": "Saved on this device. It will be sent automatically when the connection is back.",
+    "finishQueued": "Game finish saved on this device – the result reaches the tournament when the connection is back.",
+    "labels": {
+      "turn": "turn {turn} points (table {table})",
+      "finish": "game finish (table {table})",
+      "report": "result (table {table})",
+      "decision": "result confirmation or dispute (table {table})",
+      "result": "result set by the organizer (table {table})"
     }
   }
 }

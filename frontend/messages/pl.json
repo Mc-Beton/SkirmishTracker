@@ -205,7 +205,11 @@
     "INVALID_TIMER": "Nieprawidłowy czas.",
     "JUDGE_ALREADY_CALLED": "Sędzia jest już wezwany do tego stołu.",
     "JUDGE_CALL_NOT_FOUND": "Nie znaleziono wezwania.",
-    "NOTIFICATION_NOT_FOUND": "Nie znaleziono powiadomienia."
+    "NOTIFICATION_NOT_FOUND": "Nie znaleziono powiadomienia.",
+    "OFFLINE": "Brak połączenia z internetem. Spróbuj ponownie, gdy sieć wróci.",
+    "LIVE_TOO_MANY_TOPICS": "Za dużo obserwowanych turniejów naraz.",
+    "LIVE_TOO_MANY_STREAMS": "Za dużo otwartych kart z aplikacją.",
+    "LIVE_UNAVAILABLE": "Odświeżanie na żywo jest chwilowo niedostępne."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -992,6 +996,24 @@
       "WARBAND_SUBMITTED": "{tournament}: {player} przesłał(a) rozpiskę do sprawdzenia.",
       "JUDGE_CALL": "{tournament}: runda {round}, stół {table} ({players}) wzywa sędziego.",
       "RESULT_RECORDED": "{tournament}: {opponent} wpisał(a) wynik Waszej gry – {score}."
+    }
+  },
+  "offline": {
+    "pageTitle": "Brak połączenia",
+    "pageText": "Tej strony nie ma jeszcze w pamięci urządzenia. Wróć do turnieju lub gry, które już otwierałeś, albo spróbuj ponownie po odzyskaniu sieci.",
+    "offline": "Brak połączenia. Wyniki i punkty możesz wpisywać dalej – zapiszemy je na urządzeniu i wyślemy po powrocie sieci.",
+    "offlineWaiting": "Brak połączenia. Na wysłanie {count, plural, one {czeka # zmiana} few {czekają # zmiany} many {czeka # zmian} other {czeka # zmiany}} – wyślemy je po powrocie sieci.",
+    "syncing": "Wysyłanie zapisanych zmian ({count})…",
+    "rejected": "Nie zapisano: {what}. Powód: {reason}",
+    "dismiss": "Zamknij",
+    "savedOffline": "Zapisano na tym urządzeniu. Wyślemy automatycznie po odzyskaniu połączenia.",
+    "finishQueued": "Zakończenie gry zapisane na urządzeniu – wynik trafi do turnieju po odzyskaniu połączenia.",
+    "labels": {
+      "turn": "punkty tury {turn} (stół {table})",
+      "finish": "zakończenie gry (stół {table})",
+      "report": "wynik (stół {table})",
+      "decision": "potwierdzenie lub zgłoszenie błędu wyniku (stół {table})",
+      "result": "wynik ustawiony przez organizatora (stół {table})"
     }
   }
 }

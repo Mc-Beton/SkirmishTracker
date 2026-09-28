@@ -11,6 +11,8 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { RankBadge, StatusBadge } from "@/components/tournaments/status-badge";
 import { api } from "@/lib/api";
+import { useLiveRefresh } from "@/lib/live";
+import { sendOrQueue, type OutboxItem } from "@/lib/offline-queue";
 import type { Challenge, Match, Participant, Round, StandingsData, TeamsData, TeamStandingRow, TournamentDetail } from "@/lib/tournaments";
 import { RoundTimer } from "@/components/tournaments/round-timer";
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
@@ -48,7 +50,9 @@ export function TournamentView({ id }: { id: string }) {
   const [teamStandings, setTeamStandings] = useState<TeamStandingRow[] | null>(null);
   const [tab, setTab] = useState<"info" | "rounds" | "standings" | "warbands">("info");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const to = useTranslations("offline");
 
   const fetchAll = useCallback(async () => {
     const [detail, list, ch, rs, st, wb, lg, tm, ts] = await Promise.all([
@@ -81,6 +85,9 @@ export function TournamentView({ id }: { id: string }) {
 
   const load = useCallback(async () => apply(await fetchAll()), [apply, fetchAll]);
 
+  // Results, rounds and the timer change while players look at the page: refresh on live hints.
+  useLiveRefresh(id, () => void load().catch(() => undefined));
+
   useEffect(() => {
     let active = true;
     fetchAll()
@@ -101,6 +108,24 @@ export function TournamentView({ id }: { id: string }) {
     try {
       await api(method, `/api/tournaments/${id}/${path}`, body);
       await load();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  /** Result actions work offline too: stored on the device and sent when the connection is back. */
+  async function callOrQueue(method: "POST" | "PUT", path: string, label: OutboxItem["label"],
+                             table: number | null, body?: unknown) {
+    if (!me) return call(method, path, body);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await sendOrQueue({
+        key: `${label}:${path.split("/")[1]}`, userId: me.id, method, path: `/api/tournaments/${id}/${path}`, body,
+        label, labelParams: { table: table ?? "–" },
+      });
+      if (res.queued) setNotice(to("savedOffline"));
+      else await load();
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -128,13 +153,13 @@ export function TournamentView({ id }: { id: string }) {
   const myTeamId = teams?.myTeamId ?? null;
   const matchRow = (r: Round, m: Match) => (
     <MatchRow key={m.id} match={m} meId={me?.id} gameHref={`/tournaments/${id}/matches/${m.id}`}
-      onReport={(a, b) => call("POST", `matches/${m.id}/report`, { smallA: a, smallB: b })}
-      onConfirm={() => call("POST", `matches/${m.id}/confirm`)}
-      onDispute={() => call("POST", `matches/${m.id}/dispute`)}
+      onReport={(a, b) => callOrQueue("POST", `matches/${m.id}/report`, "report", m.table, { smallA: a, smallB: b })}
+      onConfirm={() => callOrQueue("POST", `matches/${m.id}/confirm`, "decision", m.table)}
+      onDispute={() => callOrQueue("POST", `matches/${m.id}/dispute`, "decision", m.table)}
       onCallJudge={r.status === "IN_PROGRESS" ? () => call("POST", `matches/${m.id}/judge`, {}) : undefined}
       // The organizer enters or corrects any result right here (same as in the organizer panel).
       onSetResult={tournament.canManage && r.status !== "PAIRED"
-        ? (type, a, b) => call("PUT", `matches/${m.id}/result`, { type, smallA: a, smallB: b })
+        ? (type, a, b) => callOrQueue("PUT", `matches/${m.id}/result`, "result", m.table, { type, smallA: a, smallB: b })
         : undefined}
       allowSplit={r.phase !== "KNOCKOUT" || tournament.settings.teamSize != null} />
   );
@@ -187,6 +212,7 @@ export function TournamentView({ id }: { id: string }) {
       </header>
 
       {error && <Alert variant="destructive">{error}</Alert>}
+      {notice && <Alert>{notice}</Alert>}
 
       <div role="tablist" className="flex w-fit rounded-lg border bg-card p-1">
         {(["info", "rounds", "standings", ...(warbands ? ["warbands" as const] : [])] as const).map((key) => (

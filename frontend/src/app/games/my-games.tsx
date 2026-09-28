@@ -15,6 +15,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { api } from "@/lib/api";
+import { useLiveRefresh } from "@/lib/live";
 import { useGameContent } from "@/lib/content";
 import type { FriendlyGame, GameReport } from "@/lib/games";
 import type { PlayerProfile, SearchHit } from "@/lib/players";
@@ -37,6 +38,11 @@ export function MyGames() {
   }, [loading, me, router]);
 
   const load = useCallback(async () => setGames(await api<FriendlyGame[]>("GET", "/api/games/mine")), []);
+
+  // The opponent confirms or rejects on their side; the notification hint tells us to refresh.
+  useLiveRefresh(null, () => {
+    if (me) void load().catch(() => undefined);
+  });
 
   useEffect(() => {
     if (!me) return;
