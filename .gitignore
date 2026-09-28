@@ -1,0 +1,30 @@
+# Scanned rulebook pages are copyrighted – never commit them.
+scans/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Backend
+backend/build/
+backend/.gradle/
+backend/out/
+*.class
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+*.tsbuildinfo
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Setup archive
+*.tar.gz
