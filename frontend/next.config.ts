@@ -31,6 +31,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Self-contained server for the Docker image (see frontend/Dockerfile).
+  output: "standalone",
   // Dev server only: allow opening the app via 127.0.0.1 as well as localhost
   // (otherwise Next.js blocks its dev scripts and the page never becomes interactive).
   allowedDevOrigins: ["127.0.0.1", "localhost"],

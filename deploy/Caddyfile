@@ -1,0 +1,20 @@
+{
+	email {$ACME_EMAIL}
+}
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+{$DOMAIN} {
+	# Compress everything except the SSE stream, which must reach the browser event by event.
+	@compressible not path /api/live*
+	encode @compressible zstd gzip
+	reverse_proxy frontend:3000 {
+		flush_interval -1
+	}
+	log {
+		output stdout
+		format console
+	}
+}

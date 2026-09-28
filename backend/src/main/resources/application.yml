@@ -18,6 +18,14 @@ spring:
     port: ${MAIL_PORT:1025}
     username: ${MAIL_USER:}
     password: ${MAIL_PASSWORD:}
+    properties:
+      # Real SMTP servers (production) need auth + STARTTLS; Mailpit locally needs neither.
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
+      mail.smtp.starttls.required: ${MAIL_STARTTLS:false}
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
   # Google/Discord login: set SPRING_PROFILES_ACTIVE=oauth plus the client IDs (see application-oauth.yml).
 
 server:
