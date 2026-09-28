@@ -1,0 +1,695 @@
+{
+ "source": "content/units.xlsx, content/items.xlsx",
+ "factions": [
+  {
+   "code": "COALITION_OF_THENION",
+   "name": "Coalition of Thenion",
+   "playable": true,
+   "alwaysAvailable": [
+    "ADVENTURERS_GUILD"
+   ],
+   "optionalAllies": []
+  },
+  {
+   "code": "EMPIRE_OF_SOGA",
+   "name": "Empire of Soga",
+   "playable": true,
+   "alwaysAvailable": [
+    "ADVENTURERS_GUILD"
+   ],
+   "optionalAllies": []
+  },
+  {
+   "code": "HELIAN_LEAGUE",
+   "name": "Helian League",
+   "playable": true,
+   "alwaysAvailable": [
+    "ADVENTURERS_GUILD"
+   ],
+   "optionalAllies": []
+  },
+  {
+   "code": "SAND_KINGDOMS",
+   "name": "Sand Kingdoms",
+   "playable": true,
+   "alwaysAvailable": [
+    "ADVENTURERS_GUILD"
+   ],
+   "optionalAllies": []
+  },
+  {
+   "code": "ONI_CLANS",
+   "name": "Oni Clans",
+   "playable": true,
+   "alwaysAvailable": [],
+   "optionalAllies": [
+    "UNDEAD"
+   ]
+  },
+  {
+   "code": "GOBLIN_WARTRIBES",
+   "name": "Goblin Wartribes",
+   "playable": true,
+   "alwaysAvailable": [],
+   "optionalAllies": []
+  },
+  {
+   "code": "ADVENTURERS_GUILD",
+   "name": "Adventurers Guild",
+   "playable": true,
+   "alwaysAvailable": [],
+   "optionalAllies": []
+  },
+  {
+   "code": "UNDEAD",
+   "name": "Undead",
+   "playable": false,
+   "alwaysAvailable": [],
+   "optionalAllies": []
+  }
+ ],
+ "units": [
+  {
+   "code": "ACADEMY_EXPEDITIONER",
+   "name": "Academy Expeditioner",
+   "points": 18
+  },
+  {
+   "code": "AMAZON_GLADIATRIX",
+   "name": "Amazon Gladiatrix",
+   "points": 32
+  },
+  {
+   "code": "ANARI_ERUDITE_PRODIGY",
+   "name": "Anari, Erudite Prodigy",
+   "points": 28
+  },
+  {
+   "code": "BLADEBRETHREN_ELITE",
+   "name": "Bladebrethren Elite",
+   "points": 23
+  },
+  {
+   "code": "BLUE_RASETSU",
+   "name": "Blue Rasetsu",
+   "points": 37
+  },
+  {
+   "code": "BLUE_YAKSHA",
+   "name": "Blue Yaksha",
+   "points": 30
+  },
+  {
+   "code": "BONEWALKER",
+   "name": "Bonewalker",
+   "points": 10
+  },
+  {
+   "code": "BUSHI_ATTENDANT",
+   "name": "Bushi Attendant",
+   "points": 13
+  },
+  {
+   "code": "CHANRA_GOBLIN_SHAMAN",
+   "name": "Chanra, Goblin Shaman",
+   "points": 28
+  },
+  {
+   "code": "CHIYOHIME",
+   "name": "Chiyohime",
+   "points": 45
+  },
+  {
+   "code": "CITADEL_GUARD",
+   "name": "Citadel Guard",
+   "points": 18
+  },
+  {
+   "code": "CLAN_CHAMPION",
+   "name": "Clan Champion",
+   "points": 23
+  },
+  {
+   "code": "EONIAN_RUNNER",
+   "name": "Eonian Runner",
+   "points": 17
+  },
+  {
+   "code": "EXPEDITIONARY_HIEROPHANT",
+   "name": "Expeditionary Hierophant",
+   "points": 23
+  },
+  {
+   "code": "FARIS_OUTRIDER",
+   "name": "Faris Outrider",
+   "points": 18
+  },
+  {
+   "code": "FLAMESHAPER",
+   "name": "Flameshaper",
+   "points": 15
+  },
+  {
+   "code": "FLAMEWEAVER_ERRANT",
+   "name": "Flameweaver Errant",
+   "points": 21
+  },
+  {
+   "code": "FLAMEWEAVER_NOBLE",
+   "name": "Flameweaver Noble",
+   "points": 21
+  },
+  {
+   "code": "FORGOTTEN_HERO",
+   "name": "Forgotten Hero",
+   "points": 20
+  },
+  {
+   "code": "GOBLIN_BRAWLERS",
+   "name": "Goblin Brawlers",
+   "points": 8
+  },
+  {
+   "code": "GOBLIN_SHAMAN",
+   "name": "Goblin Shaman",
+   "points": 24
+  },
+  {
+   "code": "GOBLIN_SKIRMISHERS",
+   "name": "Goblin Skirmishers",
+   "points": 9
+  },
+  {
+   "code": "GOBLIN_WARCHIEF",
+   "name": "Goblin Warchief",
+   "points": 22
+  },
+  {
+   "code": "GREAT_GUARD",
+   "name": "Great Guard",
+   "points": 23
+  },
+  {
+   "code": "GUILDSWORN_KNIGHT",
+   "name": "Guildsworn Knight",
+   "points": 30
+  },
+  {
+   "code": "HELRIN_EXPATRIATE",
+   "name": "Helrin Expatriate",
+   "points": 16
+  },
+  {
+   "code": "HIRED_BLADE",
+   "name": "Hired Blade",
+   "points": 17
+  },
+  {
+   "code": "KITSUNE_SPELLMAIDEN",
+   "name": "Kitsune Spellmaiden",
+   "points": 16
+  },
+  {
+   "code": "KOGETSU_CURSED_MONK",
+   "name": "Kogetsu, Cursed Monk",
+   "points": 30
+  },
+  {
+   "code": "LUPUS_REX",
+   "name": "Lupus Rex",
+   "points": 5
+  },
+  {
+   "code": "MUSHA_BLADEMASTER",
+   "name": "Musha Blademaster",
+   "points": 17
+  },
+  {
+   "code": "MUSHA_BOWMASTER",
+   "name": "Musha Bowmaster",
+   "points": 19
+  },
+  {
+   "code": "NARA_VEIL_WATCHER",
+   "name": "Na’ra, Veil Watcher",
+   "points": 28
+  },
+  {
+   "code": "NIGHT_TEMPLE_PRIESTESS",
+   "name": "Night-Temple Priestess",
+   "points": 21
+  },
+  {
+   "code": "NIGHTSHADE",
+   "name": "Nightshade",
+   "points": 22
+  },
+  {
+   "code": "ONI_MARAUDER",
+   "name": "Oni Marauder",
+   "points": 25
+  },
+  {
+   "code": "ONI_PARIAH",
+   "name": "Oni Pariah",
+   "points": 40
+  },
+  {
+   "code": "ONITAOSHI",
+   "name": "Onitaoshi",
+   "points": 21
+  },
+  {
+   "code": "PALADIN_OF_THE_ORDER",
+   "name": "Paladin of the Order",
+   "points": 22
+  },
+  {
+   "code": "RANGERS_GUILD_HUNTER",
+   "name": "Rangers-Guild Hunter",
+   "points": 19
+  },
+  {
+   "code": "RED_RASETSU",
+   "name": "Red Rasetsu",
+   "points": 35
+  },
+  {
+   "code": "RED_YAKSHA",
+   "name": "Red Yaksha",
+   "points": 30
+  },
+  {
+   "code": "RENEGADE_RASETSU",
+   "name": "Renegade Rasetsu",
+   "points": 27
+  },
+  {
+   "code": "SCHOLAR_OF_THE_TRUE_WORD",
+   "name": "Scholar of the True Word",
+   "points": 19
+  },
+  {
+   "code": "SEIGEN_OF_THE_KESHOBARAI",
+   "name": "Seigen, of the Keshōbarai",
+   "points": 28
+  },
+  {
+   "code": "SLAYER_DRAGOON",
+   "name": "Slayer Dragoon",
+   "points": 17
+  },
+  {
+   "code": "SPELLDANCER_AEROTURGE",
+   "name": "Spelldancer Aeroturge",
+   "points": 15
+  },
+  {
+   "code": "SPELLDANCER_VOIDCASTER",
+   "name": "Spelldancer Voidcaster",
+   "points": 17
+  },
+  {
+   "code": "TASKMAGE_EXPLORER",
+   "name": "Taskmage Explorer",
+   "points": 19
+  },
+  {
+   "code": "THAROS_ONE_EYED_WOLF",
+   "name": "Tharos, One-Eyed Wolf",
+   "points": 28
+  },
+  {
+   "code": "THENRIN_SWASHBUCKLER",
+   "name": "Thenrin Swashbuckler",
+   "points": 16
+  },
+  {
+   "code": "TOMOE_ENDLESS_RAIN",
+   "name": "Tomoe, Endless Rain",
+   "points": 28
+  },
+  {
+   "code": "TROLL_PROWLER",
+   "name": "Troll Prowler",
+   "points": 24
+  },
+  {
+   "code": "VENGEFUL_SPIRIT",
+   "name": "Vengeful Spirit",
+   "points": 10
+  },
+  {
+   "code": "VIZIER_OF_CONJURATIONS",
+   "name": "Vizier of Conjurations",
+   "points": 22
+  }
+ ],
+ "lists": {
+  "COALITION_OF_THENION": [
+   "NIGHTSHADE",
+   "RANGERS_GUILD_HUNTER",
+   "THENRIN_SWASHBUCKLER",
+   "NIGHT_TEMPLE_PRIESTESS",
+   "SLAYER_DRAGOON",
+   "LUPUS_REX",
+   "BLADEBRETHREN_ELITE",
+   "HIRED_BLADE",
+   "THAROS_ONE_EYED_WOLF"
+  ],
+  "EMPIRE_OF_SOGA": [
+   "CLAN_CHAMPION",
+   "BUSHI_ATTENDANT",
+   "ONITAOSHI",
+   "KITSUNE_SPELLMAIDEN",
+   "MUSHA_BOWMASTER",
+   "MUSHA_BLADEMASTER",
+   "SCHOLAR_OF_THE_TRUE_WORD",
+   "GREAT_GUARD",
+   "SEIGEN_OF_THE_KESHOBARAI"
+  ],
+  "HELIAN_LEAGUE": [
+   "EXPEDITIONARY_HIEROPHANT",
+   "CITADEL_GUARD",
+   "FLAMESHAPER",
+   "HELRIN_EXPATRIATE",
+   "FLAMEWEAVER_ERRANT",
+   "FLAMEWEAVER_NOBLE",
+   "PALADIN_OF_THE_ORDER",
+   "EONIAN_RUNNER",
+   "ANARI_ERUDITE_PRODIGY"
+  ],
+  "SAND_KINGDOMS": [
+   "VIZIER_OF_CONJURATIONS",
+   "ACADEMY_EXPEDITIONER",
+   "TASKMAGE_EXPLORER",
+   "FARIS_OUTRIDER",
+   "SPELLDANCER_VOIDCASTER",
+   "SPELLDANCER_AEROTURGE",
+   "NARA_VEIL_WATCHER"
+  ],
+  "ONI_CLANS": [
+   "ONI_MARAUDER",
+   "RED_RASETSU",
+   "BLUE_RASETSU",
+   "RED_YAKSHA",
+   "BLUE_YAKSHA",
+   "CHIYOHIME",
+   "ONI_PARIAH"
+  ],
+  "GOBLIN_WARTRIBES": [
+   "CHANRA_GOBLIN_SHAMAN",
+   "GOBLIN_SHAMAN",
+   "GOBLIN_BRAWLERS",
+   "GOBLIN_SKIRMISHERS",
+   "GOBLIN_WARCHIEF",
+   "TROLL_PROWLER"
+  ],
+  "ADVENTURERS_GUILD": [
+   "AMAZON_GLADIATRIX",
+   "TOMOE_ENDLESS_RAIN",
+   "RENEGADE_RASETSU",
+   "KOGETSU_CURSED_MONK",
+   "GUILDSWORN_KNIGHT",
+   "ONITAOSHI",
+   "MUSHA_BLADEMASTER",
+   "SCHOLAR_OF_THE_TRUE_WORD",
+   "HELRIN_EXPATRIATE",
+   "EONIAN_RUNNER",
+   "THENRIN_SWASHBUCKLER",
+   "SLAYER_DRAGOON",
+   "HIRED_BLADE",
+   "TASKMAGE_EXPLORER"
+  ],
+  "UNDEAD": [
+   "VENGEFUL_SPIRIT",
+   "BONEWALKER",
+   "FORGOTTEN_HERO"
+  ]
+ },
+ "items": [
+  {
+   "code": "ADDITIONAL_PROTECTION",
+   "name": "Additional Protection",
+   "points": 1
+  },
+  {
+   "code": "ADEPT_SHAPER",
+   "name": "Adept Shaper",
+   "points": 3
+  },
+  {
+   "code": "ARCANE_TOME",
+   "name": "Arcane Tome",
+   "points": 4
+  },
+  {
+   "code": "BUJUTSU_EXPERTISE",
+   "name": "Bujutsu Expertise",
+   "points": 3
+  },
+  {
+   "code": "CAMARADERIE",
+   "name": "Camaraderie",
+   "points": 5
+  },
+  {
+   "code": "CASTING_AMPLIFIER",
+   "name": "Casting Amplifier",
+   "points": 2
+  },
+  {
+   "code": "CLIMBING_EXPERTISE",
+   "name": "Climbing Expertise",
+   "points": 2
+  },
+  {
+   "code": "COMPANION_OF_HAIRON",
+   "name": "Companion of Hairon",
+   "points": 2
+  },
+  {
+   "code": "CONCEALED_APPROACH",
+   "name": "Concealed Approach",
+   "points": 3
+  },
+  {
+   "code": "CONJURED_RETINUE",
+   "name": "Conjured Retinue",
+   "points": 3
+  },
+  {
+   "code": "DEVOTION_ANRAS",
+   "name": "Devotion: Anras",
+   "points": 1
+  },
+  {
+   "code": "DEVOTION_PAIMON",
+   "name": "Devotion: Paimon",
+   "points": 2
+  },
+  {
+   "code": "DEVOTION_TIAMAT",
+   "name": "Devotion: Tiamat",
+   "points": 1
+  },
+  {
+   "code": "ELEMENTAL_LINEAGE",
+   "name": "Elemental Lineage",
+   "points": 4
+  },
+  {
+   "code": "EXPEDITIONARY_TACTICS_DOUBLE_TIME",
+   "name": "Expeditionary Tactics: Double Time",
+   "points": 3
+  },
+  {
+   "code": "EXPEDITIONARY_TACTICS_SURGE_ORDER",
+   "name": "Expeditionary Tactics: Surge Order",
+   "points": 3
+  },
+  {
+   "code": "FANGS_OF_TIAMAT",
+   "name": "Fangs of Tiamat",
+   "points": 2
+  },
+  {
+   "code": "FIRST_AID",
+   "name": "First Aid",
+   "points": 3
+  },
+  {
+   "code": "FLYING_CARPET",
+   "name": "Flying Carpet",
+   "points": 4
+  },
+  {
+   "code": "GIFT_OF_LONGEVITY",
+   "name": "Gift of Longevity",
+   "points": 1
+  },
+  {
+   "code": "GLYPHSCRIBE_HYPERIA_S_PROVIDENCE",
+   "name": "Glyphscribe: Hyperia's Providence",
+   "points": 3
+  },
+  {
+   "code": "GLYPHSCRIBE_REDUCE_WEIGHT",
+   "name": "Glyphscribe: Reduce Weight",
+   "points": 3
+  },
+  {
+   "code": "IMPORTED_CASTING_AMPLIFIER",
+   "name": "Imported Casting Amplifier",
+   "points": 4
+  },
+  {
+   "code": "IMPORTED_CROSSBOW",
+   "name": "Imported Crossbow",
+   "points": 5
+  },
+  {
+   "code": "KASSEN_BUKI_DAIKYUU_TSUKAI",
+   "name": "Kassen Buki: Daikyuu-tsukai",
+   "points": 3,
+   "reducedPoints": 2,
+   "reducedNote": {
+    "pl": "jeśli postać ma Short Bow",
+    "en": "if the character has a Short Bow"
+   }
+  },
+  {
+   "code": "KASSEN_BUKI_KANABOU_TSUKAI",
+   "name": "Kassen Buki: Kanabou-tsukai",
+   "points": 3
+  },
+  {
+   "code": "KASSEN_BUKI_NAGAMAKI_TSUKAI",
+   "name": "Kassen Buki: Nagamaki-tsukai",
+   "points": 2
+  },
+  {
+   "code": "KASSEN_BUKI_YARI_TSUKAI",
+   "name": "Kassen Buki: Yari-tsukai",
+   "points": 2,
+   "reducedPoints": 1,
+   "reducedNote": {
+    "pl": "jeśli broń podstawowa to Spear",
+    "en": "if the primary weapon is a Spear"
+   }
+  },
+  {
+   "code": "KING_OF_THE_BATTLEFIELD",
+   "name": "King of the Battlefield",
+   "points": 2
+  },
+  {
+   "code": "KYUJUTSU_EXPERTISE",
+   "name": "Kyujutsu Expertise",
+   "points": 3
+  },
+  {
+   "code": "LUCKY_CHARM",
+   "name": "Lucky Charm",
+   "points": 3
+  },
+  {
+   "code": "MANA_CATALYST",
+   "name": "Mana Catalyst",
+   "points": 1
+  },
+  {
+   "code": "MUFFLED_MOVEMENT",
+   "name": "Muffled Movement",
+   "points": 2
+  },
+  {
+   "code": "PERSONAL_GUARD",
+   "name": "Personal Guard",
+   "points": 3
+  },
+  {
+   "code": "POISONED_WEAPONS",
+   "name": "Poisoned Weapons",
+   "points": 2
+  },
+  {
+   "code": "POUCH",
+   "name": "Pouch",
+   "points": 1
+  },
+  {
+   "code": "SEASONED_COMBATANT",
+   "name": "Seasoned Combatant",
+   "points": 2
+  },
+  {
+   "code": "TACTICAL_EXPERTISE",
+   "name": "Tactical Expertise",
+   "points": 3
+  },
+  {
+   "code": "TRAVELING_DUELIST",
+   "name": "Traveling Duelist",
+   "points": 3
+  },
+  {
+   "code": "UTILITY_TOOL",
+   "name": "Utility Tool",
+   "points": 1
+  }
+ ],
+ "itemLists": {
+  "NEUTRAL": [
+   "POUCH",
+   "ADDITIONAL_PROTECTION",
+   "UTILITY_TOOL",
+   "FIRST_AID",
+   "IMPORTED_CASTING_AMPLIFIER",
+   "IMPORTED_CROSSBOW",
+   "CAMARADERIE",
+   "KING_OF_THE_BATTLEFIELD"
+  ],
+  "COALITION_OF_THENION": [
+   "POISONED_WEAPONS",
+   "MUFFLED_MOVEMENT",
+   "CLIMBING_EXPERTISE",
+   "FANGS_OF_TIAMAT",
+   "CONCEALED_APPROACH",
+   "DEVOTION_TIAMAT",
+   "DEVOTION_ANRAS",
+   "DEVOTION_PAIMON"
+  ],
+  "EMPIRE_OF_SOGA": [
+   "BUJUTSU_EXPERTISE",
+   "KYUJUTSU_EXPERTISE",
+   "LUCKY_CHARM",
+   "KASSEN_BUKI_YARI_TSUKAI",
+   "KASSEN_BUKI_NAGAMAKI_TSUKAI",
+   "KASSEN_BUKI_DAIKYUU_TSUKAI",
+   "KASSEN_BUKI_KANABOU_TSUKAI",
+   "TRAVELING_DUELIST",
+   "SEASONED_COMBATANT"
+  ],
+  "HELIAN_LEAGUE": [
+   "TACTICAL_EXPERTISE",
+   "SEASONED_COMBATANT",
+   "COMPANION_OF_HAIRON",
+   "GIFT_OF_LONGEVITY",
+   "ADEPT_SHAPER",
+   "GLYPHSCRIBE_REDUCE_WEIGHT",
+   "GLYPHSCRIBE_HYPERIA_S_PROVIDENCE",
+   "EXPEDITIONARY_TACTICS_DOUBLE_TIME",
+   "EXPEDITIONARY_TACTICS_SURGE_ORDER"
+  ],
+  "SAND_KINGDOMS": [
+   "MANA_CATALYST",
+   "ELEMENTAL_LINEAGE",
+   "ARCANE_TOME",
+   "FLYING_CARPET",
+   "CONJURED_RETINUE",
+   "PERSONAL_GUARD",
+   "CASTING_AMPLIFIER"
+  ]
+ }
+}

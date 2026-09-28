@@ -1,0 +1,1184 @@
+{
+ "version": "2026-09-26",
+ "source": "Eldfall Chronicles – streszczenia na potrzeby prowadzenia gry; pełne zasady w podręczniku.",
+ "turns": 5,
+ "schemeDraw": [
+  {
+   "maxInt": 13,
+   "cards": 2
+  },
+  {
+   "maxInt": 15,
+   "cards": 3
+  },
+  {
+   "maxInt": null,
+   "cards": 4
+  }
+ ],
+ "factions": [
+  {
+   "code": "COALITION_OF_THENION",
+   "name": "Coalition of Thenion",
+   "schemeTable": "COALITION_OF_THENION"
+  },
+  {
+   "code": "EMPIRE_OF_SOGA",
+   "name": "Empire of Soga",
+   "schemeTable": "EMPIRE_OF_SOGA"
+  },
+  {
+   "code": "HELIAN_LEAGUE",
+   "name": "Helian League",
+   "schemeTable": "HELIAN_LEAGUE"
+  },
+  {
+   "code": "SAND_KINGDOMS",
+   "name": "Sand Kingdoms",
+   "schemeTable": "SAND_KINGDOMS"
+  },
+  {
+   "code": "ONI_CLANS",
+   "name": "Oni Clans",
+   "schemeTable": "MONSTER_FACTIONS"
+  },
+  {
+   "code": "GOBLIN_WARTRIBES",
+   "name": "Goblin Wartribes",
+   "schemeTable": "MONSTER_FACTIONS"
+  },
+  {
+   "code": "ADVENTURERS_GUILD",
+   "name": "Adventurers Guild",
+   "schemeTable": "ADVENTURERS_GUILD"
+  }
+ ],
+ "schemeTables": {
+  "EMPIRE_OF_SOGA": [
+   {
+    "from": 1,
+    "to": 1,
+    "scheme": "OPPORTUNISTIC_MANIPULATION"
+   },
+   {
+    "from": 2,
+    "to": 2,
+    "scheme": "ASSASSINATION_CONTRACT"
+   },
+   {
+    "from": 3,
+    "to": 4,
+    "scheme": "VIRTUOUS_COMMANDER"
+   },
+   {
+    "from": 5,
+    "to": 6,
+    "scheme": "MARTIAL_VALOR"
+   },
+   {
+    "from": 7,
+    "to": 8,
+    "scheme": "NO_QUARTER"
+   },
+   {
+    "from": 9,
+    "to": 10,
+    "scheme": "STAND_YOUR_GROUND"
+   },
+   {
+    "from": 11,
+    "to": 12,
+    "scheme": "HEAD_HUNT"
+   },
+   {
+    "from": 13,
+    "to": 14,
+    "scheme": "OPEN_AGGRESSION"
+   },
+   {
+    "from": 15,
+    "to": 16,
+    "scheme": "PURSUIT_OF_GLORY"
+   },
+   {
+    "from": 17,
+    "to": 18,
+    "scheme": "FIERCE_AS_FIRE"
+   },
+   {
+    "from": 19,
+    "to": 19,
+    "scheme": "ENGETSU_FORMATION"
+   },
+   {
+    "from": 20,
+    "to": 20,
+    "scheme": "STALWART_DEFENDER"
+   }
+  ],
+  "COALITION_OF_THENION": [
+   {
+    "from": 1,
+    "to": 1,
+    "scheme": "OPPORTUNISTIC_MANIPULATION"
+   },
+   {
+    "from": 2,
+    "to": 2,
+    "scheme": "ASSASSINATION_CONTRACT"
+   },
+   {
+    "from": 3,
+    "to": 4,
+    "scheme": "VIRTUOUS_COMMANDER"
+   },
+   {
+    "from": 5,
+    "to": 6,
+    "scheme": "MARTIAL_VALOR"
+   },
+   {
+    "from": 7,
+    "to": 8,
+    "scheme": "NO_QUARTER"
+   },
+   {
+    "from": 9,
+    "to": 10,
+    "scheme": "STAND_YOUR_GROUND"
+   },
+   {
+    "from": 11,
+    "to": 12,
+    "scheme": "UNMATCHED_FLANKING"
+   },
+   {
+    "from": 13,
+    "to": 14,
+    "scheme": "LEAVE_UNNOTICED"
+   },
+   {
+    "from": 15,
+    "to": 16,
+    "scheme": "CUNNING_TENACITY"
+   },
+   {
+    "from": 17,
+    "to": 18,
+    "scheme": "BREACH_THEIR_DEFENSES"
+   },
+   {
+    "from": 19,
+    "to": 19,
+    "scheme": "ASSASSINATION_CONTRACT"
+   },
+   {
+    "from": 20,
+    "to": 20,
+    "scheme": "BLOOD_FOR_BLOOD"
+   }
+  ],
+  "HELIAN_LEAGUE": [
+   {
+    "from": 1,
+    "to": 1,
+    "scheme": "OPPORTUNISTIC_MANIPULATION"
+   },
+   {
+    "from": 2,
+    "to": 2,
+    "scheme": "ASSASSINATION_CONTRACT"
+   },
+   {
+    "from": 3,
+    "to": 4,
+    "scheme": "VIRTUOUS_COMMANDER"
+   },
+   {
+    "from": 5,
+    "to": 6,
+    "scheme": "MARTIAL_VALOR"
+   },
+   {
+    "from": 7,
+    "to": 8,
+    "scheme": "NO_QUARTER"
+   },
+   {
+    "from": 9,
+    "to": 10,
+    "scheme": "STAND_YOUR_GROUND"
+   },
+   {
+    "from": 11,
+    "to": 12,
+    "scheme": "DECISIVE_VICTORY"
+   },
+   {
+    "from": 13,
+    "to": 14,
+    "scheme": "VIRTUOUS_COMMANDER"
+   },
+   {
+    "from": 15,
+    "to": 16,
+    "scheme": "LAST_WARNING"
+   },
+   {
+    "from": 17,
+    "to": 18,
+    "scheme": "FIERCE_AS_FIRE"
+   },
+   {
+    "from": 19,
+    "to": 19,
+    "scheme": "RELENTLESS_ADVANCE"
+   },
+   {
+    "from": 20,
+    "to": 20,
+    "scheme": "PEACEKEEPING_PARAGON"
+   }
+  ],
+  "SAND_KINGDOMS": [
+   {
+    "from": 1,
+    "to": 1,
+    "scheme": "OPPORTUNISTIC_MANIPULATION"
+   },
+   {
+    "from": 2,
+    "to": 2,
+    "scheme": "ASSASSINATION_CONTRACT"
+   },
+   {
+    "from": 3,
+    "to": 4,
+    "scheme": "VIRTUOUS_COMMANDER"
+   },
+   {
+    "from": 5,
+    "to": 6,
+    "scheme": "MARTIAL_VALOR"
+   },
+   {
+    "from": 7,
+    "to": 8,
+    "scheme": "NO_QUARTER"
+   },
+   {
+    "from": 9,
+    "to": 10,
+    "scheme": "STAND_YOUR_GROUND"
+   },
+   {
+    "from": 11,
+    "to": 12,
+    "scheme": "STAND_YOUR_GROUND"
+   },
+   {
+    "from": 13,
+    "to": 14,
+    "scheme": "APPEAR_WEAK"
+   },
+   {
+    "from": 15,
+    "to": 16,
+    "scheme": "UNHINDERED_EXPEDITION"
+   },
+   {
+    "from": 17,
+    "to": 18,
+    "scheme": "STRENGTH_IN_NUMBERS"
+   },
+   {
+    "from": 19,
+    "to": 19,
+    "scheme": "STEADFAST_EXPANSION"
+   },
+   {
+    "from": 20,
+    "to": 20,
+    "scheme": "STALWART_DEFENDER"
+   }
+  ],
+  "MONSTER_FACTIONS": [
+   {
+    "from": 1,
+    "to": 4,
+    "scheme": "SPREADING_INFESTATION"
+   },
+   {
+    "from": 5,
+    "to": 6,
+    "scheme": "OPPORTUNISTIC_MANIPULATION"
+   },
+   {
+    "from": 7,
+    "to": 8,
+    "scheme": "ASSASSINATION_CONTRACT"
+   },
+   {
+    "from": 9,
+    "to": 10,
+    "scheme": "MARTIAL_VALOR"
+   },
+   {
+    "from": 11,
+    "to": 12,
+    "scheme": "NO_QUARTER"
+   },
+   {
+    "from": 13,
+    "to": 14,
+    "scheme": "STAND_YOUR_GROUND"
+   },
+   {
+    "from": 15,
+    "to": 16,
+    "scheme": "VIRTUOUS_COMMANDER"
+   },
+   {
+    "from": 17,
+    "to": 20,
+    "scheme": "TERRITORIAL_AGGRESSION"
+   }
+  ],
+  "ADVENTURERS_GUILD": [
+   {
+    "from": 1,
+    "to": 2,
+    "scheme": "OPPORTUNISTIC_MANIPULATION"
+   },
+   {
+    "from": 3,
+    "to": 4,
+    "scheme": "ASSASSINATION_CONTRACT"
+   },
+   {
+    "from": 5,
+    "to": 6,
+    "scheme": "MARTIAL_VALOR"
+   },
+   {
+    "from": 7,
+    "to": 8,
+    "scheme": "NO_QUARTER"
+   },
+   {
+    "from": 9,
+    "to": 10,
+    "scheme": "STAND_YOUR_GROUND"
+   },
+   {
+    "from": 11,
+    "to": 12,
+    "scheme": "VIRTUOUS_COMMANDER"
+   },
+   {
+    "from": 13,
+    "to": 14,
+    "scheme": "BLOOD_FOR_BLOOD"
+   },
+   {
+    "from": 15,
+    "to": 16,
+    "scheme": "PEACEKEEPING_PARAGON"
+   },
+   {
+    "from": 17,
+    "to": 18,
+    "scheme": "STALWART_DEFENDER"
+   },
+   {
+    "from": 19,
+    "to": 20,
+    "scheme": "PURSUIT_OF_GLORY"
+   }
+  ]
+ },
+ "schemes": [
+  {
+   "code": "ASSASSINATION_CONTRACT",
+   "name": "Assassination Contract",
+   "maxVp": 3,
+   "timing": "ON_EVENT",
+   "text": {
+    "pl": "3 PZ za zabicie wrogiego lidera (stan Dead).",
+    "en": "3 VP for killing the enemy Leader (Dead state)."
+   }
+  },
+  {
+   "code": "MARTIAL_VALOR",
+   "name": "Martial Valor",
+   "maxVp": 3,
+   "timing": "ON_EVENT",
+   "text": {
+    "pl": "Ujawnij, gdy Twój model obezwładni wrogi model droższy od siebie (w punktach rekrutacji): 2 PZ. Jeśli inny Twój model zrobi to samo – dodatkowy 1 PZ.",
+    "en": "Reveal when your model incapacitates an enemy model with a higher recruitment cost: 2 VP. If another of your models does the same: +1 VP."
+   }
+  },
+  {
+   "code": "NO_QUARTER",
+   "name": "No Quarter",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "1 PZ za każdy martwy wrogi model na koniec gry (maks. 3).",
+    "en": "1 VP per Dead enemy model at the end of the game (max 3)."
+   }
+  },
+  {
+   "code": "VIRTUOUS_COMMANDER",
+   "name": "Virtuous Commander",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "1 PZ za każdy Twój model żywy na koniec gry (maks. 3).",
+    "en": "1 VP per model of yours Alive at the end of the game (max 3)."
+   }
+  },
+  {
+   "code": "OPPORTUNISTIC_MANIPULATION",
+   "name": "Opportunistic Manipulation",
+   "maxVp": 3,
+   "timing": "START_OF_STRATEGIC",
+   "text": {
+    "pl": "Można ujawnić na początku swojej fazy strategicznej. Po 1 PZ za każdy warunek: wróg (nie martwy) w strefie rozstawienia przeciwnika; wróg (nie martwy) na Twojej połowie stołu; Twój obezwładniony model na połowie przeciwnika.",
+    "en": "May be revealed at the start of your Strategic Phase. 1 VP for each: a non-Dead enemy in the enemy Deployment Zone; a non-Dead enemy on your half; an Incapacitated ally on the enemy half."
+   }
+  },
+  {
+   "code": "STAND_YOUR_GROUND",
+   "name": "Stand Your Ground",
+   "maxVp": 3,
+   "timing": "NEXT_STRATEGIC",
+   "text": {
+    "pl": "Ujawnij i odrzuć w swojej fazie strategicznej. Na początku następnej fazy strategicznej: 1 PZ za każdy model, który w tej rundzie się nie ruszył (maks. 3).",
+    "en": "Reveal and discard in your Strategic Phase. At the start of your next Strategic Phase: 1 VP per model that did not move this round (max 3)."
+   }
+  },
+  {
+   "code": "HEAD_HUNT",
+   "name": "Head Hunt",
+   "maxVp": 3,
+   "timing": "ON_EVENT",
+   "text": {
+    "pl": "1 PZ za każdy Deathblow wykonany przeciw wrogim modelom (maks. 3).",
+    "en": "1 VP per Deathblow performed against enemy models (max 3)."
+   }
+  },
+  {
+   "code": "OPEN_AGGRESSION",
+   "name": "Open Aggression",
+   "maxVp": 3,
+   "timing": "THIS_TURN",
+   "text": {
+    "pl": "Ujawnij i odrzuć w fazie strategicznej. W fazie końcowej: 1 PZ za każdą ranę zadaną wrogom w tej turze (maks. 3).",
+    "en": "Reveal and discard in the Strategic Phase. In the End Phase: 1 VP per Wound dealt to enemy models this turn (max 3)."
+   }
+  },
+  {
+   "code": "PURSUIT_OF_GLORY",
+   "name": "Pursuit of Glory",
+   "maxVp": 3,
+   "timing": "THIS_TURN",
+   "text": {
+    "pl": "Ujawnij i odrzuć w fazie strategicznej. W fazie końcowej tej tury: 1 PZ za każdego żywego członka drużyny poza zasięgiem Awareness pozostałych członków (maks. 3).",
+    "en": "Reveal and discard in the Strategic Phase. In the End Phase of that turn: 1 VP per Alive party member outside the Awareness of other party members (max 3)."
+   }
+  },
+  {
+   "code": "FIERCE_AS_FIRE",
+   "name": "Fierce as Fire, Immovable as a Mountain",
+   "maxVp": 3,
+   "timing": "ON_EVENT",
+   "text": {
+    "pl": "Ujawnij, gdy Twój model po raz pierwszy zrani wroga w reakcji – połóż żeton. Każde kolejne zranienie wroga w reakcji = kolejny żeton. 1 PZ za żeton (maks. 3).",
+    "en": "Reveal when your model first wounds an enemy in Reaction and place a token; each further wound in Reaction adds a token. 1 VP per token (max 3)."
+   }
+  },
+  {
+   "code": "STALWART_DEFENDER",
+   "name": "Stalwart Defender",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "3 PZ, jeśli na koniec gry w Twojej strefie rozstawienia nie ma wrogich modeli.",
+    "en": "3 VP if there are no enemy models in your Deployment Zone at the end of the game."
+   }
+  },
+  {
+   "code": "ENGETSU_FORMATION",
+   "name": "Engetsu Formation",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "1 PZ za każdego członka drużyny w Twojej strefie rozstawienia na koniec gry (maks. 3).",
+    "en": "1 VP per party member in your Deployment Zone at the end of the game (max 3)."
+   }
+  },
+  {
+   "code": "UNMATCHED_FLANKING",
+   "name": "Unmatched Flanking",
+   "maxVp": 3,
+   "timing": "THIS_TURN",
+   "text": {
+    "pl": "Ujawnij i odrzuć w fazie strategicznej. 1 PZ za każdy atak na wrogi model, który nie miał linii wzroku do atakującego przed krokiem rozstrzygnięcia aktywacji w tej turze (maks. 3).",
+    "en": "Reveal and discard in the Strategic Phase. 1 VP per Attack against an enemy model that had no LoS to your model before the Resolution step of the Activation this turn (max 3)."
+   }
+  },
+  {
+   "code": "LEAVE_UNNOTICED",
+   "name": "Leave Unnoticed",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "1 PZ za każdego członka drużyny poza linią wzroku wrogich modeli na koniec gry (maks. 3).",
+    "en": "1 VP per party member outside enemy models' LoS at the end of the game (max 3)."
+   }
+  },
+  {
+   "code": "CUNNING_TENACITY",
+   "name": "Cunning Tenacity",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "2 PZ za każdy model, który przez całą grę nie stracił PŻ (maks. 3).",
+    "en": "2 VP per model that did not lose HP during the whole game (max 3)."
+   }
+  },
+  {
+   "code": "BLOOD_FOR_BLOOD",
+   "name": "Blood for Blood",
+   "maxVp": 3,
+   "timing": "THIS_TURN",
+   "text": {
+    "pl": "Ujawnij i odrzuć w fazie strategicznej; wskaż swój model, który otrzymał ranę od wroga. 3 PZ, jeśli w tej turze obezwładnisz wrogi model, który go zranił.",
+    "en": "Reveal and discard in the Strategic Phase; choose your model that suffered a Wound from an enemy. 3 VP if you incapacitate that enemy model this turn."
+   }
+  },
+  {
+   "code": "BREACH_THEIR_DEFENSES",
+   "name": "Breach Their Defenses",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "2 PZ za każdego członka drużyny w strefie rozstawienia przeciwnika na koniec gry (maks. 3).",
+    "en": "2 VP per party member in the enemy Deployment Zone at the end of the game (max 3)."
+   }
+  },
+  {
+   "code": "DECISIVE_VICTORY",
+   "name": "Decisive Victory",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "3 PZ, jeśli wszyscy członkowie Twojej drużyny żyją na koniec gry.",
+    "en": "3 VP if all your party members are Alive at the end of the game."
+   }
+  },
+  {
+   "code": "RELENTLESS_ADVANCE",
+   "name": "Relentless Advance",
+   "maxVp": 3,
+   "timing": "THIS_TURN",
+   "text": {
+    "pl": "Ujawnij i odrzuć w fazie strategicznej. W fazie końcowej: 1 PZ za każdego członka drużyny za środkiem stołu (maks. 3).",
+    "en": "Reveal and discard in the Strategic Phase. In the End Phase: 1 VP per party member beyond the middle of the field (max 3)."
+   }
+  },
+  {
+   "code": "PEACEKEEPING_PARAGON",
+   "name": "Peacekeeping Paragon",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "1 PZ za każdy wrogi model żywy na koniec gry (maks. 3).",
+    "en": "1 VP per enemy model Alive at the end of the game (max 3)."
+   }
+  },
+  {
+   "code": "LAST_WARNING",
+   "name": "Last Warning",
+   "maxVp": 3,
+   "timing": "NEXT_STRATEGIC",
+   "text": {
+    "pl": "Ujawnij i odrzuć w fazie strategicznej. Jeśli Twoje modele nie zadeklarują ataku do Twojej następnej fazy strategicznej – 3 PZ.",
+    "en": "Reveal and discard in the Strategic Phase. If your models declare no Attack until your next Strategic Phase: 3 VP."
+   }
+  },
+  {
+   "code": "APPEAR_WEAK",
+   "name": "Appear Weak When You Are Strong",
+   "maxVp": 3,
+   "timing": "ON_EVENT",
+   "text": {
+    "pl": "1 PZ za każdą ranę zadaną atakiem wręcz (maks. 3).",
+    "en": "1 VP per Wound you deal with a Melee Attack (max 3)."
+   }
+  },
+  {
+   "code": "UNHINDERED_EXPEDITION",
+   "name": "Unhindered Expedition",
+   "maxVp": 3,
+   "timing": "THIS_TURN",
+   "text": {
+    "pl": "Ujawnij i odrzuć w fazie strategicznej. W fazie końcowej: 2 PZ, jeśli 3 Twoje modele (bez przywołanych) są poza Twoją strefą rozstawienia; +1 PZ, jeśli co najmniej jeden jest w strefie przeciwnika.",
+    "en": "Reveal and discard in the Strategic Phase. In the End Phase: 2 VP if 3 of your models (not summoned) are outside your Deployment Zone; +1 VP if at least one is in the opponent's zone."
+   }
+  },
+  {
+   "code": "STRENGTH_IN_NUMBERS",
+   "name": "Strength in Numbers",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "2 PZ, jeśli na koniec gry masz więcej żywych modeli (z przywołanymi) niż przeciwnik; +1 PZ, jeśli co najmniej dwa razy więcej.",
+    "en": "2 VP if you have more Alive models (including summoned) than your opponent at the end of the game; +1 VP if at least twice as many."
+   }
+  },
+  {
+   "code": "STEADFAST_EXPANSION",
+   "name": "Steadfast Expansion",
+   "maxVp": 3,
+   "timing": "END_OF_GAME",
+   "text": {
+    "pl": "1 PZ za każdego członka drużyny za środkiem stołu na koniec gry, bez przywołanych (maks. 3).",
+    "en": "1 VP per party member beyond the middle of the field at the end of the game, not counting summoned creatures (max 3)."
+   }
+  },
+  {
+   "code": "SPREADING_INFESTATION",
+   "name": "Spreading Infestation",
+   "maxVp": 3,
+   "timing": "THIS_TURN",
+   "text": {
+    "pl": "Ujawnij i odrzuć w fazie strategicznej. W fazie końcowej: 2 PZ za każdy Twój model w strefie przeciwnika i poza linią wzroku wszystkich wrogów (maks. 3).",
+    "en": "Reveal and discard in the Strategic Phase. In the End Phase: 2 VP per model of yours in the opponent's Deployment Zone and outside the LoS of all enemies (max 3)."
+   }
+  },
+  {
+   "code": "TERRITORIAL_AGGRESSION",
+   "name": "Territorial Aggression",
+   "maxVp": 3,
+   "timing": "THIS_TURN",
+   "text": {
+    "pl": "Nie wcześniej niż od drugiej tury. Ujawnij i odrzuć w fazie strategicznej. W fazie końcowej: 2 PZ, jeśli masz 2 modele w swojej strefie rozstawienia; +1 PZ, jeśli na Twojej połowie nie ma wrogów.",
+    "en": "Not before your second turn. Reveal and discard in the Strategic Phase. In the End Phase: 2 VP if you have 2 models in your Deployment Zone; +1 VP if there are no enemy models on your half."
+   }
+  }
+ ],
+ "quests": [
+  {
+   "code": "TREASURE_HUNT",
+   "name": "Treasure Hunt",
+   "deployment": {
+    "pl": "Standardowe rozstawienie: strefy 8\" przy przeciwległych krawędziach.",
+    "en": "Standard deployment: 8\" zones on opposite edges."
+   },
+   "setup": [
+    {
+     "pl": "2 żetony Intrigue na środku stołu, pod każdym żeton Cache (skrzynia).",
+     "en": "2 Intrigue Tokens in the middle of the field, a Cache Token under each."
+    }
+   ],
+   "results": [
+    {
+     "text": {
+      "pl": "1 PZ za otwarcie skrzyni (Cache).",
+      "en": "1 VP for unlocking a Cache."
+     },
+     "vp": 1,
+     "when": "ON_EVENT"
+    },
+    {
+     "text": {
+      "pl": "2 PZ, jeśli Twój model ma Skarb w ekwipunku na koniec gry.",
+      "en": "2 VP if your model has the Treasure in its Inventory at the end of the game."
+     },
+     "vp": 2,
+     "when": "END_OF_GAME"
+    },
+    {
+     "text": {
+      "pl": "3 PZ, jeśli Twój model opuści stół ze Skarbem.",
+      "en": "3 VP if your model leaves the field with a Treasure."
+     },
+     "vp": 3,
+     "when": "ON_EVENT"
+    }
+   ],
+   "endConditions": [
+    {
+     "pl": "Gra kończy się, gdy oba Skarby opuszczą stół.",
+     "en": "The game ends when both Treasures have left the field."
+    },
+    {
+     "pl": "Drużyna w stanie Broken Morale na początku fazy strategicznej – gra kończy się z końcem tej tury.",
+     "en": "A party in Broken Morale at the start of its Strategic Phase ends the game at the end of that turn."
+    }
+   ],
+   "important": [],
+   "rules": [
+    {
+     "title": {
+      "pl": "Scheme",
+      "en": "Schemes"
+     },
+     "text": {
+      "pl": "Przed testem inicjatywy każdy gracz otrzymuje 1 kartę scheme: INT lidera ≤ 13 – dobierz 2 i zatrzymaj 1; INT 14–15 – dobierz 3 i zatrzymaj 1; INT ≥ 16 – dobierz 4 i zatrzymaj 1.",
+      "en": "Before the Initiative Check each player receives 1 Scheme Card: Leader INT ≤ 13 – draw 2, keep 1; INT 14–15 – draw 3, keep 1; INT ≥ 16 – draw 4, keep 1."
+     }
+    },
+    {
+     "title": {
+      "pl": "Skarb (Cache)",
+      "en": "Treasure (Cache)"
+     },
+     "text": {
+      "pl": "Skrzynie są niedostępne w 1. rundzie. Najpierw ujawnij żeton Intrigue akcją Perceive (lub automatycznie przy kontakcie podstawką) – zamienia się w żeton Sigil. Model w kontakcie ze skrzynią otwiera ją akcją Interact z udanym testem AG i zabiera Skarb (skrzynia zostaje otwarta). Model ze Skarbem może od 4. rundy dobrowolnie opuścić stół przez własną strefę; nie może być Shrouded ani latać. Skarb to przedmiot Qty 1, Wgt 1.",
+      "en": "Caches cannot be interacted with in round 1. First reveal the Intrigue Token (Perceive action, or automatically on base contact) – it becomes a Sigil Token. A model in base contact with a Cache unlocks it with an Interact action and a successful AG roll and takes the Treasure. From round 4 a model carrying a Treasure may voluntarily leave the field through its own Deployment Zone; it cannot be Shrouded or Flying. Treasure is an item with Qty 1, Wgt 1."
+     }
+    },
+    {
+     "title": {
+      "pl": "Sigile",
+      "en": "Sigils"
+     },
+     "text": {
+      "pl": "Sigile nie działają w 1. rundzie. Każdy ma czar z tabeli k20 (1–4 Inferno, 5–8 Glacier Circle, 9–12 Claws of Earth, 13–16 Thunderstorm, 17–18 Mass Mindbreak, 19 Corroding Embrace, 20 Smite), który uruchamia się, gdy model wejdzie w kontakt z żetonem Sigil lub skrzynią pod nim; trafia wszystkie modele w obszarze (poza udanym Dodge), potem żeton znika.",
+      "en": "Sigils do not trigger in round 1. Each has a spell from a d20 table (1–4 Inferno, 5–8 Glacier Circle, 9–12 Claws of Earth, 13–16 Thunderstorm, 17–18 Mass Mindbreak, 19 Corroding Embrace, 20 Smite) triggered when a model contacts the Sigil or the Cache beneath; it hits all models in the area (unless they Dodge), then the token is removed."
+     }
+    }
+   ],
+   "classBonus": {
+    "pl": "Rogue, Ranger, Alchemist: +3 do testu AG przy otwieraniu skrzyni.",
+    "en": "Rogue, Ranger, Alchemist: +3 to the AG roll when unlocking a Cache."
+   }
+  },
+  {
+   "code": "SUPPLY_RUN",
+   "name": "Supply Run",
+   "deployment": {
+    "pl": "Standardowe rozstawienie: strefy 8\" przy przeciwległych krawędziach.",
+    "en": "Standard deployment: 8\" zones on opposite edges."
+   },
+   "setup": [
+    {
+     "pl": "2 żetony Intrigue na środku stołu – każdy to stos Zasobów.",
+     "en": "2 Intrigue Tokens in the middle of the field – each is a pile of Resources."
+    },
+    {
+     "pl": "Każdy gracz ma żeton Cache przy krawędzi swojej strefy rozstawienia.",
+     "en": "Each player has a Cache Token at the edge of their Deployment Zone."
+    }
+   ],
+   "results": [
+    {
+     "text": {
+      "pl": "2 PZ za każde Zasoby zdeponowane we własnej skrzyni.",
+      "en": "2 VP for each Resources deposited in your own Cache."
+     },
+     "vp": 2,
+     "when": "ON_EVENT"
+    }
+   ],
+   "endConditions": [
+    {
+     "pl": "Drużyna w stanie Broken Morale na początku fazy strategicznej – gra kończy się z końcem tej tury.",
+     "en": "A party in Broken Morale at the start of its Strategic Phase ends the game at the end of that turn."
+    }
+   ],
+   "important": [],
+   "rules": [
+    {
+     "title": {
+      "pl": "Scheme",
+      "en": "Schemes"
+     },
+     "text": {
+      "pl": "Przed testem inicjatywy każdy gracz otrzymuje 1 kartę scheme: INT lidera ≤ 13 – dobierz 2 i zatrzymaj 1; INT 14–15 – dobierz 3 i zatrzymaj 1; INT ≥ 16 – dobierz 4 i zatrzymaj 1.",
+      "en": "Before the Initiative Check each player receives 1 Scheme Card: Leader INT ≤ 13 – draw 2, keep 1; INT 14–15 – draw 3, keep 1; INT ≥ 16 – draw 4, keep 1."
+     }
+    },
+    {
+     "title": {
+      "pl": "Zasoby (Intrigue)",
+      "en": "Resources (Intrigue)"
+     },
+     "text": {
+      "pl": "Model zabiera Zasoby akcją Interact przy żetonie Intrigue (od 2. rundy). Przywołane modele nie mogą przenosić Zasobów. Zasoby to przedmiot Qty 1, Wgt 1.",
+      "en": "A model loots Resources with an Interact action at the Intrigue Token (from round 2). Summoned models may not carry Resources. Resources are an item with Qty 1, Wgt 1."
+     }
+    },
+    {
+     "title": {
+      "pl": "Skrzynia (Cache)",
+      "en": "Cache"
+     },
+     "text": {
+      "pl": "Akcją Interact przy własnej skrzyni model deponuje niesione Zasoby.",
+      "en": "With an Interact action at your own Cache a model deposits the Resources it carries."
+     }
+    },
+    {
+     "title": {
+      "pl": "Strażnicy",
+      "en": "Hostile Guards"
+     },
+     "text": {
+      "pl": "Przy każdym żetonie Intrigue stoi Hostile Tier III. Aktywuje się, gdy modele graczy są w zasięgu 16\"; wraca na miejsce, gdy nikogo nie ma w pobliżu. Model niosący Zasoby staje się jego priorytetowym celem.",
+      "en": "Each Intrigue Token is guarded by a Tier III Hostile. It activates when player models are within 16\" and returns to its token when nobody is near. A model carrying Resources becomes its Target Priority."
+     }
+    }
+   ],
+   "classBonus": null
+  },
+  {
+   "code": "MAGIC_STONES",
+   "name": "Magic Stones",
+   "deployment": {
+    "pl": "Standardowe rozstawienie: strefy 8\" przy przeciwległych krawędziach.",
+    "en": "Standard deployment: 8\" zones on opposite edges."
+   },
+   "setup": [
+    {
+     "pl": "3 znaczniki celu (Magiczne Kamienie) na linii środkowej.",
+     "en": "3 Objective Markers (Magic Stones) on the center line."
+    }
+   ],
+   "results": [
+    {
+     "text": {
+      "pl": "2 PZ na koniec 2. rundy za każdy kontrolowany znacznik.",
+      "en": "2 VP at the end of round 2 for each Objective Marker you control."
+     },
+     "vp": 2,
+     "when": "ROUND_2"
+    },
+    {
+     "text": {
+      "pl": "2 PZ na koniec 4. rundy za każdy kontrolowany znacznik.",
+      "en": "2 VP at the end of round 4 for each Objective Marker you control."
+     },
+     "vp": 2,
+     "when": "ROUND_4"
+    }
+   ],
+   "endConditions": [],
+   "important": [
+    {
+     "pl": "W 1. rundzie nie wolno wchodzić w interakcję ze znacznikami.",
+     "en": "Models may not interact with Objective Markers in round 1."
+    },
+    {
+     "pl": "Na koniec 2. i 4. rundy wszystkie znaczniki wracają do stanu neutralnego.",
+     "en": "At the end of rounds 2 and 4 all markers reset to Neutral."
+    }
+   ],
+   "rules": [
+    {
+     "title": {
+      "pl": "Scheme",
+      "en": "Schemes"
+     },
+     "text": {
+      "pl": "Przed testem inicjatywy każdy gracz otrzymuje 1 kartę scheme: INT lidera ≤ 13 – dobierz 2 i zatrzymaj 1; INT 14–15 – dobierz 3 i zatrzymaj 1; INT ≥ 16 – dobierz 4 i zatrzymaj 1.",
+      "en": "Before the Initiative Check each player receives 1 Scheme Card: Leader INT ≤ 13 – draw 2, keep 1; INT 14–15 – draw 3, keep 1; INT ≥ 16 – draw 4, keep 1."
+     }
+    },
+    {
+     "title": {
+      "pl": "Znaczniki celu",
+      "en": "Objective Markers"
+     },
+     "text": {
+      "pl": "Znacznik jest neutralny albo kontrolowany. Model w kontakcie przejmuje neutralny znacznik akcją Interact; akcja na znaczniku przeciwnika resetuje go do neutralnego. Przywołane modele nie wchodzą w interakcję.",
+      "en": "A marker is Neutral or Controlled. A model in base contact takes a Neutral marker with an Interact action; interacting with an opponent's marker resets it to Neutral. Summoned models may not interact."
+     }
+    }
+   ],
+   "classBonus": null
+  },
+  {
+   "code": "QUARTER_WAR",
+   "name": "Quarter War",
+   "deployment": {
+    "pl": "Rozstawienie narożne: strefy w przeciwległych narożnikach, 9\" od narożnika.",
+    "en": "Corner deployment: zones in opposite corners, 9\" from the corner."
+   },
+   "setup": [
+    {
+     "pl": "Stół podzielony na cztery ćwiartki.",
+     "en": "The field is divided into four Quarters."
+    }
+   ],
+   "results": [
+    {
+     "text": {
+      "pl": "1 PZ na koniec każdej rundy za każdą ćwiartkę, w której masz Przewagę (Stronger Presence).",
+      "en": "1 VP at the end of each round for each Quarter where you have the Stronger Presence."
+     },
+     "vp": 1,
+     "when": "EACH_ROUND"
+    },
+    {
+     "text": {
+      "pl": "1 PZ na koniec każdej rundy za każdą ćwiartkę z co najmniej jednym Twoim modelem i bez wrogów.",
+      "en": "1 VP at the end of each round for each Quarter with at least one of your models and no enemy models."
+     },
+     "vp": 1,
+     "when": "EACH_ROUND"
+    }
+   ],
+   "endConditions": [],
+   "important": [
+    {
+     "pl": "Model jest w obszarze tylko wtedy, gdy cała jego podstawka jest w środku.",
+     "en": "A model is within an area only if its whole base is inside it."
+    }
+   ],
+   "rules": [
+    {
+     "title": {
+      "pl": "Scheme",
+      "en": "Schemes"
+     },
+     "text": {
+      "pl": "Przed testem inicjatywy każdy gracz otrzymuje 1 kartę scheme: INT lidera ≤ 13 – dobierz 2 i zatrzymaj 1; INT 14–15 – dobierz 3 i zatrzymaj 1; INT ≥ 16 – dobierz 4 i zatrzymaj 1.",
+      "en": "Before the Initiative Check each player receives 1 Scheme Card: Leader INT ≤ 13 – draw 2, keep 1; INT 14–15 – draw 3, keep 1; INT ≥ 16 – draw 4, keep 1."
+     }
+    },
+    {
+     "title": {
+      "pl": "Przewaga (Stronger Presence)",
+      "en": "Stronger Presence"
+     },
+     "text": {
+      "pl": "Zsumuj koszt rekrutacji żywych członków drużyny w całości w danej ćwiartce (bez ulepszeń). Wyższa suma = Przewaga.",
+      "en": "Add up the recruitment cost of your Alive party members fully within the Quarter (without Upgrades). The higher total has the Stronger Presence."
+     }
+    },
+    {
+     "title": {
+      "pl": "Zawieszenie broni w 1. rundzie",
+      "en": "1st Round Ceasefire"
+     },
+     "text": {
+      "pl": "W 1. rundzie nie zdobywa się PZ. Jeśli model zaatakuje lub zrani wroga w 1. rundzie, jego drużyna dostaje karę −4 PZ (wynik nie spada poniżej 0). Przywołane modele są wyjątkiem.",
+      "en": "No VP can be scored in round 1. If a model attacks or damages an enemy in round 1, its party receives a −4 VP penalty (score cannot drop below 0). Summoned models are an exception."
+     }
+    }
+   ],
+   "classBonus": null
+  },
+  {
+   "code": "CLUE_TRAIL",
+   "name": "Clue Trail",
+   "deployment": {
+    "pl": "Standardowe rozstawienie: strefy 8\" przy przeciwległych krawędziach.",
+    "en": "Standard deployment: 8\" zones on opposite edges."
+   },
+   "setup": [
+    {
+     "pl": "4 znaczniki celu (Tropy) na linii środkowej.",
+     "en": "4 Objective Markers (Clues) on the center line."
+    }
+   ],
+   "results": [
+    {
+     "text": {
+      "pl": "1 PZ na koniec każdej rundy za każdy kontrolowany znacznik.",
+      "en": "1 VP at the end of each round for each Objective Marker you control."
+     },
+     "vp": 1,
+     "when": "EACH_ROUND"
+    }
+   ],
+   "endConditions": [],
+   "important": [
+    {
+     "pl": "Na koniec każdej rundy znaczniki wracają do stanu neutralnego.",
+     "en": "Reset control over the Objective Markers to Neutral at the end of each round."
+    }
+   ],
+   "rules": [
+    {
+     "title": {
+      "pl": "Scheme",
+      "en": "Schemes"
+     },
+     "text": {
+      "pl": "Przed testem inicjatywy każdy gracz otrzymuje 1 kartę scheme: INT lidera ≤ 13 – dobierz 2 i zatrzymaj 1; INT 14–15 – dobierz 3 i zatrzymaj 1; INT ≥ 16 – dobierz 4 i zatrzymaj 1.",
+      "en": "Before the Initiative Check each player receives 1 Scheme Card: Leader INT ≤ 13 – draw 2, keep 1; INT 14–15 – draw 3, keep 1; INT ≥ 16 – draw 4, keep 1."
+     }
+    },
+    {
+     "title": {
+      "pl": "Tropy (znaczniki)",
+      "en": "Clues (Objective Markers)"
+     },
+     "text": {
+      "pl": "Brak interakcji w 1. rundzie. Przejęcie i reset jak w Magic Stones. Na koniec rundy gracz, który nie kontroluje znacznika, może przesunąć kontrolowany znacznik o 6\" w dowolnym kierunku (ignorując teren, nie do wnętrza scenerii), po czym znacznik wraca do neutralnego.",
+      "en": "No interaction in round 1. Taking and resetting as in Magic Stones. At the end of each round the player not controlling a Controlled marker may move it up to 6\" in any direction (ignoring terrain, not inside scenery), then it reverts to Neutral."
+     }
+    },
+    {
+     "title": {
+      "pl": "Zawieszenie broni w 1. rundzie",
+      "en": "1st Round Ceasefire"
+     },
+     "text": {
+      "pl": "W 1. rundzie nie zdobywa się PZ. Jeśli model zaatakuje lub zrani wroga w 1. rundzie, jego drużyna dostaje karę −4 PZ (wynik nie spada poniżej 0). Przywołane modele są wyjątkiem.",
+      "en": "No VP can be scored in round 1. If a model attacks or damages an enemy in round 1, its party receives a −4 VP penalty (score cannot drop below 0). Summoned models are an exception."
+     }
+    }
+   ],
+   "classBonus": null
+  },
+  {
+   "code": "SNAIL_CHASE",
+   "name": "Snail Chase",
+   "deployment": {
+    "pl": "Standardowe rozstawienie: strefy 8\" przy przeciwległych krawędziach.",
+    "en": "Standard deployment: 8\" zones on opposite edges."
+   },
+   "setup": [
+    {
+     "pl": "Po wyborze stron, przed rozstawieniem, każdy gracz (zaczynając od pierwszego) kładzie 2 znaczniki w całości w swojej strefie – to jego Ślimaki Atramentowe.",
+     "en": "After choosing sides and before deployment, each player (First Player first) places 2 Objective Markers fully within their Deployment Zone – their Ink Snails."
+    }
+   ],
+   "results": [
+    {
+     "text": {
+      "pl": "1 PZ na koniec każdej rundy za każdego swojego Ślimaka w całości za linią środkową.",
+      "en": "1 VP at the end of each round for each of your Ink Snails fully across the center line."
+     },
+     "vp": 1,
+     "when": "EACH_ROUND"
+    },
+    {
+     "text": {
+      "pl": "Dodatkowy 1 PZ na koniec każdej rundy za każdego swojego Ślimaka w całości w strefie przeciwnika.",
+      "en": "An additional 1 VP at the end of each round for each of your Ink Snails fully within the opponent's Deployment Zone."
+     },
+     "vp": 1,
+     "when": "EACH_ROUND"
+    }
+   ],
+   "endConditions": [],
+   "important": [],
+   "rules": [
+    {
+     "title": {
+      "pl": "Scheme",
+      "en": "Schemes"
+     },
+     "text": {
+      "pl": "Przed testem inicjatywy każdy gracz otrzymuje 1 kartę scheme: INT lidera ≤ 13 – dobierz 2 i zatrzymaj 1; INT 14–15 – dobierz 3 i zatrzymaj 1; INT ≥ 16 – dobierz 4 i zatrzymaj 1.",
+      "en": "Before the Initiative Check each player receives 1 Scheme Card: Leader INT ≤ 13 – draw 2, keep 1; INT 14–15 – draw 3, keep 1; INT ≥ 16 – draw 4, keep 1."
+     }
+    },
+    {
+     "title": {
+      "pl": "Ślimaki (znaczniki)",
+      "en": "Ink Snails (Objective Markers)"
+     },
+     "text": {
+      "pl": "Od 2. rundy model może akcją Interact przesunąć dowolnego Ślimaka (także przeciwnika) o 6\" w dowolnym kierunku, ignorując teren (nie do wnętrza scenerii). Przywołane modele nie wchodzą w interakcję.",
+      "en": "From round 2 a model may use an Interact action to move any Ink Snail (including the opponent's) up to 6\" in any direction, ignoring terrain (not inside scenery). Summoned models may not interact."
+     }
+    }
+   ],
+   "classBonus": null
+  },
+  {
+   "code": "TOXIC_INFESTATION",
+   "name": "Toxic Infestation",
+   "deployment": {
+    "pl": "Rozstawienie narożne: strefy w przeciwległych narożnikach, 9\" od narożnika.",
+    "en": "Corner deployment: zones in opposite corners, 9\" from the corner."
+   },
+   "setup": [
+    {
+     "pl": "2 znaczniki celu (Toksyczne Pnącza) w przeciwległych narożnikach – tych niezajętych przez strefy rozstawienia.",
+     "en": "2 Objective Markers (Toxic Vines) in the opposite corners not used by the Deployment Zones."
+    }
+   ],
+   "results": [
+    {
+     "text": {
+      "pl": "1 PZ za każde pokonanie Awatara Plagi.",
+      "en": "1 VP each time you defeat the Avatar of the Infestation."
+     },
+     "vp": 1,
+     "when": "ON_EVENT"
+    },
+    {
+     "text": {
+      "pl": "1 PZ na koniec każdej rundy za każde kontrolowane Pnącze.",
+      "en": "1 VP at the end of each round for each Toxic Vine under your control."
+     },
+     "vp": 1,
+     "when": "EACH_ROUND"
+    }
+   ],
+   "endConditions": [],
+   "important": [
+    {
+     "pl": "W 1. rundzie nie wolno wchodzić w interakcję ze znacznikami.",
+     "en": "Models may not interact with Objective Markers in round 1."
+    },
+    {
+     "pl": "Na koniec każdej rundy kontrola nad znacznikami wraca do neutralnej.",
+     "en": "Reset control over the markers to Neutral at the end of each round."
+    }
+   ],
+   "rules": [
+    {
+     "title": {
+      "pl": "Scheme",
+      "en": "Schemes"
+     },
+     "text": {
+      "pl": "Przed testem inicjatywy każdy gracz otrzymuje 1 kartę scheme: INT lidera ≤ 13 – dobierz 2 i zatrzymaj 1; INT 14–15 – dobierz 3 i zatrzymaj 1; INT ≥ 16 – dobierz 4 i zatrzymaj 1.",
+      "en": "Before the Initiative Check each player receives 1 Scheme Card: Leader INT ≤ 13 – draw 2, keep 1; INT 14–15 – draw 3, keep 1; INT ≥ 16 – draw 4, keep 1."
+     }
+    },
+    {
+     "title": {
+      "pl": "Toksyczne zarodniki",
+      "en": "Toxic Spores"
+     },
+     "text": {
+      "pl": "Obszar 2\" wokół znacznika to środowisko Toxic.",
+      "en": "The area within 2\" of a marker is a Toxic Environment."
+     }
+    },
+    {
+     "title": {
+      "pl": "Pnącza (znaczniki)",
+      "en": "Toxic Vines (Objective Markers)"
+     },
+     "text": {
+      "pl": "Przejęcie neutralnego Pnącza: akcja Interact i wydanie 1 Many. Na koniec każdej rundy każde kontrolowane Pnącze przesuwa się o 5\" w stronę środka stołu i wraca do neutralnego.",
+      "en": "Taking a Neutral Vine: an Interact action and spending 1 Mana. At the end of each round every Controlled Vine moves 5\" toward the center of the field and reverts to Neutral."
+     }
+    },
+    {
+     "title": {
+      "pl": "Awatar Plagi",
+      "en": "Avatar of the Infestation"
+     },
+     "text": {
+      "pl": "Na początku 2. rundy na środku stołu pojawia się Hostile Tier III (Survival: Toxic). Model, który go zrani w zasięgu 6\", zyskuje 1 Manę. Jeśli Awatara nie ma na stole w fazie strategicznej, pojawia się ponownie przy strefie aktywnego gracza.",
+      "en": "At the start of round 2 a Tier III Hostile appears in the center (Survival: Toxic). A model that wounds it within 6\" gains 1 Mana. If the Avatar is not on the field in a Strategic Phase, it respawns facing the active player's Deployment Zone."
+     }
+    }
+   ],
+   "classBonus": null
+  }
+ ]
+}

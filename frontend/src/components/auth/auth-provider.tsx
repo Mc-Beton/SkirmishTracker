@@ -1,0 +1,55 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { api, type Me } from "@/lib/api";
+
+type AuthState = {
+  me: Me | null;
+  loading: boolean;
+  reload: () => Promise<void>;
+  logout: () => Promise<void>;
+};
+
+const AuthContext = createContext<AuthState | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [me, setMe] = useState<Me | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const reload = useCallback(async () => {
+    try {
+      setMe(await api<Me>("GET", "/api/me"));
+    } catch {
+      setMe(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await api("POST", "/api/auth/logout");
+    } finally {
+      setMe(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    api<Me>("GET", "/api/me")
+      .then((user) => active && setMe(user))
+      .catch(() => active && setMe(null))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return <AuthContext.Provider value={{ me, loading, reload, logout }}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthState {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
+  return ctx;
+}

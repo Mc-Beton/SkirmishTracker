@@ -1,0 +1,28 @@
+# Activated with SPRING_PROFILES_ACTIVE=oauth.
+# Redirect URIs to register at Google / Discord (frontend origin, proxied to the backend):
+#   {FRONTEND_URL}/login/oauth2/code/google
+#   {FRONTEND_URL}/login/oauth2/code/discord
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,email,profile
+            redirect-uri: "${app.frontend-url}/login/oauth2/code/{registrationId}"
+          discord:
+            client-id: ${DISCORD_CLIENT_ID}
+            client-secret: ${DISCORD_CLIENT_SECRET}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            scope: identify,email
+            redirect-uri: "${app.frontend-url}/login/oauth2/code/{registrationId}"
+            client-name: Discord
+        provider:
+          discord:
+            authorization-uri: https://discord.com/oauth2/authorize
+            token-uri: https://discord.com/api/oauth2/token
+            user-info-uri: https://discord.com/api/users/@me
+            user-name-attribute: id
