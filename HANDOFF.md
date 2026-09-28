@@ -65,6 +65,20 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
 - Błąd `EBUSY … .next\dev\types\…` na Windows: zatrzymaj wszystkie `node.exe`, usuń `frontend\.next`,
   uruchom ponownie; pomaga wykluczenie `frontend\.next` w Windows Defender.
 
+## 3a. Produkcja (https://warbracket.pl)
+
+- Serwer Hetzner Cloud `46.225.172.142` (Ubuntu 24.04, 4 GB), logowanie `ssh root@46.225.172.142` kluczem Filipa.
+- Stos w Dockerze: Caddy (HTTPS z Let's Encrypt, www → bez www) → frontend → backend → PostgreSQL 17
+  + codzienny `pg_dump` (14 dni, wolumen `warbracket_backups`). Konfiguracja: `deploy/`, opis: `deploy/README.md`.
+- Sekrety tylko na serwerze w `/opt/warbracket/.env` (hasło bazy, JWT, SMTP) – nigdy w repo.
+- Wdrożenie: commit, potem `./deploy/deploy.sh` z Git Bash (wysyła ostatni commit, przebudowuje kontenery).
+- Poczta: Brevo (SMTP `smtp-relay.brevo.com:587`, nadawca `no-reply@warbracket.pl`); DNS domeny w panelu
+  hosting.domena.pl → Delegacje (rekordy Brevo: `brevo-code`, DKIM `brevo1/2._domainkey`, DMARC `p=none` –
+  do zaostrzenia na `quarantine`/`reject`, gdy raporty będą czyste).
+- `frontend/package-lock.json` generować w Linuksie, gdy Windows pominie zależności opcjonalne:
+  `MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/frontend:/app" -w /app node:22-bookworm-slim npm install --package-lock-only`.
+- Stara aplikacja (repozytoria TourneyTracker, TourneyTracker-Front) usunięta z serwera 28.09.2026.
+
 ## 4. Zasady, których pilnujemy
 
 - **Bezpieczeństwo (OWASP ASVS L2):** ciasteczka sesji HttpOnly, CSRF włączony, nigdy nie logujemy tokenów
