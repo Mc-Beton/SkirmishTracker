@@ -26,8 +26,7 @@
       "tournaments": "Swiss, elimination and round-robin tournaments",
       "leagues": "Leagues with custom point rules and ELO ranking",
       "live": "Live results, even without signal"
-    },
-    "status": "Unofficial fan-made project, created by a fan of the game. Eldfall Chronicles and all related names, characters and materials belong to their respective owners."
+    }
   },
   "auth": {
     "email": "E-mail",
@@ -1015,5 +1014,84 @@
       "decision": "result confirmation or dispute (table {table})",
       "result": "result set by the organizer (table {table})"
     }
+  },
+  "footer": {
+    "disclaimer": "Unofficial fan-made project, created by a fan of the game. Eldfall Chronicles and its related elements belong to their respective owners.",
+    "support": "Support",
+    "terms": "Terms and conditions of use"
+  },
+  "support": {
+    "title": "Support",
+    "lead": "Have a question, found a bug or an idea for a new feature? Write to us – we will reply to the e-mail address you provide.",
+    "email": "Your e-mail",
+    "name": "Name or nickname (optional)",
+    "topic": "Topic",
+    "message": "Message",
+    "messageHint": "10 to 5000 characters.",
+    "topics": {
+      "QUESTION": "Question",
+      "BUG": "Bug in the app",
+      "IDEA": "Idea / suggestion",
+      "OTHER": "Other"
+    },
+    "send": "Send",
+    "sending": "Sending…",
+    "sent": "Thank you! Your message has been sent.",
+    "another": "Send another message",
+    "privacy": "We keep the message and your e-mail address for up to 12 months, only to reply and keep a support history. See the terms of use."
+  },
+  "terms": {
+    "title": "Terms and conditions of use",
+    "kicker": "Legal information",
+    "updated": "Last updated: September 29, 2026",
+    "sections": [
+      {
+        "title": "1. Ownership and acceptance",
+        "paragraphs": [
+          "The service owner is identified only through the domain warbracket.pl. No personal details of the owner are published on this page.",
+          "By creating an account or using the application, you accept these terms. If you do not agree, you must not register or use the service."
+        ]
+      },
+      {
+        "title": "2. Account and access",
+        "paragraphs": [
+          "Browsing public tournaments, standings, the ranking and player profiles does not require an account. To register for tournaments, organise events, enter results or create lists, you need an account with a valid e-mail address. Keep your credentials secure and provide truthful information. You are responsible for activity performed with your account and must report unauthorised use.",
+          "We may request e-mail verification and temporarily limit access when necessary to protect the service or its users (e.g. after many failed sign-in attempts)."
+        ]
+      },
+      {
+        "title": "Cookies and data on your device",
+        "paragraphs": [
+          "The application uses only necessary technical cookies: to keep you signed in, to protect against CSRF attacks and to remember your language. We do not use analytics or advertising cookies.",
+          "So that the application works without a connection, some data (pages, tournament data, changes waiting to be sent) is stored in your browser on your device. Your account data is removed from it when you sign out."
+        ]
+      },
+      {
+        "title": "3. Tournaments, results and lists",
+        "paragraphs": [
+          "Organisers are responsible for running their tournaments and leagues, including settings, pairings and final results, which they may correct. Results, standings, the ELO ranking and your nickname, club and city are public. Lists are visible to the organiser and to other participants according to the tournament settings.",
+          "You must not use the service to submit illegal, deceptive, offensive or rights-infringing content, to attempt to access other accounts or data, or to disrupt the service."
+        ]
+      },
+      {
+        "title": "4. Intellectual property",
+        "paragraphs": [
+          "Eldfall Chronicles, its names, images and related elements belong to their respective owners. This application is an unofficial fan-made project and does not imply affiliation, sponsorship or authorisation by the game's publisher or other owners. Scenario and rule descriptions in the application are summaries, not reproductions of the rulebook.",
+          "Content you submit must respect applicable rights. By publishing a tournament, league or list, you authorise its storage and display within the application."
+        ]
+      },
+      {
+        "title": "5. Availability and changes",
+        "paragraphs": [
+          "The service is provided as available, without a guarantee of uninterrupted operation. We may perform maintenance, introduce changes or remove features to keep it secure and operational. We may also update these terms; the version published on this page applies from its update date."
+        ]
+      },
+      {
+        "title": "6. Contact",
+        "paragraphs": [
+          "For questions about these terms or the service, use the contact form available at warbracket.pl. Messages are retained as long as necessary to handle the enquiry and maintain a support history, for no longer than 12 months."
+        ]
+      }
+    ]
   }
 }

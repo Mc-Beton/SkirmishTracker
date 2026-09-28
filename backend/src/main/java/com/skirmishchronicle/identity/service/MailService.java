@@ -2,6 +2,7 @@ package com.skirmishchronicle.identity.service;
 
 import com.skirmishchronicle.config.AppProperties;
 import com.skirmishchronicle.identity.domain.User;
+import com.skirmishchronicle.support.SupportMessage;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
@@ -46,10 +47,31 @@ public class MailService {
                               : "The link expires in 30 minutes. If this wasn't you, ignore this message."));
     }
 
+    /** Forwards a contact-form message to the support inbox; replying answers the sender directly. */
+    public void sendSupportMessage(SupportMessage m) {
+        String inbox = props.supportInbox();
+        if (inbox == null || inbox.isBlank()) {
+            return;
+        }
+        String body = "Temat / topic: " + m.getTopic() + "\n"
+                + "Od / from: " + (m.getName() == null ? "" : m.getName() + " ") + "<" + m.getEmail() + ">\n"
+                + "Konto / account: " + (m.getUserId() == null ? "-" : m.getUserId()) + "\n"
+                + "Id: " + m.getId() + "\n\n"
+                + m.getMessage();
+        send(inbox, "WarBracket – kontakt: " + m.getTopic(), body, m.getEmail());
+    }
+
     private void send(String to, String subject, String body) {
+        send(to, subject, body, null);
+    }
+
+    private void send(String to, String subject, String body, String replyTo) {
         try {
             SimpleMailMessage msg = new SimpleMailMessage();
             msg.setFrom(props.mailFrom());
+            if (replyTo != null) {
+                msg.setReplyTo(replyTo);
+            }
             msg.setTo(to);
             msg.setSubject(subject);
             msg.setText(body);

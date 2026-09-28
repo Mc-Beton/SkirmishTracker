@@ -12,7 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Fixed-window limiter per client IP for the unauthenticated auth endpoints (login, register, reset...).
+ * Fixed-window limiter per client IP for the unauthenticated endpoints (login, register, reset, contact form).
  * In-memory is enough for a single instance; move to Redis/Bucket4j when running several replicas.
  */
 public class RateLimitFilter extends OncePerRequestFilter {
@@ -37,7 +37,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !("POST".equals(request.getMethod()) && request.getRequestURI().startsWith("/api/auth/"));
+        String uri = request.getRequestURI();
+        return !("POST".equals(request.getMethod()) && (uri.startsWith("/api/auth/") || uri.equals("/api/support")));
     }
 
     @Override

@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { OfflineStatus } from "@/components/pwa/offline-status";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker";
 import "./globals.css";
@@ -34,6 +35,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <OfflineStatus />
             <ServiceWorkerRegistration />
             <main className="flex flex-1 flex-col">{children}</main>
+            <SiteFooter />
           </AuthProvider>
         </NextIntlClientProvider>
       </body>

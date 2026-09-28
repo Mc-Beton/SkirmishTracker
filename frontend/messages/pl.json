@@ -26,8 +26,7 @@
       "tournaments": "Turnieje Swiss, eliminacje i round-robin",
       "leagues": "Ligi z własnymi zasadami punktów i rankingiem ELO",
       "live": "Wyniki na żywo, także bez zasięgu"
-    },
-    "status": "Nieoficjalny projekt fanowski, stworzony przez fana gry. Eldfall Chronicles oraz powiązane nazwy, postacie i materiały należą do ich właścicieli."
+    }
   },
   "auth": {
     "email": "E-mail",
@@ -1015,5 +1014,84 @@
       "decision": "potwierdzenie lub zgłoszenie błędu wyniku (stół {table})",
       "result": "wynik ustawiony przez organizatora (stół {table})"
     }
+  },
+  "footer": {
+    "disclaimer": "Nieoficjalny projekt fanowski, stworzony przez fana gry. Eldfall Chronicles oraz powiązane elementy należą do ich właścicieli.",
+    "support": "Kontakt",
+    "terms": "Regulamin"
+  },
+  "support": {
+    "title": "Kontakt",
+    "lead": "Masz pytanie, znalazłeś błąd albo pomysł na nową funkcję? Napisz – odpowiemy na podany adres e-mail.",
+    "email": "Twój e-mail",
+    "name": "Imię lub nick (opcjonalnie)",
+    "topic": "Temat",
+    "message": "Wiadomość",
+    "messageHint": "Od 10 do 5000 znaków.",
+    "topics": {
+      "QUESTION": "Pytanie",
+      "BUG": "Błąd w aplikacji",
+      "IDEA": "Pomysł / propozycja",
+      "OTHER": "Inne"
+    },
+    "send": "Wyślij",
+    "sending": "Wysyłanie…",
+    "sent": "Dziękujemy! Wiadomość została wysłana.",
+    "another": "Wyślij kolejną wiadomość",
+    "privacy": "Wiadomość i adres e-mail przechowujemy do 12 miesięcy, tylko w celu odpowiedzi i historii zgłoszeń. Szczegóły w regulaminie."
+  },
+  "terms": {
+    "title": "Regulamin korzystania z serwisu",
+    "kicker": "Informacje prawne",
+    "updated": "Ostatnia aktualizacja: 29 września 2026",
+    "sections": [
+      {
+        "title": "1. Właściciel i akceptacja",
+        "paragraphs": [
+          "Właściciel serwisu jest identyfikowany wyłącznie przez domenę warbracket.pl. Na tej stronie nie publikujemy danych osobowych właściciela.",
+          "Zakładając konto lub korzystając z aplikacji, akceptujesz niniejszy regulamin. Jeśli się z nim nie zgadzasz, nie zakładaj konta i nie korzystaj z serwisu."
+        ]
+      },
+      {
+        "title": "2. Konto i dostęp",
+        "paragraphs": [
+          "Przeglądanie publicznych turniejów, tabel, rankingu i profili graczy nie wymaga konta. Aby zapisywać się na turnieje, organizować wydarzenia, wpisywać wyniki czy tworzyć rozpiski, potrzebujesz konta z prawdziwym adresem e-mail. Dbaj o bezpieczeństwo danych logowania i podawaj prawdziwe informacje. Odpowiadasz za działania wykonane z Twojego konta i powinieneś zgłosić każde nieuprawnione użycie.",
+          "Możemy wymagać potwierdzenia adresu e-mail i czasowo ograniczyć dostęp, gdy jest to potrzebne dla ochrony serwisu lub użytkowników (np. po wielu nieudanych próbach logowania)."
+        ]
+      },
+      {
+        "title": "Pliki cookie i dane na urządzeniu",
+        "paragraphs": [
+          "Aplikacja używa wyłącznie niezbędnych technicznych plików cookie: do utrzymania sesji logowania, ochrony przed atakami CSRF i zapamiętania języka. Nie używamy cookies analitycznych ani reklamowych.",
+          "Aby aplikacja działała bez zasięgu, część danych (strony, dane turnieju, zmiany czekające na wysłanie) jest przechowywana w pamięci przeglądarki na Twoim urządzeniu. Dane Twojego konta są z niej usuwane przy wylogowaniu."
+        ]
+      },
+      {
+        "title": "3. Turnieje, wyniki i rozpiski",
+        "paragraphs": [
+          "Organizator odpowiada za przebieg swojego turnieju lub ligi, w tym za ustawienia, parowania i ostateczne wyniki, które może poprawiać. Wyniki, tabele, ranking ELO oraz Twój nick, klub i miejscowość są widoczne publicznie. Rozpiski są widoczne dla organizatora, a dla innych uczestników zgodnie z ustawieniami turnieju.",
+          "Nie wolno używać serwisu do publikowania treści niezgodnych z prawem, wprowadzających w błąd, obraźliwych lub naruszających cudze prawa, ani do prób uzyskania dostępu do cudzych kont i danych czy zakłócania działania serwisu."
+        ]
+      },
+      {
+        "title": "4. Własność intelektualna",
+        "paragraphs": [
+          "Eldfall Chronicles, jego nazwy, grafiki i powiązane elementy należą do ich właścicieli. Ta aplikacja jest nieoficjalnym projektem fanowskim i nie oznacza powiązania, sponsorowania ani autoryzacji ze strony wydawcy gry ani innych właścicieli. Opisy scenariuszy i zasad w aplikacji są streszczeniami, a nie przedrukiem podręcznika.",
+          "Treści, które dodajesz, muszą respektować obowiązujące prawa. Publikując turniej, ligę lub rozpiskę, zgadzasz się na ich przechowywanie i wyświetlanie w aplikacji."
+        ]
+      },
+      {
+        "title": "5. Dostępność i zmiany",
+        "paragraphs": [
+          "Serwis jest udostępniany w obecnej postaci, bez gwarancji nieprzerwanego działania. Możemy przeprowadzać prace techniczne, wprowadzać zmiany lub usuwać funkcje, aby utrzymać bezpieczeństwo i działanie serwisu. Możemy też aktualizować ten regulamin – obowiązuje wersja opublikowana na tej stronie od daty jej aktualizacji."
+        ]
+      },
+      {
+        "title": "6. Kontakt",
+        "paragraphs": [
+          "W sprawie regulaminu i serwisu skorzystaj z formularza kontaktowego dostępnego na warbracket.pl. Wiadomości przechowujemy tak długo, jak to potrzebne do obsługi zgłoszenia i prowadzenia historii kontaktu, nie dłużej niż 12 miesięcy."
+        ]
+      }
+    ]
   }
 }

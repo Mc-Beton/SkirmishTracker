@@ -31,7 +31,6 @@ export default async function HomePage() {
           </li>
         ))}
       </ul>
-      <p className="mt-10 text-xs text-muted-foreground">{t("home.status")}</p>
     </div>
   );
 }

@@ -65,7 +65,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
                                 "/api/auth/refresh", "/api/auth/logout", "/api/auth/verify-email",
                                 "/api/auth/resend-verification", "/api/auth/forgot-password",
-                                "/api/auth/reset-password").permitAll()
+                                "/api/auth/reset-password", "/api/support").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         // Tournament pages are public; personal and organizer views are not.
                         .requestMatchers(HttpMethod.GET, "/api/tournaments/mine", "/api/tournaments/*/audit",
