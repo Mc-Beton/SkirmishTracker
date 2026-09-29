@@ -41,6 +41,10 @@ services:
       MAIL_STARTTLS: ${MAIL_STARTTLS:-true}
       MAIL_FROM: ${MAIL_FROM:-no-reply@warbracket.pl}
       SUPPORT_INBOX: ${SUPPORT_INBOX:-}
+      # Web Push: contact for push services; VAPID keys are generated once and kept in the database if empty.
+      PUSH_SUBJECT: ${PUSH_SUBJECT:-mailto:admin@warbracket.pl}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}

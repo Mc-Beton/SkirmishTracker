@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableConfigurationProperties(AppProperties.class)
+@EnableConfigurationProperties({AppProperties.class, com.skirmishchronicle.push.PushProperties.class})
 public class SkirmishChronicleApplication {
 
     public static void main(String[] args) {

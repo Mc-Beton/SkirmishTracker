@@ -37,11 +37,14 @@ public class NotificationService {
     private final NotificationRepository notifications;
     private final ObjectMapper mapper;
     private final LiveEventService live;
+    private final com.skirmishchronicle.push.PushService push;
 
-    public NotificationService(NotificationRepository notifications, ObjectMapper mapper, LiveEventService live) {
+    public NotificationService(NotificationRepository notifications, ObjectMapper mapper, LiveEventService live,
+                               com.skirmishchronicle.push.PushService push) {
         this.notifications = notifications;
         this.mapper = mapper;
         this.live = live;
+        this.push = push;
     }
 
     @Transactional
@@ -51,6 +54,7 @@ public class NotificationService {
         }
         notifications.save(new Notification(userId, type.name(), json(params), link));
         live.notificationsChangedAfterCommit(userId);
+        push.sendAfterCommit(userId, type.name(), params, link);
     }
 
     @Transactional

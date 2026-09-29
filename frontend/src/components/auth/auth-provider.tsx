@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { disablePush, syncPush } from "@/lib/push";
 import { api, type Me } from "@/lib/api";
 import { resetLiveConnection } from "@/lib/live";
 import { clearOfflineUserData } from "@/components/pwa/service-worker";
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
+      await disablePush().catch(() => undefined);
       await api("POST", "/api/auth/logout");
     } finally {
       setMe(null);
@@ -50,6 +52,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       active = false;
     };
   }, []);
+
+  // A device subscribed to push keeps delivering to whoever is signed in on it now.
+  const userId = me?.id;
+  useEffect(() => {
+    if (userId) void syncPush();
+  }, [userId]);
 
   return <AuthContext.Provider value={{ me, loading, reload, logout }}>{children}</AuthContext.Provider>;
 }

@@ -215,7 +215,9 @@
     "SEASON_NOT_FOUND": "Nie znaleziono sezonu.",
     "INVALID_SEASON": "Sprawdź dane sezonu: nazwa, daty (koniec nie przed początkiem, najwyżej 3 lata), punkty 0–10000, liczone wyniki 1–50.",
     "INVALID_DATE_RANGE": "Nieprawidłowy zakres dat (najwyżej 2 lata).",
-    "TOURNAMENT_NOT_ELIGIBLE": "Tego turnieju nie można oznaczyć jako oficjalny (szkic lub odwołany)."
+    "TOURNAMENT_NOT_ELIGIBLE": "Tego turnieju nie można oznaczyć jako oficjalny (szkic lub odwołany).",
+    "PUSH_DISABLED": "Powiadomienia push są wyłączone na tym serwerze.",
+    "INVALID_PUSH_SUBSCRIPTION": "Ta przeglądarka zwróciła nieobsługiwaną subskrypcję push."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -1383,5 +1385,22 @@
     "subscribe": "Subskrybuj",
     "copy": "Kopiuj link",
     "copied": "Skopiowano"
+  },
+  "push": {
+    "title": "Powiadomienia push",
+    "lead": "Powiadomienia na tym urządzeniu, także gdy aplikacja jest zamknięta: start rundy, stół i przeciwnik, wynik do potwierdzenia, wezwanie sędziego.",
+    "state": {
+      "unsupported": "Ta przeglądarka nie obsługuje powiadomień push.",
+      "no-worker": "Powiadomienia push działają w zainstalowanej aplikacji / wersji produkcyjnej (w trybie deweloperskim nie ma service workera).",
+      "denied": "Powiadomienia są zablokowane w ustawieniach przeglądarki dla tej strony – odblokuj je tam.",
+      "off": "Wyłączone na tym urządzeniu.",
+      "on": "Włączone na tym urządzeniu."
+    },
+    "iosHint": "iPhone / iPad: najpierw dodaj WarBracket do ekranu początkowego (Udostępnij → Do ekranu początkowego) i otwórz z ikony.",
+    "enable": "Włącz powiadomienia",
+    "disable": "Wyłącz na tym urządzeniu",
+    "test": "Wyślij test",
+    "testSent": "Wysłano – powinno dotrzeć w ciągu kilku sekund.",
+    "testMessage": "Powiadomienia push działają na tym urządzeniu."
   }
 }

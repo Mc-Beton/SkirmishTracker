@@ -8,9 +8,12 @@
  *   queued by the app itself (IndexedDB outbox), not here.
  * The page asks us to drop cached API data on sign-out ("clear-user-data"), so another person using the same
  * device never sees it.
+ *
+ * Push: the server sends {id, type, params, link, locale}; the text is formatted here from /notification-texts
+ * (the app's own translations, ICU {name} and {x, select, …}), so a push reads exactly like the in-app notice.
  */
 
-const VERSION = "v2";
+const VERSION = "v3";
 const STATIC_CACHE = `wb-static-${VERSION}`;
 const PAGE_CACHE = `wb-pages-${VERSION}`;
 const API_CACHE = `wb-api-${VERSION}`;
@@ -134,4 +137,120 @@ function withTimeout(promise, ms) {
 async function trim(cache, maxEntries) {
   const keys = await cache.keys();
   for (let i = 0; i < keys.length - maxEntries; i++) await cache.delete(keys[i]);
+}
+
+// ------------------------------------------------------------------ push notifications
+
+const TEXTS_URL = "/notification-texts";
+
+self.addEventListener("push", (event) => {
+  event.waitUntil(showPush(event));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const link = safeLink(event.notification.data && event.notification.data.link);
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      if (new URL(client.url).origin === self.location.origin && "focus" in client) {
+        if ("navigate" in client) await client.navigate(link).catch(() => undefined);
+        return client.focus();
+      }
+    }
+    return self.clients.openWindow(link);
+  })());
+});
+
+async function showPush(event) {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+  const texts = await notificationTexts();
+  const table = texts[data.locale] || texts.pl || {};
+  const template = table.types && table.types[data.type];
+  const body = template ? formatIcu(template, data.params || {}) : "";
+  await self.registration.showNotification(table.title || "WarBracket", {
+    body,
+    icon: "/icon-192.png?v=2",
+    badge: "/icon-192.png?v=2",
+    tag: data.id,
+    data: { link: safeLink(data.link) },
+  });
+}
+
+async function notificationTexts() {
+  const cache = await caches.open(STATIC_CACHE);
+  try {
+    const response = await withTimeout(fetch(TEXTS_URL), 4000);
+    if (response.ok) {
+      await cache.put(TEXTS_URL, response.clone());
+      return await response.json();
+    }
+  } catch {
+    // offline or slow: use the last copy
+  }
+  const hit = await cache.match(TEXTS_URL);
+  return hit ? hit.json() : {};
+}
+
+/** Only links inside the app ("/…", not "//host"). */
+function safeLink(link) {
+  return typeof link === "string" && link.startsWith("/") && !link.startsWith("//") ? link : "/";
+}
+
+/** Minimal ICU MessageFormat: {name} and {name, select, key {…} other {…}}, nested. */
+function formatIcu(message, params) {
+  let out = "";
+  let i = 0;
+  while (i < message.length) {
+    if (message[i] !== "{") {
+      out += message[i++];
+      continue;
+    }
+    const end = matchingBrace(message, i);
+    out += formatArgument(message.slice(i + 1, end), params);
+    i = end + 1;
+  }
+  return out;
+}
+
+function matchingBrace(text, start) {
+  let depth = 0;
+  for (let j = start; j < text.length; j++) {
+    if (text[j] === "{") depth++;
+    else if (text[j] === "}" && --depth === 0) return j;
+  }
+  return text.length - 1;
+}
+
+function formatArgument(inner, params) {
+  const first = inner.indexOf(",");
+  if (first < 0) {
+    const value = params[inner.trim()];
+    return value === undefined || value === null ? "" : String(value);
+  }
+  const name = inner.slice(0, first).trim();
+  const rest = inner.slice(first + 1);
+  const second = rest.indexOf(",");
+  if (second < 0 || rest.slice(0, second).trim() !== "select") return "";
+  const body = rest.slice(second + 1);
+  const options = {};
+  let j = 0;
+  while (j < body.length) {
+    while (j < body.length && /\s/.test(body[j])) j++;
+    let k = j;
+    while (k < body.length && body[k] !== "{" && !/\s/.test(body[k])) k++;
+    const key = body.slice(j, k);
+    while (k < body.length && body[k] !== "{") k++;
+    if (k >= body.length) break;
+    const end = matchingBrace(body, k);
+    options[key] = body.slice(k + 1, end);
+    j = end + 1;
+  }
+  const chosen = options[String(params[name])] !== undefined ? options[String(params[name])] : options.other || "";
+  return formatIcu(chosen, params);
 }

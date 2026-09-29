@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PushSettings } from "@/components/pwa/push-settings";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -134,6 +135,8 @@ function AccountForms({ me }: { me: Me }) {
           </form>
         </CardContent>
       </Card>
+
+      <PushSettings />
 
       <Card>
         <CardHeader>

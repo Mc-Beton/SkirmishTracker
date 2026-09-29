@@ -215,7 +215,9 @@
     "SEASON_NOT_FOUND": "Season not found.",
     "INVALID_SEASON": "Check the season: name, dates (end not before start, at most 3 years), points 0–10000, counted results 1–50.",
     "INVALID_DATE_RANGE": "Invalid date range (at most 2 years).",
-    "TOURNAMENT_NOT_ELIGIBLE": "This tournament cannot be marked official (draft or cancelled)."
+    "TOURNAMENT_NOT_ELIGIBLE": "This tournament cannot be marked official (draft or cancelled).",
+    "PUSH_DISABLED": "Push notifications are turned off on this server.",
+    "INVALID_PUSH_SUBSCRIPTION": "This browser returned an unsupported push subscription."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -1383,5 +1385,22 @@
     "subscribe": "Subscribe",
     "copy": "Copy link",
     "copied": "Copied"
+  },
+  "push": {
+    "title": "Push notifications",
+    "lead": "Notifications on this device, even when the app is closed: round start, table and opponent, results to confirm, judge calls.",
+    "state": {
+      "unsupported": "This browser does not support push notifications.",
+      "no-worker": "Push notifications work in the installed app / production build (there is no service worker in development mode).",
+      "denied": "Notifications are blocked for this site in the browser settings – unblock them there.",
+      "off": "Off on this device.",
+      "on": "On on this device."
+    },
+    "iosHint": "iPhone / iPad: first add WarBracket to the Home Screen (Share → Add to Home Screen) and open it from the icon.",
+    "enable": "Turn on notifications",
+    "disable": "Turn off on this device",
+    "test": "Send a test",
+    "testSent": "Sent – it should arrive within a few seconds.",
+    "testMessage": "Push notifications work on this device."
   }
 }

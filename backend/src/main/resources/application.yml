@@ -51,6 +51,12 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   mail-from: ${MAIL_FROM:no-reply@warbracket.local}
   support-inbox: ${SUPPORT_INBOX:}
+  push:
+    # Web Push. Without VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY a key pair is generated once and kept in the database.
+    enabled: ${PUSH_ENABLED:true}
+    subject: ${PUSH_SUBJECT:mailto:no-reply@warbracket.local}
+    public-key: ${VAPID_PUBLIC_KEY:}
+    private-key: ${VAPID_PRIVATE_KEY:}
   security:
     # HS256 key, at least 32 bytes. Always override in every non-local environment.
     jwt-secret: ${JWT_SECRET:dev-only-change-me-dev-only-change-me-0123456789}

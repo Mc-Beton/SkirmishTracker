@@ -169,6 +169,17 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   subskrypcja `/api/calendar.ics?country=PL&official=true` (ostatni miesiąc + rok naprzód, `webcal://`).
   Generator `calendar/Ics` (RFC 5545: escapowanie, zawijanie linii, UTC), test `IcsTest`.
 
+## 6d. Powiadomienia push (Web Push)
+
+- Każde powiadomienie w aplikacji (`NotificationService.notify`) trafia też jako push na urządzenia użytkownika,
+  po zatwierdzeniu transakcji, w tle. Włączanie: strona konta („Powiadomienia push”); wylogowanie wyrejestrowuje
+  urządzenie. Działa w buildzie produkcyjnym (service worker); iOS tylko w aplikacji dodanej do ekranu.
+- Backend `push/`: szyfrowanie RFC 8291 i VAPID RFC 8292 na samym JDK (`WebPushCrypto`, test na wektorze z RFC),
+  sprawdzanie punktu na krzywej, tylko endpointy znanych usług push (Google, Mozilla, Apple, Microsoft – bez SSRF),
+  max 10 urządzeń na konto, 404/410 kasuje subskrypcję. Klucze VAPID: z env albo generowane raz do tabeli
+  `push_keys` (V15). Endpointów nie logujemy (to sekrety).
+- Tekst powiadomienia składa service worker z tłumaczeń aplikacji (`/notification-texts`, mini-ICU w `sw.js`).
+
 ## 7. Dokumentacja w repo
 
 - `docs/game-content-model.md` – model treści gry (frakcje, postacie, scheme, scenariusze).
