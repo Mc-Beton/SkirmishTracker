@@ -139,6 +139,25 @@ export function signal(rate: Rate, reference: number): "above" | "below" | "none
   return "none";
 }
 
+/**
+ * Change of a score between two periods (after − before) and whether it is statistically significant
+ * (two-proportion z-test at 95%); "none" when either period has no games.
+ */
+export function change(before: Rate | undefined, after: Rate | undefined): { delta: number; signal: "up" | "down" | "none" } | null {
+  if (!before || !after || before.n === 0 || after.n === 0) return null;
+  const delta = after.score - before.score;
+  const se = Math.sqrt((before.score * (1 - before.score)) / before.n + (after.score * (1 - after.score)) / after.n);
+  const significant = se > 0 ? Math.abs(delta) > 1.96 * se : delta !== 0;
+  return { delta, signal: !significant ? "none" : delta > 0 ? "up" : "down" };
+}
+
+/** The day before an ISO date (yyyy-mm-dd), for "before the change" ranges. */
+export function dayBefore(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 export const pct = (v: number, digits = 0) => `${(v * 100).toFixed(digits)}%`;
 /** Percentage points with sign, e.g. +4,2 pp. */
 export const pp = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v * 100).toFixed(1)} pp`;

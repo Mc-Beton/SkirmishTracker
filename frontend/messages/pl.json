@@ -1277,6 +1277,28 @@
       "elo": "Wynik oczekiwany liczymy z ELO obu graczy sprzed danej gry (K = 32, start 1500), odtwarzając wszystkie gry chronologicznie.",
       "privacy": "Prywatność: pomijamy wiersze, za którymi stoi mniej niż {n} różnych graczy (teraz ukryte: {hidden}). Raport nie pokazuje wyników pojedynczych osób.",
       "sources": "Źródła: zatwierdzone gry turniejowe (frakcja i postacie z rozpiski turniejowej, misja z rundy) oraz zatwierdzone gry własne (frakcja i rozpiski podane przy zgłoszeniu). Koszty przedmiotów z aktualnej listy przedmiotów (także koszt obniżony)."
+    },
+    "compare": {
+      "split": "Porównaj przed / po dacie",
+      "splitHint": "Np. data erraty: raport pokaże zmianę wyników frakcji, postaci i przedmiotów między okresem przed tą datą i od niej (z pozostałymi filtrami).",
+      "title": "Przed i po {date}",
+      "lead": "Gry przed: {before}, od tej daty: {after}. Posortowane od największej zmiany.",
+      "factions": "Frakcje",
+      "units": "Postacie",
+      "items": "Przedmioty",
+      "faction": "Frakcja",
+      "share": "Udział",
+      "pick": "Wybór",
+      "name": "Nazwa",
+      "before": "Przed",
+      "after": "Po",
+      "change": "Zmiana",
+      "verdict": "Ocena",
+      "onlyOne": "tylko w jednym okresie",
+      "noChange": "w granicach szumu",
+      "up": "istotny wzrost",
+      "down": "istotny spadek",
+      "howToRead": "Zmiana to różnica wyniku (po − przed). „Istotna” oznacza, że różnica przekracza 95% margines błędu obu okresów (test dwóch proporcji). Kolumna udziału/wyboru pokazuje, jak zmieniła się popularność."
     }
   }
 }

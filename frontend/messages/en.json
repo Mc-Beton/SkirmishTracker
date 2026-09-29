@@ -1277,6 +1277,28 @@
       "elo": "The expected score uses both players' ELO before the game (K = 32, start 1500), replaying all games in order.",
       "privacy": "Privacy: rows backed by fewer than {n} different players are left out (hidden now: {hidden}). The report never shows individual results.",
       "sources": "Sources: confirmed tournament games (faction and characters from the tournament list, mission from the round) and confirmed own games (faction and lists entered with the report). Item costs from the current item list (including reduced costs)."
+    },
+    "compare": {
+      "split": "Compare before / after a date",
+      "splitHint": "E.g. an errata date: the report shows how faction, character and item results changed between the period before that date and from it (with the other filters).",
+      "title": "Before and after {date}",
+      "lead": "Games before: {before}, from that date: {after}. Sorted by the largest change.",
+      "factions": "Factions",
+      "units": "Characters",
+      "items": "Items",
+      "faction": "Faction",
+      "share": "Share",
+      "pick": "Pick rate",
+      "name": "Name",
+      "before": "Before",
+      "after": "After",
+      "change": "Change",
+      "verdict": "Verdict",
+      "onlyOne": "only in one period",
+      "noChange": "within noise",
+      "up": "significant rise",
+      "down": "significant drop",
+      "howToRead": "Change is the score difference (after − before). “Significant” means the difference exceeds the 95% error margin of both periods (two-proportion test). The share / pick column shows how popularity changed."
     }
   }
 }

@@ -13,6 +13,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { ColumnChart } from "@/components/reports/column-chart";
+import { Comparison } from "@/components/reports/comparison";
 import { CostEffect } from "@/components/reports/cost-effect";
 import { HeatMatrix } from "@/components/reports/heat-matrix";
 import { MonthBars } from "@/components/reports/month-bars";
@@ -20,7 +21,7 @@ import { RateInterval } from "@/components/reports/rate-interval";
 import { api } from "@/lib/api";
 import { useGameContent } from "@/lib/content";
 import {
-  DEAD_ITEM_PICK, EMPTY_FILTER, GEAR_LOADS, INSEPARABLE_SHARE, downloadCsv, pct, pp, reportCsv, reportQuery, reportRoles, signal,
+  DEAD_ITEM_PICK, EMPTY_FILTER, dayBefore, GEAR_LOADS, INSEPARABLE_SHARE, downloadCsv, pct, pp, reportCsv, reportQuery, reportRoles, signal,
   type MetaReport, type MetaResponse, type Rate, type ReportFilter,
 } from "@/lib/reports";
 import { NEUTRAL, factionName, useArmies, type Armies } from "@/lib/warbands";
@@ -41,6 +42,23 @@ export function ReportsView() {
   const busy = result?.query !== query;
   const data = result?.data ?? null;
   const error = result?.query === query ? result.error ?? null : null;
+
+  // Before / after comparison around one date (e.g. an errata), with the same other filters.
+  const [split, setSplit] = useState("");
+  const beforeQuery = split ? reportQuery({ ...filter, to: filter.to && filter.to < split ? filter.to : dayBefore(split) }) : "";
+  const afterQuery = split ? reportQuery({ ...filter, from: filter.from && filter.from > split ? filter.from : split }) : "";
+  const compareKey = split ? `${beforeQuery}|${afterQuery}` : "";
+  const [compared, setCompared] = useState<{ key: string; before: MetaReport; after: MetaReport } | null>(null);
+  useEffect(() => {
+    if (!allowed || !compareKey) return;
+    let active = true;
+    Promise.all([api<MetaResponse>("GET", beforeQuery), api<MetaResponse>("GET", afterQuery)])
+      .then(([b, a]) => active && setCompared({ key: compareKey, before: b.report, after: a.report }))
+      .catch(() => active && setCompared(null));
+    return () => {
+      active = false;
+    };
+  }, [allowed, compareKey, beforeQuery, afterQuery]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -109,6 +127,11 @@ export function ReportsView() {
               {["1450", "1500", "1550", "1600"].map((v) => <option key={v} value={v}>{t("filter.eloAtLeast", { elo: v })}</option>)}
             </NativeSelect>
           </Field>
+          <Field label={t("compare.split")}>
+            <Input type="date" value={split} min={data?.firstGame ?? undefined} max={data?.lastGame ?? undefined}
+              onChange={(e) => setSplit(e.target.value)} />
+          </Field>
+          <p className="self-end text-xs text-muted-foreground sm:col-span-2 lg:col-span-5">{t("compare.splitHint")}</p>
           <p className="text-xs text-muted-foreground sm:col-span-3 lg:col-span-6">
             {t("filter.hint")}
             {(filter !== EMPTY_FILTER) && (
@@ -125,6 +148,11 @@ export function ReportsView() {
       {report && (
         <div className={busy ? "grid gap-6 opacity-60 transition-opacity [&>*]:min-w-0" : "grid gap-6 [&>*]:min-w-0"} aria-busy={busy}>
           <Summary report={report} t={t} generatedAt={data?.generatedAt ?? ""} />
+          {split && compared?.key === compareKey && (
+            <Comparison before={compared.before} after={compared.after} date={split} fName={fName} unitName={unitName}
+              itemName={(c) => armies?.items.find((i) => i.code === c)?.name ?? c} />
+          )}
+          {split && compared?.key !== compareKey && <p className="text-sm text-muted-foreground">{t("loading")}</p>}
           {report.summary.games === 0 ? (
             <Alert>{t("empty")}</Alert>
           ) : (

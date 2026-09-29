@@ -149,6 +149,8 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
 - Przebieg gry (tylko gry turniejowe w trybie szczegółowym): od której tury zwycięzca prowadzi do końca, comebacki
   (zwycięzca przegrywał po połowie gry), PZ ze scenariusza i schematów w turach i per frakcja; schematy:
   jak często wylosowane / zatrzymane, PZ ze schematów i wynik gier, w których je zatrzymano.
+- Porównanie przed / po dacie (np. errata): dwa zapytania z tymi samymi filtrami, zmiana wyniku frakcji, postaci
+  i przedmiotów z testem dwóch proporcji (95%) – liczone w przeglądarce (`components/reports/comparison.tsx`).
 - Frontend: `app/admin/reports`, wykresy w `components/reports`, CSV generowany w przeglądarce (`lib/reports.ts`).
 
 ## 7. Dokumentacja w repo
