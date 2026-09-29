@@ -17,7 +17,8 @@
     "profile": "Mój profil",
     "menu": "Menu",
     "main": "Nawigacja",
-    "reports": "Raporty"
+    "reports": "Raporty",
+    "seasons": "Sezony"
   },
   "home": {
     "headline": "Prowadź turnieje bez kartki i kalkulatora",
@@ -210,7 +211,11 @@
     "LIVE_TOO_MANY_TOPICS": "Za dużo obserwowanych turniejów naraz.",
     "LIVE_TOO_MANY_STREAMS": "Za dużo otwartych kart z aplikacją.",
     "LIVE_UNAVAILABLE": "Odświeżanie na żywo jest chwilowo niedostępne.",
-    "INVALID_REPORT_FILTER": "Nieprawidłowy filtr raportu."
+    "INVALID_REPORT_FILTER": "Nieprawidłowy filtr raportu.",
+    "SEASON_NOT_FOUND": "Nie znaleziono sezonu.",
+    "INVALID_SEASON": "Sprawdź dane sezonu: nazwa, daty (koniec nie przed początkiem, najwyżej 3 lata), punkty 0–10000, liczone wyniki 1–50.",
+    "INVALID_DATE_RANGE": "Nieprawidłowy zakres dat (najwyżej 2 lata).",
+    "TOURNAMENT_NOT_ELIGIBLE": "Tego turnieju nie można oznaczyć jako oficjalny (szkic lub odwołany)."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -1299,6 +1304,63 @@
       "up": "istotny wzrost",
       "down": "istotny spadek",
       "howToRead": "Zmiana to różnica wyniku (po − przed). „Istotna” oznacza, że różnica przekracza 95% margines błędu obu okresów (test dwóch proporcji). Kolumna udziału/wyboru pokazuje, jak zmieniła się popularność."
+    },
+    "program": "Program oficjalny"
+  },
+  "seasons": {
+    "title": "Sezony",
+    "lead": "Oficjalny ranking sezonu z turniejów oznaczonych przez wydawcę jako oficjalne.",
+    "official": "Oficjalny",
+    "manage": "Zarządzaj sezonami",
+    "none": "Nie ma jeszcze żadnego sezonu.",
+    "season": "Sezon",
+    "current": "trwa",
+    "rules": "Okres {from} – {to}. Zwycięzca turnieju dostaje {local} pkt (lokalny), {master} pkt (master) lub {international} pkt (międzynarodowy), kolejne miejsca proporcjonalnie mniej. Liczy się {best} najlepszych wyników gracza.",
+    "ranking": "Ranking sezonu",
+    "noResults": "Brak zakończonych oficjalnych turniejów w tym sezonie.",
+    "player": "Gracz",
+    "events": "Turnieje",
+    "points": "Punkty",
+    "details": "Szczegóły",
+    "place": "miejsce {place}/{players}",
+    "pts": "pkt",
+    "tournaments": "Oficjalne turnieje",
+    "noTournaments": "Brak oficjalnych turniejów w tym okresie.",
+    "playersN": "{n} graczy",
+    "winnerGets": "zwycięzca {n} pkt",
+    "organizers": "Aktywni organizatorzy",
+    "organizersLead": "Kto prowadzi oficjalne turnieje w tym sezonie.",
+    "organizer": "Organizator",
+    "players": "Gracze",
+    "admin": {
+      "title": "Program oficjalny",
+      "lead": "Sezony i oficjalne turnieje – dla wydawcy i administratora portalu.",
+      "forbidden": "Ta strona jest dostępna dla wydawcy gry i administratora portalu.",
+      "public": "Zobacz ranking",
+      "seasons": "Sezony",
+      "add": "Nowy sezon",
+      "noSeasons": "Nie ma jeszcze sezonów.",
+      "current": "trwa",
+      "edit": "Edytuj",
+      "name": "Nazwa",
+      "startsOn": "Początek",
+      "endsOn": "Koniec",
+      "pointsLocal": "Punkty za wygranie – lokalny",
+      "pointsMaster": "Punkty za wygranie – master",
+      "pointsInternational": "Punkty za wygranie – międzynarodowy",
+      "bestResults": "Liczone najlepsze wyniki",
+      "formula": "Punkty za miejsce = punkty za wygranie × (liczba graczy − miejsce + 1) / liczba graczy. Liczą się tylko zakończone turnieje indywidualne oznaczone jako oficjalne.",
+      "save": "Zapisz",
+      "cancel": "Anuluj",
+      "delete": "Usuń sezon",
+      "confirmDelete": "Usunąć ten sezon? Turnieje i wyniki zostaną, zniknie tylko ranking sezonu.",
+      "officialTitle": "Oficjalne turnieje",
+      "officialLead": "Zaznacz turnieje, które liczą się do rankingu sezonu. Zmiana jest zapisywana od razu i trafia do dziennika zmian.",
+      "from": "Od",
+      "to": "Do",
+      "noTournaments": "Brak turniejów w tym okresie.",
+      "playersN": "{n} graczy",
+      "team": "drużynowy – nie liczy się do rankingu indywidualnego"
     }
   }
 }

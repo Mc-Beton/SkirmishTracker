@@ -18,4 +18,7 @@ public interface TournamentRepository extends JpaRepository<Tournament, UUID>, J
     Optional<Tournament> findByIdForUpdate(UUID id);
 
     List<Tournament> findByOwnerIdOrderByStartsAtDesc(UUID ownerId);
+
+    List<Tournament> findByStartsAtGreaterThanEqualAndStartsAtLessThanOrderByStartsAtAsc(java.time.Instant from,
+                                                                                         java.time.Instant to);
 }

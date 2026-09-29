@@ -24,7 +24,8 @@ public final class TournamentViews {
 
     public record Summary(UUID id, String name, Instant startsAt, String city, String venueName,
                           TournamentRank rank, TournamentFormat format, TournamentStatus status,
-                          Integer maxPlayers, long registeredCount, Integer pointsLimit, String organizerName) {
+                          Integer maxPlayers, long registeredCount, Integer pointsLimit, String organizerName,
+                          boolean official) {
     }
 
     public record Detail(UUID id, String name, String description, Instant startsAt, Instant endsAt,
@@ -38,7 +39,8 @@ public final class TournamentViews {
                          boolean canManage,
                          TournamentSettings settings,
                          long roundsCount,
-                         List<RoundPlan> roundPlans) {
+                         List<RoundPlan> roundPlans,
+                         boolean official) {
     }
 
     /** pairing / softPreferences null = default for that round. */

@@ -153,6 +153,15 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   i przedmiotów z testem dwóch proporcji (95%) – liczone w przeglądarce (`components/reports/comparison.tsx`).
 - Frontend: `app/admin/reports`, wykresy w `components/reports`, CSV generowany w przeglądarce (`lib/reports.ts`).
 
+## 6b. Program oficjalny: sezony i oficjalne turnieje
+
+- Wydawca (`PUBLISHER`) lub admin oznacza turnieje jako oficjalne (`/admin/seasons`, zapis w dzienniku zmian)
+  i zakłada sezony (migracja V14: `tournaments.official*`, tabela `seasons`).
+- Ranking sezonu (`/seasons`, publiczny): zakończone, oficjalne, indywidualne turnieje z okresu sezonu; punkty za
+  miejsce = punkty za wygranie w danej randze × (gracze − miejsce + 1) / gracze; liczy się N najlepszych wyników
+  (`SeasonScoring`, testy `SeasonScoringTest`). Do tego lista aktywnych organizatorów (Guildmasterzy).
+- Plakietka „Oficjalny” na kartach i stronach turniejów. Menu poziome od szerokości `xl`, niżej menu rozwijane.
+
 ## 7. Dokumentacja w repo
 
 - `docs/game-content-model.md` – model treści gry (frakcje, postacie, scheme, scenariusze).

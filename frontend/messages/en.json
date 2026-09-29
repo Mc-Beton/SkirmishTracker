@@ -17,7 +17,8 @@
     "profile": "My profile",
     "menu": "Menu",
     "main": "Navigation",
-    "reports": "Reports"
+    "reports": "Reports",
+    "seasons": "Seasons"
   },
   "home": {
     "headline": "Run tournaments without paper and calculators",
@@ -210,7 +211,11 @@
     "LIVE_TOO_MANY_TOPICS": "Too many tournaments watched at once.",
     "LIVE_TOO_MANY_STREAMS": "Too many open tabs with the app.",
     "LIVE_UNAVAILABLE": "Live updates are temporarily unavailable.",
-    "INVALID_REPORT_FILTER": "Invalid report filter."
+    "INVALID_REPORT_FILTER": "Invalid report filter.",
+    "SEASON_NOT_FOUND": "Season not found.",
+    "INVALID_SEASON": "Check the season: name, dates (end not before start, at most 3 years), points 0–10000, counted results 1–50.",
+    "INVALID_DATE_RANGE": "Invalid date range (at most 2 years).",
+    "TOURNAMENT_NOT_ELIGIBLE": "This tournament cannot be marked official (draft or cancelled)."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -1299,6 +1304,63 @@
       "up": "significant rise",
       "down": "significant drop",
       "howToRead": "Change is the score difference (after − before). “Significant” means the difference exceeds the 95% error margin of both periods (two-proportion test). The share / pick column shows how popularity changed."
+    },
+    "program": "Official program"
+  },
+  "seasons": {
+    "title": "Seasons",
+    "lead": "The official season ranking from tournaments the publisher marked official.",
+    "official": "Official",
+    "manage": "Manage seasons",
+    "none": "There are no seasons yet.",
+    "season": "Season",
+    "current": "ongoing",
+    "rules": "Period {from} – {to}. A tournament winner gets {local} pts (local), {master} pts (master) or {international} pts (international), lower places proportionally less. A player's best {best} results count.",
+    "ranking": "Season ranking",
+    "noResults": "No finished official tournaments in this season yet.",
+    "player": "Player",
+    "events": "Events",
+    "points": "Points",
+    "details": "Details",
+    "place": "place {place}/{players}",
+    "pts": "pts",
+    "tournaments": "Official tournaments",
+    "noTournaments": "No official tournaments in this period.",
+    "playersN": "{n} players",
+    "winnerGets": "winner {n} pts",
+    "organizers": "Active organizers",
+    "organizersLead": "Who runs official tournaments this season.",
+    "organizer": "Organizer",
+    "players": "Players",
+    "admin": {
+      "title": "Official program",
+      "lead": "Seasons and official tournaments – for the publisher and the portal administrator.",
+      "forbidden": "This page is available to the game publisher and the portal administrator.",
+      "public": "See the ranking",
+      "seasons": "Seasons",
+      "add": "New season",
+      "noSeasons": "No seasons yet.",
+      "current": "ongoing",
+      "edit": "Edit",
+      "name": "Name",
+      "startsOn": "Start",
+      "endsOn": "End",
+      "pointsLocal": "Points for a win – local",
+      "pointsMaster": "Points for a win – master",
+      "pointsInternational": "Points for a win – international",
+      "bestResults": "Best results counted",
+      "formula": "Points for a place = points for a win × (players − place + 1) / players. Only finished individual tournaments marked official count.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete season",
+      "confirmDelete": "Delete this season? Tournaments and results stay, only the season ranking goes.",
+      "officialTitle": "Official tournaments",
+      "officialLead": "Tick the tournaments that count towards the season ranking. Changes are saved at once and logged.",
+      "from": "From",
+      "to": "To",
+      "noTournaments": "No tournaments in this period.",
+      "playersN": "{n} players",
+      "team": "team event – does not count for the individual ranking"
     }
   }
 }

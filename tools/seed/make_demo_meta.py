@@ -19,6 +19,8 @@ Results are simulated from hidden "true" effects, so the report has real finding
   * Items: King of the Battlefield (2 pts) is underpriced, the Imported Crossbow (5 pts) overpriced, the
     Flying Carpet is strong but nearly always carried by the Vizier of Conjurations, and four items are
     never taken (Camaraderie, Glyphscribe: Reduce Weight, Devotion: Paimon, Kassen Buki: Kanabou-tsukai).
+  * Official program: 4 local organizers (Guildmaster PL/PT/ES/DE), masters, internationals and every other
+    local event marked official, season "[DEMO] Sezon 2026" (needs migration V14 – start the backend once).
   * Game flow (detailed mode in ~75% of tournament games): points per turn and scheme cards. Decisive Victory
     is kept whenever drawn and scores well, Peacekeeping Paragon is almost never kept, Stand Your Ground is
     popular but scores little (a trap).
@@ -49,6 +51,8 @@ PASSWORD_HASH = "$argon2id$v=19$m=16384,t=2,p=1$ecJFJfDX8tXq7qgNWKm7yg$YMlEscuP0
 rng = random.Random(20261001)
 # Separate stream for game-flow data (turns, scheme cards), so adding it leaves every other result unchanged.
 frng = random.Random(20261002)
+# … and one for the official program (organizers per country, season) – also independent of the rest.
+grng = random.Random(20261003)
 
 
 def ascii_slug(nick):
@@ -238,11 +242,14 @@ def insert(table, cols, rows):
 
 organizer = {"id": uid(), "nick": "Organizator Demo", "email": "demo-organizator@example.invalid"}
 publisher = {"id": uid(), "nick": "Wydawca Demo", "email": "demo-wydawca@example.invalid"}
+# Local organizers (the publisher's Guildmasters), one per country; masters / internationals stay with the demo org.
+GUILDMASTERS = {c: {"id": str(uuid.UUID(int=grng.getrandbits(128), version=4)), "nick": f"Guildmaster {c}",
+                    "email": f"demo-guildmaster-{c.lower()}@example.invalid"} for c in NICKS}
 created = ts(START - dt.timedelta(days=30))
 user_rows = [[q(p["id"]), q(f"demo-{ascii_slug(p['nick'])}@example.invalid"), q(p["nick"]), "pwd", created, q("pl"),
               q(f"[DEMO] Klub {p['city']}"), q(p["city"]), created, created] for p in players]
 user_rows += [[q(u["id"]), q(u["email"]), q(u["nick"]), "pwd", created, q("pl"), "NULL", "NULL", created, created]
-              for u in (organizer, publisher)]
+              for u in (organizer, publisher, *GUILDMASTERS.values())]
 
 # ------------------------------------------------------------------ tournaments
 
@@ -297,7 +304,7 @@ def split_turns(total, kept):
         sch[TURNS - 1 if timing == "END_OF_GAME" else frng.randrange(TURNS)] += 1
     return list(zip(per, sch))
 games_total = 0
-for (tday, country, city, tier, size, n_rounds, name) in T_PLAN:
+for t_index, (tday, country, city, tier, size, n_rounds, name) in enumerate(T_PLAN):
     tid = uid()
     local = by_country[country] if country != "DE" else by_country["DE"] + by_country["PL"]
     field = rng.sample(local, min(size, len(local)))
@@ -306,9 +313,12 @@ for (tday, country, city, tier, size, n_rounds, name) in T_PLAN:
         field += rng.sample(others, size - len(field))
     if len(field) % 2:
         field = field[:-1]
-    t_rows.append([q(tid), q(organizer["id"]), q(name), q("Turniej demonstracyjny (dane wygenerowane)."),
+    owner = organizer if tier != "LOCAL" else GUILDMASTERS[country]
+    official = tier != "LOCAL" or t_index % 2 == 0  # masters, internationals and every other local event
+    t_rows.append([q(tid), q(owner["id"]), q(name), q("Turniej demonstracyjny (dane wygenerowane)."),
                    ts(tday, 9), ts(tday, 20), q(city), q(country), q(tier), q("SWISS"), q(len(field)), q(n_rounds),
-                   q("FINISHED"), ts(tday - dt.timedelta(days=21)), ts(tday, 20)])
+                   q("FINISHED"), ts(tday - dt.timedelta(days=21)), ts(tday, 20), q(official),
+                   q(publisher["id"]) if official else "NULL", ts(tday - dt.timedelta(days=20)) if official else "NULL"])
     sides = {}
     leader_int = {}
     for p in field:
@@ -390,7 +400,8 @@ for _ in range(420):
 
 # ------------------------------------------------------------------ SQL
 
-REMOVE = """DELETE FROM tournaments WHERE name LIKE '[DEMO]%';
+REMOVE = """DELETE FROM seasons WHERE name LIKE '[DEMO]%';
+DELETE FROM tournaments WHERE name LIKE '[DEMO]%';
 DELETE FROM friendly_games WHERE notes = '[demo]'
     OR player_a IN (SELECT id FROM users WHERE email LIKE 'demo-%@example.invalid')
     OR player_b IN (SELECT id FROM users WHERE email LIKE 'demo-%@example.invalid');
@@ -409,7 +420,10 @@ insert("users", ["id", "email", "display_name", "password_hash", "email_verified
 insert("user_roles", ["user_id", "role"], [[r[0], q("USER")] for r in user_rows] + [[q(publisher["id"]), q("PUBLISHER")]])
 insert("tournaments", ["id", "owner_id", "name", "description", "starts_at", "ends_at", "city", "country",
                        "tournament_rank", "format", "max_players", "rounds_planned", "status", "created_at",
-                       "updated_at"], t_rows)
+                       "updated_at", "official", "official_by", "official_at"], t_rows)
+insert("seasons", ["id", "name", "starts_on", "ends_on", "created_at", "updated_at"],
+       [[q(str(uuid.UUID(int=grng.getrandbits(128), version=4))), q("[DEMO] Sezon 2026"), "DATE '2026-01-01'",
+         "DATE '2026-12-31'", created, created]])
 insert("tournament_participants", ["id", "tournament_id", "user_id", "status", "registered_at", "paid", "list_status",
                                    "city", "faction"], part_rows)
 insert("warbands", ["id", "tournament_id", "user_id", "faction", "allied_faction", "leader_int", "total_points",

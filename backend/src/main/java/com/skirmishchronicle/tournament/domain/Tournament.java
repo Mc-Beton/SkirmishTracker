@@ -141,6 +141,16 @@ public class Tournament extends AbstractEntity {
     @Column(name = "top_cut", nullable = false)
     private int topCut;
 
+    /** Marked official by the game publisher / portal admin: counts towards season rankings. */
+    @Column(nullable = false)
+    private boolean official;
+
+    @Column(name = "official_by")
+    private UUID officialBy;
+
+    @Column(name = "official_at")
+    private Instant officialAt;
+
     @Column(name = "team_size")
     private Integer teamSize;
 
@@ -311,5 +321,15 @@ public class Tournament extends AbstractEntity {
 
     public TournamentStatus getStatus() {
         return status;
+    }
+
+    public boolean isOfficial() {
+        return official;
+    }
+
+    public void markOfficial(boolean value, UUID by) {
+        this.official = value;
+        this.officialBy = value ? by : null;
+        this.officialAt = value ? Instant.now() : null;
     }
 }

@@ -189,9 +189,12 @@ function stamp(f: ReportFilter): string {
 function Shell({ t, children }: { t: T; children: React.ReactNode }) {
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 [&>*]:min-w-0">
-      <div className="grid gap-1">
-        <h1 className="font-display text-3xl">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("lead")}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="grid gap-1">
+          <h1 className="font-display text-3xl">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("lead")}</p>
+        </div>
+        <Button variant="outline" size="sm" asChild><Link href="/admin/seasons">{t("program")}</Link></Button>
       </div>
       {children}
     </div>

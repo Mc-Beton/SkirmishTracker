@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
-import { RankBadge, StatusBadge } from "@/components/tournaments/status-badge";
+import { OfficialBadge, RankBadge, StatusBadge } from "@/components/tournaments/status-badge";
 import { api } from "@/lib/api";
 import { useLiveRefresh } from "@/lib/live";
 import { sendOrQueue, type OutboxItem } from "@/lib/offline-queue";
@@ -192,6 +192,7 @@ export function TournamentView({ id }: { id: string }) {
         <div className="flex flex-wrap items-center gap-2">
           <RankBadge rank={tournament.rank} />
           <StatusBadge status={tournament.status} />
+          {tournament.official && <OfficialBadge />}
           {leagues.map((l) => (
             <Link key={l.id} href={`/leagues/${l.id}`}
               className="rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-accent">

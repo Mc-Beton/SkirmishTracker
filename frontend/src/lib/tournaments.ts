@@ -288,6 +288,8 @@ export type TournamentSummary = {
   registeredCount: number;
   pointsLimit: number | null;
   organizerName: string;
+  /** Marked official by the publisher: counts towards season rankings. */
+  official: boolean;
 };
 
 export type TournamentDetail = {
@@ -317,6 +319,7 @@ export type TournamentDetail = {
   settings: TournamentSettings;
   roundsCount: number;
   roundPlans: RoundPlan[];
+  official: boolean;
 };
 
 export type Participant = {

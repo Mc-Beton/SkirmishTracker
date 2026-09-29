@@ -79,9 +79,12 @@ public class SecurityConfig {
                                 "/api/tournaments/*/matches/*/game", "/api/tournaments/*/warbands",
                                 "/api/tournaments/*/warbands/*", "/api/content", "/api/content/armies",
                                 "/api/tournaments/*/leagues", "/api/leagues", "/api/leagues/*", "/api/players/*",
-                                "/api/ranking", "/api/live").permitAll()
+                                "/api/ranking", "/api/live", "/api/seasons", "/api/seasons/*").permitAll()
                         // Reports (aggregates only) are also open to the game publisher.
                         .requestMatchers(HttpMethod.GET, "/api/admin/reports/**").hasAnyRole("ADMIN", "PUBLISHER")
+                        // The publisher runs the official program: seasons and official tournaments.
+                        .requestMatchers("/api/admin/seasons/**", "/api/admin/seasons", "/api/admin/official/**")
+                                .hasAnyRole("ADMIN", "PUBLISHER")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(rs -> rs
