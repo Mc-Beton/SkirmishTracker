@@ -12,9 +12,10 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { EloChart } from "@/components/players/elo-chart";
 import { PlayStatsSection } from "@/components/players/play-stats";
+import { Badges } from "@/components/players/badges";
 import { StatusBadge } from "@/components/tournaments/status-badge";
 import { api } from "@/lib/api";
-import type { PlayerProfile } from "@/lib/players";
+import type { Versus, PlayerProfile } from "@/lib/players";
 import { factionName, useArmies } from "@/lib/warbands";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,20 @@ export function PlayerProfileView({ id }: { id: string }) {
   const { me } = useAuth();
   const [p, setP] = useState<PlayerProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Head-to-head of the signed-in player against this one.
+  const [versus, setVersus] = useState<Versus | null>(null);
+  const meId = me?.id;
+  useEffect(() => {
+    if (!meId || meId === id) return;
+    let active = true;
+    api<Versus>("GET", `/api/players/${meId}/versus/${id}`)
+      .then((v) => active && setVersus(v))
+      .catch(() => active && setVersus(null));
+    return () => {
+      active = false;
+    };
+  }, [meId, id]);
 
   useEffect(() => {
     let active = true;
@@ -81,6 +96,47 @@ export function PlayerProfileView({ id }: { id: string }) {
         <Card>
           <CardHeader><CardTitle className="text-xl">{t("eloHistory")}</CardTitle></CardHeader>
           <CardContent><EloChart points={p.history} /></CardContent>
+        </Card>
+      )}
+
+      {versus && meId && versus.player.id === meId && versus.opponent.id === p.id && (
+        <Card>
+          <CardHeader><CardTitle className="text-xl">{t("versus.title", { name: p.displayName })}</CardTitle></CardHeader>
+          <CardContent className="grid gap-3">
+            {versus.games === 0 ? <p className="text-sm text-muted-foreground">{t("versus.none")}</p> : (
+              <>
+                <p className="text-sm">
+                  <span className="font-display text-2xl tabular-nums">{versus.wins}–{versus.draws}–{versus.losses}</span>
+                  <span className="ml-2 text-muted-foreground">{t("versus.summary", { games: versus.games })}</span>
+                </p>
+                <ul className="grid gap-1 text-sm">
+                  {versus.recent.map((g) => (
+                    <li key={g.id} className="flex flex-wrap items-center gap-2">
+                      <span className={cn("inline-flex size-6 items-center justify-center rounded text-xs font-semibold",
+                        g.result === "W" ? "bg-emerald-600/15 text-emerald-800 dark:text-emerald-300"
+                          : g.result === "L" ? "bg-destructive/15 text-destructive" : "bg-muted")}
+                        aria-label={t(`result.${g.result}`)}>{t(`resultShort.${g.result}`)}</span>
+                      <span className="tabular-nums">{g.myScore}:{g.opponentScore}</span>
+                      <span className="text-muted-foreground">
+                        {g.tournamentId ? <Link href={`/tournaments/${g.tournamentId}`} className="hover:underline">{g.tournamentName}</Link> : t("ownGame")}
+                        {g.playedAt && ` · ${format.dateTime(new Date(g.playedAt), { dateStyle: "medium" })}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {p.badges && p.badges.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">{t("badges.title")}</CardTitle>
+            <p className="text-sm text-muted-foreground">{t("badges.count", { n: p.badges.filter((b) => b.earned).length, of: p.badges.length })}</p>
+          </CardHeader>
+          <CardContent><Badges badges={p.badges} /></CardContent>
         </Card>
       )}
 
@@ -153,6 +209,24 @@ export function PlayerProfileView({ id }: { id: string }) {
             )}
           </CardContent>
         </Card>
+
+        {p.opponents && p.opponents.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle className="text-xl">{t("opponents.title")}</CardTitle></CardHeader>
+            <CardContent>
+              <ul className="grid gap-1 text-sm">
+                {p.opponents.map((o) => (
+                  <li key={o.opponent.id} className="flex items-center justify-between gap-2">
+                    <Link href={`/players/${o.opponent.id}`} className="font-medium hover:underline">{o.opponent.displayName}</Link>
+                    <span className="tabular-nums text-muted-foreground">
+                      {t("opponents.games", { n: o.games })} · {o.wins}–{o.draws}–{o.losses}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader><CardTitle className="text-xl">{t("factions")}</CardTitle></CardHeader>

@@ -180,6 +180,12 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   `push_keys` (V15). Endpointów nie logujemy (to sekrety).
 - Tekst powiadomienia składa service worker z tłumaczeń aplikacji (`/notification-texts`, mini-ICU w `sw.js`).
 
+## 6e. Profil: bilans z przeciwnikiem i odznaki
+
+- Profil gracza: „Twój bilans z X” (dla zalogowanego, `GET /api/players/{id}/versus/{opponentId}`, publiczne),
+  najczęstsi przeciwnicy (top 5) i 12 odznak z postępem (`profile/Badges`, liczone z gier, ELO sprzed gry
+  i turniejów – nic nie jest zapisywane; testy `BadgesTest`).
+
 ## 7. Dokumentacja w repo
 
 - `docs/game-content-model.md` – model treści gry (frakcje, postacie, scheme, scenariusze).

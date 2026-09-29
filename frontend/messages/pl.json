@@ -933,6 +933,69 @@
       "missionLosses": "Top 5 misji – porażki",
       "noMissions": "Brak gier z zapisaną misją.",
       "basisMissions": "Misja znana w {n, plural, one {# grze} other {# grach}}."
+    },
+    "versus": {
+      "title": "Twój bilans z: {name}",
+      "none": "Nie graliście jeszcze ze sobą rankingowej gry.",
+      "summary": "wygrane–remisy–porażki w {games} grach"
+    },
+    "opponents": {
+      "title": "Najczęstsi przeciwnicy",
+      "games": "{n} gier"
+    },
+    "badges": {
+      "title": "Odznaki",
+      "count": "Zdobyte: {n} z {of}",
+      "earned": "zdobyta",
+      "locked": "jeszcze nie zdobyta",
+      "FIRST_GAME": {
+        "name": "Pierwsza krew",
+        "hint": "Rozegraj pierwszą rankingową grę."
+      },
+      "VETERAN": {
+        "name": "Weteran",
+        "hint": "Rozegraj {target} gier rankingowych."
+      },
+      "LEGEND": {
+        "name": "Legenda",
+        "hint": "Rozegraj {target} gier rankingowych."
+      },
+      "WIN_STREAK": {
+        "name": "Seria zwycięstw",
+        "hint": "Wygraj {target} gier z rzędu."
+      },
+      "GIANT_SLAYER": {
+        "name": "Pogromca gigantów",
+        "hint": "Pokonaj gracza z ELO wyższym o co najmniej 150."
+      },
+      "TOURNAMENT_WINNER": {
+        "name": "Zwycięzca turnieju",
+        "hint": "Wygraj turniej."
+      },
+      "PODIUM": {
+        "name": "Stały bywalec podium",
+        "hint": "Stań {target} razy na podium turnieju."
+      },
+      "OFFICIAL_CHAMPION": {
+        "name": "Oficjalny mistrz",
+        "hint": "Wygraj oficjalny turniej sezonu."
+      },
+      "GLOBETROTTER": {
+        "name": "Obieżyświat",
+        "hint": "Zagraj w turniejach w {target} krajach."
+      },
+      "FACTION_MASTER": {
+        "name": "Mistrz frakcji",
+        "hint": "Wygraj {target} gier jedną frakcją."
+      },
+      "ALL_ROUNDER": {
+        "name": "Wszechstronny",
+        "hint": "Zagraj {target} różnymi frakcjami."
+      },
+      "ORGANIZER": {
+        "name": "Organizator",
+        "hint": "Poprowadź turniej do końca."
+      }
     }
   },
   "games": {

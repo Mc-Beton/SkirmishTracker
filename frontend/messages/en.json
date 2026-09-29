@@ -933,6 +933,69 @@
       "missionLosses": "Top 5 missions – losses",
       "noMissions": "No games with a recorded mission.",
       "basisMissions": "Mission known in {n, plural, one {# game} other {# games}}."
+    },
+    "versus": {
+      "title": "Your record against {name}",
+      "none": "You have not played a rated game against each other yet.",
+      "summary": "wins–draws–losses in {games} games"
+    },
+    "opponents": {
+      "title": "Most frequent opponents",
+      "games": "{n} games"
+    },
+    "badges": {
+      "title": "Badges",
+      "count": "Earned: {n} of {of}",
+      "earned": "earned",
+      "locked": "not earned yet",
+      "FIRST_GAME": {
+        "name": "First blood",
+        "hint": "Play your first rated game."
+      },
+      "VETERAN": {
+        "name": "Veteran",
+        "hint": "Play {target} rated games."
+      },
+      "LEGEND": {
+        "name": "Legend",
+        "hint": "Play {target} rated games."
+      },
+      "WIN_STREAK": {
+        "name": "Winning streak",
+        "hint": "Win {target} games in a row."
+      },
+      "GIANT_SLAYER": {
+        "name": "Giant slayer",
+        "hint": "Beat a player rated at least 150 ELO higher."
+      },
+      "TOURNAMENT_WINNER": {
+        "name": "Tournament winner",
+        "hint": "Win a tournament."
+      },
+      "PODIUM": {
+        "name": "Podium regular",
+        "hint": "Finish on a tournament podium {target} times."
+      },
+      "OFFICIAL_CHAMPION": {
+        "name": "Official champion",
+        "hint": "Win an official season tournament."
+      },
+      "GLOBETROTTER": {
+        "name": "Globetrotter",
+        "hint": "Play tournaments in {target} countries."
+      },
+      "FACTION_MASTER": {
+        "name": "Faction master",
+        "hint": "Win {target} games with one faction."
+      },
+      "ALL_ROUNDER": {
+        "name": "All-rounder",
+        "hint": "Play {target} different factions."
+      },
+      "ORGANIZER": {
+        "name": "Organizer",
+        "hint": "Run a tournament to the end."
+      }
     }
   },
   "games": {

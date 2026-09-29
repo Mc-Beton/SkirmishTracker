@@ -55,6 +55,23 @@ export type PlayerProfile = {
   }[];
   factions: { faction: string; count: number }[];
   playStats: PlayStats;
+  opponents: OpponentRow[];
+  badges: Badge[];
+};
+
+export type OpponentRow = { opponent: { id: string; displayName: string }; games: number; wins: number; draws: number; losses: number };
+export type Badge = { code: BadgeCode; earned: boolean; progress: number; target: number };
+export type BadgeCode =
+  | "FIRST_GAME" | "VETERAN" | "LEGEND" | "WIN_STREAK" | "GIANT_SLAYER" | "TOURNAMENT_WINNER" | "PODIUM"
+  | "OFFICIAL_CHAMPION" | "GLOBETROTTER" | "FACTION_MASTER" | "ALL_ROUNDER" | "ORGANIZER";
+export type Versus = {
+  player: { id: string; displayName: string };
+  opponent: { id: string; displayName: string };
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  recent: PlayerProfile["recentGames"];
 };
 
 export type RankingRow = {

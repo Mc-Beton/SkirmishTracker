@@ -61,7 +61,17 @@ public class ProfileService {
     public record Profile(UUID id, String displayName, String club, String city, Instant memberSince, Stats stats,
                           List<Elo.Point> history, List<TournamentEntry> tournaments,
                           List<LeagueService.PlayerLeague> leagues, List<GameEntry> recentGames,
-                          List<FactionCount> factions, PlayStats playStats) {
+                          List<FactionCount> factions, PlayStats playStats, List<OpponentRow> opponents,
+                          List<Badges.Badge> badges) {
+    }
+
+    /** A frequent opponent and the player's record against them. */
+    public record OpponentRow(PlayerRef opponent, int games, int wins, int draws, int losses) {
+    }
+
+    /** Head-to-head record of a player against one opponent, newest games first. */
+    public record Versus(PlayerRef player, PlayerRef opponent, int games, int wins, int draws, int losses,
+                         List<GameEntry> recent) {
     }
 
     /** key: faction or character code. */
@@ -133,9 +143,38 @@ public class ProfileService {
             List<Elo.Point> h = mine.history;
             history = h.subList(Math.max(0, h.size() - HISTORY), h.size());
         }
+        List<TournamentEntry> entered = tournamentsOf(userId);
+        PlayStats play = playStats(userId);
         return new Profile(u.getId(), u.getDisplayName(), u.getClub(), u.getHomeCity(), u.getCreatedAt(), stats,
-                history, tournamentsOf(userId), leagueService.ofPlayer(userId), recentGames(userId, mine),
-                factions(userId), playStats(userId));
+                history, entered, leagueService.ofPlayer(userId), recentGames(userId, mine, null, RECENT),
+                factions(userId), play, opponents(userId), badges(userId, mine, entered, play));
+    }
+
+    @Transactional(readOnly = true)
+    public Versus versus(UUID userId, UUID opponentId) {
+        User u = users.findById(userId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAYER_NOT_FOUND"));
+        User o = users.findById(opponentId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAYER_NOT_FOUND"));
+        int wins = 0;
+        int draws = 0;
+        int losses = 0;
+        for (RatedGame g : ratings.games()) {
+            boolean a = g.playerA().equals(userId) && g.playerB().equals(opponentId);
+            boolean b = g.playerB().equals(userId) && g.playerA().equals(opponentId);
+            if (!a && !b) {
+                continue;
+            }
+            double score = a ? g.scoreA() : 1.0 - g.scoreA();
+            if (score == 1.0) {
+                wins++;
+            } else if (score == 0.0) {
+                losses++;
+            } else {
+                draws++;
+            }
+        }
+        return new Versus(new PlayerRef(u.getId(), u.getDisplayName()), new PlayerRef(o.getId(), o.getDisplayName()),
+                wins + draws + losses, wins, draws, losses,
+                recentGames(userId, ratings.ratings().get(userId), opponentId, HISTORY));
     }
 
     @Transactional(readOnly = true)
@@ -199,16 +238,18 @@ public class ProfileService {
         return out;
     }
 
-    private List<GameEntry> recentGames(UUID userId, Elo.Rating mine) {
+    /** Newest games of the player (optionally only against {@code opponent}). */
+    private List<GameEntry> recentGames(UUID userId, Elo.Rating mine, UUID opponent, int limit) {
         Map<UUID, Integer> change = new HashMap<>();
         if (mine != null) {
             mine.history.forEach(p -> change.put(p.gameId(), p.change()));
         }
         List<RatedGame> games = ratings.games().stream()
                 .filter(g -> g.playerA().equals(userId) || g.playerB().equals(userId))
+                .filter(g -> opponent == null || g.playerA().equals(opponent) || g.playerB().equals(opponent))
                 .sorted(Comparator.comparing(RatedGame::playedAt, Comparator.nullsLast(Comparator.naturalOrder()))
                         .reversed())
-                .limit(RECENT).toList();
+                .limit(limit).toList();
         Set<UUID> people = new HashSet<>();
         Set<UUID> tids = new HashSet<>();
         for (RatedGame g : games) {
@@ -231,6 +272,81 @@ public class ProfileService {
                     result, change.getOrDefault(g.id(), 0), g.tournamentId(),
                     g.tournamentId() == null ? null : tnames.get(g.tournamentId()));
         }).toList();
+    }
+
+    private static final int OPPONENTS = 5;
+
+    private List<OpponentRow> opponents(UUID userId) {
+        Map<UUID, int[]> byOpponent = new HashMap<>(); // wins, draws, losses
+        for (RatedGame g : ratings.games()) {
+            boolean a = g.playerA().equals(userId);
+            if (!a && !g.playerB().equals(userId)) {
+                continue;
+            }
+            double score = a ? g.scoreA() : 1.0 - g.scoreA();
+            int[] wdl = byOpponent.computeIfAbsent(a ? g.playerB() : g.playerA(), k -> new int[3]);
+            wdl[score == 1.0 ? 0 : score == 0.5 ? 1 : 2]++;
+        }
+        Map<UUID, String> names = users.findAllById(byOpponent.keySet()).stream()
+                .collect(Collectors.toMap(User::getId, User::getDisplayName));
+        return byOpponent.entrySet().stream()
+                .map(e -> new OpponentRow(new PlayerRef(e.getKey(), names.getOrDefault(e.getKey(), "?")),
+                        e.getValue()[0] + e.getValue()[1] + e.getValue()[2], e.getValue()[0], e.getValue()[1],
+                        e.getValue()[2]))
+                .sorted(Comparator.comparingInt(OpponentRow::games).reversed()
+                        .thenComparing(r -> r.opponent().displayName()))
+                .limit(OPPONENTS).toList();
+    }
+
+    private List<Badges.Badge> badges(UUID userId, Elo.Rating mine, List<TournamentEntry> entered, PlayStats play) {
+        List<RatedGame> mineGames = ratings.games().stream()
+                .filter(g -> g.playerA().equals(userId) || g.playerB().equals(userId))
+                .sorted(Comparator.comparing(RatedGame::playedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(g -> g.id().toString()))
+                .toList();
+        List<Double> scores = mineGames.stream()
+                .map(g -> g.playerA().equals(userId) ? g.scoreA() : 1.0 - g.scoreA()).toList();
+        boolean giant = false;
+        if (!mineGames.isEmpty()) {
+            Map<UUID, Elo.PreGame> pre = Elo.preGame(ratings.games());
+            for (RatedGame g : mineGames) {
+                boolean a = g.playerA().equals(userId);
+                Elo.PreGame p = pre.get(g.id());
+                double score = a ? g.scoreA() : 1.0 - g.scoreA();
+                if (p != null && score == 1.0 && (a ? p.b() - p.a() : p.a() - p.b()) >= Badges.GIANT_GAP) {
+                    giant = true;
+                    break;
+                }
+            }
+        }
+        Set<UUID> finished = entered.stream().filter(e -> e.status() == TournamentStatus.FINISHED)
+                .map(TournamentEntry::id).collect(Collectors.toSet());
+        Map<UUID, Tournament> finishedById = tournaments.findAllById(finished).stream()
+                .collect(Collectors.toMap(Tournament::getId, t -> t));
+        int wins = 0;
+        int podiums = 0;
+        int officialWins = 0;
+        for (TournamentEntry e : entered) {
+            if (!finished.contains(e.id()) || e.position() == null) {
+                continue;
+            }
+            if (e.position() == 1) {
+                wins++;
+                Tournament t = finishedById.get(e.id());
+                if (t != null && t.isOfficial()) {
+                    officialWins++;
+                }
+            }
+            if (e.position() <= 3) {
+                podiums++;
+            }
+        }
+        int countries = (int) finishedById.values().stream().map(Tournament::getCountry).distinct().count();
+        int maxFactionWins = play.factionWins().stream().mapToInt(Count::count).max().orElse(0);
+        int organized = (int) tournaments.findByOwnerIdOrderByStartsAtDesc(userId).stream()
+                .filter(t -> t.getStatus() == TournamentStatus.FINISHED).count();
+        return Badges.of(new Badges.Input(mine == null ? 0 : mine.games, Badges.bestWinStreak(scores), wins, podiums,
+                countries, maxFactionWins, play.factions().size(), giant, organized, officialWins));
     }
 
     /** What one side brought to a game. */

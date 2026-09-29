@@ -27,6 +27,12 @@ public class ProfileController {
         return profiles.profile(id);
     }
 
+    /** Public: head-to-head record of {@code id} against {@code opponentId}. */
+    @GetMapping("/api/players/{id}/versus/{opponentId}")
+    public ProfileService.Versus versus(@PathVariable UUID id, @PathVariable UUID opponentId) {
+        return profiles.versus(id, opponentId);
+    }
+
     @GetMapping("/api/ranking")
     public List<ProfileService.RankingRow> ranking() {
         return profiles.ranking(200);
