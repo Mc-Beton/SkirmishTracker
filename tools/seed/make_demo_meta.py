@@ -19,6 +19,9 @@ Results are simulated from hidden "true" effects, so the report has real finding
   * Items: King of the Battlefield (2 pts) is underpriced, the Imported Crossbow (5 pts) overpriced, the
     Flying Carpet is strong but nearly always carried by the Vizier of Conjurations, and four items are
     never taken (Camaraderie, Glyphscribe: Reduce Weight, Devotion: Paimon, Kassen Buki: Kanabou-tsukai).
+  * Game flow (detailed mode in ~75% of tournament games): points per turn and scheme cards. Decisive Victory
+    is kept whenever drawn and scores well, Peacekeeping Paragon is almost never kept, Stand Your Ground is
+    popular but scores little (a trap).
 
 Accounts (password DruzynyTest2026 like the other seed accounts):
   demo-wydawca@example.invalid    role PUBLISHER – log in as the publisher and open /admin/reports
@@ -44,6 +47,8 @@ OUT_REMOVE = ROOT / "tools/seed/demo_meta_remove.sql"
 PASSWORD_HASH = "$argon2id$v=19$m=16384,t=2,p=1$ecJFJfDX8tXq7qgNWKm7yg$YMlEscuP0KId5BGmWRDiWQ5qDlb/QG6YCELO8qVr6YA"
 
 rng = random.Random(20261001)
+# Separate stream for game-flow data (turns, scheme cards), so adding it leaves every other result unchanged.
+frng = random.Random(20261002)
 
 
 def ascii_slug(nick):
@@ -54,6 +59,10 @@ def ascii_slug(nick):
 
 def uid():
     return str(uuid.UUID(int=rng.getrandbits(128), version=4))
+
+
+def fuid():
+    return str(uuid.UUID(int=frng.getrandbits(128), version=4))
 
 
 units = {u["code"]: u for u in ARMIES["units"]}
@@ -83,8 +92,15 @@ ITEM_POWER = {"KING_OF_THE_BATTLEFIELD": 0.55, "IMPORTED_CROSSBOW": -0.5, "FLYIN
 ITEM_PICK = {"KING_OF_THE_BATTLEFIELD": 0.4, "IMPORTED_CROSSBOW": 0.25, "FLYING_CARPET": 0.6}
 DEAD_ITEMS = {"CAMARADERIE", "GLYPHSCRIBE_REDUCE_WEIGHT", "DEVOTION_PAIMON", "KASSEN_BUKI_KANABOU_TSUKAI"}
 MISSION_BONUS = {(SAND, "TREASURE_HUNT"): 0.9}
-QUESTS = [q["code"] for q in json.loads((ROOT / "backend/src/main/resources/content/eldfall-core.json")
-                                        .read_text(encoding="utf-8"))["quests"]]
+CORE = json.loads((ROOT / "backend/src/main/resources/content/eldfall-core.json").read_text(encoding="utf-8"))
+QUESTS = [q["code"] for q in CORE["quests"]]
+TURNS = CORE["turns"]
+SCHEME_TABLE = {f["code"]: CORE["schemeTables"].get(f["schemeTable"] or "", []) for f in CORE["factions"]}
+SCHEME_TIMING = {sc["code"]: sc["timing"] for sc in CORE["schemes"]}
+# Scheme cards: how much players like to keep them, and the scheme VP they bring (mean, 0–3).
+KEEP_PREF = {"DECISIVE_VICTORY": 6.0, "PEACEKEEPING_PARAGON": 0.1, "STAND_YOUR_GROUND": 3.0}
+SCHEME_VP = {"DECISIVE_VICTORY": 2.6, "PEACEKEEPING_PARAGON": 0.8, "STAND_YOUR_GROUND": 0.7}
+DETAILED_MODE = 0.75
 DRAW_RATE = {"SNAIL_CHASE": 0.26}
 
 NICKS = {
@@ -251,6 +267,35 @@ for i, name in enumerate(names):
     day += dt.timedelta(days=rng.randint(10, 17))
 
 t_rows, part_rows, war_rows, round_rows, match_rows = [], [], [], [], []
+draw_rows, turn_rows = [], []
+
+
+def draw_schemes(faction):
+    """Two d20 cards from the faction's scheme table (no duplicate scheme); the player keeps the one they prefer."""
+    table = SCHEME_TABLE.get(faction) or []
+    cards = []
+    while len(cards) < 2 and table:
+        roll = frng.randint(1, 20)
+        code = next((r["scheme"] for r in table if r["from"] <= roll <= r["to"]), None)
+        if code and code not in [c for c, _ in cards]:
+            cards.append((code, roll))
+    kept = frng.choices([c for c, _ in cards], weights=[KEEP_PREF.get(c, 1.0) for c, _ in cards])[0]
+    return cards, kept
+
+
+def split_turns(total, kept):
+    """Split a final score into (scenario, scheme) VP per turn; scheme VP follow the kept card's timing."""
+    scheme = min(total, max(0, min(3, round(frng.gauss(SCHEME_VP.get(kept, 1.6), 0.8)))))
+    scenario = total - scheme
+    weights = [frng.random() + t * 0.35 for t in range(TURNS)]  # later turns tend to score more
+    per = [0] * TURNS
+    for _ in range(scenario):
+        per[frng.choices(range(TURNS), weights=weights)[0]] += 1
+    sch = [0] * TURNS
+    timing = SCHEME_TIMING.get(kept, "END_OF_GAME")
+    for _ in range(scheme):
+        sch[TURNS - 1 if timing == "END_OF_GAME" else frng.randrange(TURNS)] += 1
+    return list(zip(per, sch))
 games_total = 0
 for (tday, country, city, tier, size, n_rounds, name) in T_PLAN:
     tid = uid()
@@ -265,6 +310,7 @@ for (tday, country, city, tier, size, n_rounds, name) in T_PLAN:
                    ts(tday, 9), ts(tday, 20), q(city), q(country), q(tier), q("SWISS"), q(len(field)), q(n_rounds),
                    q("FINISHED"), ts(tday - dt.timedelta(days=21)), ts(tday, 20)])
     sides = {}
+    leader_int = {}
     for p in field:
         f = faction_for(p, tday)
         lst, total = make_list(f)
@@ -273,7 +319,9 @@ for (tday, country, city, tier, size, n_rounds, name) in T_PLAN:
                   for u in lst]
         part_rows.append([q(uid()), q(tid), q(p["id"]), q("REGISTERED"), ts(tday - dt.timedelta(days=14)), "TRUE",
                           q("APPROVED"), q(p["city"]), q(f)])
-        war_rows.append([q(uid()), q(tid), q(p["id"]), q(f), "NULL", q(rng.randint(3, 6)), q(total),
+        wid = uid()  # drawn before the leader INT – keeps the random stream of earlier versions
+        leader_int[p["id"]] = rng.randint(3, 6)
+        war_rows.append([q(wid), q(tid), q(p["id"]), q(f), "NULL", q(leader_int[p["id"]]), q(total),
                          q(json.dumps(stored)), ts(tday - dt.timedelta(days=10)), ts(tday - dt.timedelta(days=10))])
     points = {p["id"]: 0 for p in field}
     met = set()
@@ -298,8 +346,17 @@ for (tday, country, city, tier, size, n_rounds, name) in T_PLAN:
             va, vb = play(a, b, fa, fb, la, lb, mission, tday)
             points[a["id"]] += 3 if va > vb else 1 if va == vb else 0
             points[b["id"]] += 3 if vb > va else 1 if va == vb else 0
-            match_rows.append([q(uid()), q(rid), q(tid), q(table), q(a["id"]), q(b["id"]), q("PLAYED"), q(va), q(vb),
+            mid = uid()
+            match_rows.append([q(mid), q(rid), q(tid), q(table), q(a["id"]), q(b["id"]), q("PLAYED"), q(va), q(vb),
                                q("CONFIRMED"), q(a["id"]), ts(tday, start_h + 2), q(b["id"]), ts(tday, start_h + 2)])
+            if frng.random() < DETAILED_MODE:
+                for pl_, f_, v_ in ((a, fa, va), (b, fb, vb)):
+                    drawn, kept = draw_schemes(f_)
+                    draw_rows.append([q(fuid()), q(mid), q(pl_["id"]), q(f_), q(leader_int[pl_["id"]]),
+                                      q(",".join(f"{c}:{r}" for c, r in drawn)), q(kept), ts(tday, start_h)])
+                    for turn, (sc, sch) in enumerate(split_turns(v_, kept), start=1):
+                        turn_rows.append([q(fuid()), q(mid), q(pl_["id"]), q(turn), q(sc), q(sch),
+                                          ts(tday, start_h + 1), q(pl_["id"])])
             games_total += 1
 
 # ------------------------------------------------------------------ own games
@@ -362,6 +419,10 @@ insert("tournament_rounds", ["id", "tournament_id", "number", "status", "bye_big
 insert("tournament_matches", ["id", "round_id", "tournament_id", "table_number", "player_a", "player_b",
                               "result_type", "small_a", "small_b", "status", "reported_by", "reported_at",
                               "confirmed_by", "confirmed_at"], match_rows)
+insert("match_scheme_draws", ["id", "match_id", "user_id", "faction", "leader_int", "cards", "kept_code", "created_at"],
+       draw_rows)
+insert("match_turn_scores", ["id", "match_id", "user_id", "turn", "scenario_vp", "scheme_vp", "updated_at",
+                             "updated_by"], turn_rows)
 insert("friendly_games", ["id", "player_a", "player_b", "small_a", "small_b", "played_on", "scenario_code",
                           "faction_a", "faction_b", "league_id", "notes", "status", "reported_by", "created_at",
                           "decided_at", "list_a", "list_b"], own_rows)

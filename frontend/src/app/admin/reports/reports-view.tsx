@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
+import { ColumnChart } from "@/components/reports/column-chart";
 import { CostEffect } from "@/components/reports/cost-effect";
 import { HeatMatrix } from "@/components/reports/heat-matrix";
 import { MonthBars } from "@/components/reports/month-bars";
@@ -139,6 +140,8 @@ export function ReportsView() {
               <Gear report={report} t={t} fName={fName} onCsv={() => csv("gear")} />
               <Missions report={report} t={t} fName={fName} questName={questName}
                 onCsv={() => csv("missions")} onCsvMatrix={() => csv("factionMissions")} />
+              <GameFlow report={report} t={t} fName={fName} schemeName={(c) => content?.schemes.find((x) => x.code === c)?.name ?? c}
+                onCsv={() => csv("flow")} onCsvSchemes={() => csv("schemes")} />
               <Activity report={report} t={t} onCsv={() => csv("months")} />
               <Method report={report} t={t} />
             </>
@@ -530,6 +533,124 @@ function Missions({ report, t, fName, questName, onCsv, onCsvMatrix }: {
         <SectionCard title={t("missions.matrixTitle")} lead={t("missions.matrixLead")} onCsv={onCsvMatrix} csvLabel={t("csv")}>
           <HeatMatrix rows={report.factions.map((f) => f.faction)} cols={missions} cells={report.factionMissions}
             rowLabel={fName} colLabel={questName} corner={t("missions.corner")} uncertain={t("uncertain")} />
+        </SectionCard>
+      )}
+    </>
+  );
+}
+
+function GameFlow({ report, t, fName, schemeName, onCsv, onCsvSchemes }: {
+  report: MetaReport; t: T; fName: (c: string) => string; schemeName: (c: string) => string; onCsv: () => void; onCsvSchemes: () => void;
+}) {
+  const f = report.flow;
+  if (f.games === 0) {
+    return (
+      <SectionCard title={t("flow.title")} lead={t("flow.lead")}>
+        <p className="text-sm text-muted-foreground">{t("flow.empty")}</p>
+      </SectionCard>
+    );
+  }
+  const early = f.decidedBy.slice(0, 2).reduce((a, b) => a + b, 0);
+  const avgTurn = f.decided ? f.decidedBy.reduce((a, n, i) => a + n * (i + 1), 0) / f.decided : 0;
+  return (
+    <>
+      <SectionCard title={t("flow.title")} lead={t("flow.lead")} onCsv={onCsv} csvLabel={t("csv")}>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Tile label={t("flow.games")} value={String(f.games)} note={t("flow.gamesNote")} />
+          <Tile label={t("flow.comebacks")} value={f.decided ? pct(f.comebacks / f.decided) : "–"}
+            note={t("flow.comebacksNote", { turn: f.comebackTurn })} />
+          <Tile label={t("flow.early")} value={f.decided ? pct(early / f.decided) : "–"} note={t("flow.earlyNote")} />
+          <Tile label={t("flow.avgTurn")} value={avgTurn ? avgTurn.toFixed(1) : "–"} note={t("flow.avgTurnNote", { turns: f.turns })} />
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
+          <ColumnChart title={t("flow.decidedTitle")} series={[t("flow.decidedSeries")]}
+            columns={f.decidedBy.map((n, i) => ({
+              key: String(i + 1), label: t("flow.turn", { n: i + 1 }), values: [n],
+              caption: t("flow.decidedCaption", { turn: i + 1, share: f.decided ? pct(n / f.decided) : "–", n }),
+            }))} />
+          <ColumnChart title={t("flow.vpTitle")} series={[t("flow.scenario"), t("flow.scheme")]}
+            columns={f.byTurn.map((b) => ({
+              key: String(b.turn), label: t("flow.turn", { n: b.turn }), values: [b.scenario, b.scheme],
+              caption: t("flow.vpCaption", { turn: b.turn, scenario: b.scenario.toFixed(2), scheme: b.scheme.toFixed(2) }),
+            }))} />
+        </div>
+        {report.factionFlow.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 pr-3 font-medium">{t("factions.faction")}</th>
+                  <th className="py-2 pr-3 text-right font-medium">{t("factions.games")}</th>
+                  <th className="py-2 pr-3 text-right font-medium">{t("flow.scenarioVp")}</th>
+                  <th className="py-2 pr-3 text-right font-medium">{t("flow.schemeVp")}</th>
+                  <th className="w-1/3 min-w-28 py-2 font-medium">{t("flow.split")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.factionFlow.map((x) => {
+                  const total = x.scenarioVp + x.schemeVp || 1;
+                  return (
+                    <tr key={x.faction} className="border-b last:border-0">
+                      <td className="py-2 pr-3 font-medium">{fName(x.faction)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{x.games}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{x.scenarioVp.toFixed(1)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{x.schemeVp.toFixed(1)}</td>
+                      <td className="py-2">
+                        <div className="flex h-2 gap-[2px] overflow-hidden rounded-full" title={`${pct(x.schemeVp / total)} ${t("flow.scheme")}`}>
+                          <div style={{ flexGrow: x.scenarioVp, background: "var(--series-1)" }} />
+                          <div style={{ flexGrow: x.schemeVp, background: "var(--series-3)" }} />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+      {report.schemes.length > 0 && (
+        <SectionCard title={t("schemes.title")} lead={t("schemes.lead")} onCsv={onCsvSchemes} csvLabel={t("csv")}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 pr-3 font-medium">{t("schemes.scheme")}</th>
+                  <th className="py-2 pr-3 text-right font-medium">{t("schemes.drawn")}</th>
+                  <th className="w-1/5 min-w-24 py-2 pr-3 font-medium">{t("schemes.keepRate")}</th>
+                  <th className="py-2 pr-3 text-right font-medium">{t("schemes.vp")}</th>
+                  <th className="py-2 pr-3 text-right font-medium">{t("schemes.score")}</th>
+                  <th className="py-2 font-medium">{t("factions.verdict")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.schemes.map((x) => (
+                  <tr key={x.scheme} className="border-b last:border-0">
+                    <td className="py-2 pr-3 font-medium">{schemeName(x.scheme)}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{x.drawn}<span className="block text-xs text-muted-foreground">{t("schemes.keptN", { n: x.kept })}</span></td>
+                    <td className="py-2 pr-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 flex-1 rounded-full bg-muted">
+                          <div className="h-full rounded-full" style={{ width: pct(x.keepRate), background: "var(--series-1)" }} />
+                        </div>
+                        <span className="w-10 text-right tabular-nums">{pct(x.keepRate)}</span>
+                      </div>
+                    </td>
+                    {x.rate.n > 0 ? (
+                      <>
+                        <td className="py-2 pr-3 text-right tabular-nums">{x.avgSchemeVp.toFixed(1)}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{pct(x.rate.score, 1)}</td>
+                        <td className="py-2"><Signal rate={x.rate} reference={x.rate.expected} t={t} /></td>
+                      </>
+                    ) : (
+                      <td colSpan={3} className="py-2 text-xs text-muted-foreground">{t("schemes.hidden")}</td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-muted-foreground">{t("schemes.howToRead")}</p>
         </SectionCard>
       )}
     </>

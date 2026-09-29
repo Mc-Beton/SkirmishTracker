@@ -1,7 +1,11 @@
 package com.skirmishchronicle.analytics;
 
 import com.skirmishchronicle.analytics.MetaReport.Cell;
+import com.skirmishchronicle.analytics.MetaReport.FactionFlow;
 import com.skirmishchronicle.analytics.MetaReport.FactionRow;
+import com.skirmishchronicle.analytics.MetaReport.Flow;
+import com.skirmishchronicle.analytics.MetaReport.SchemeRow;
+import com.skirmishchronicle.analytics.MetaReport.TurnAvg;
 import com.skirmishchronicle.analytics.MetaReport.GearRow;
 import com.skirmishchronicle.analytics.MetaReport.ItemCount;
 import com.skirmishchronicle.analytics.MetaReport.ItemRow;
@@ -76,8 +80,12 @@ public final class MetaStats {
                 MetaStats::gearLoad, minPlayers, minSample, hidden);
         List<MissionRow> missions = missions(byGame, minPlayers, hidden);
         List<MonthRow> months = months(byGame, firstGame);
+        Flow flow = flow(byGame);
+        List<FactionFlow> factionFlow = factionFlow(sides, minPlayers, hidden);
+        List<SchemeRow> schemes = schemes(sides, minPlayers, minSample, hidden);
         return new MetaReport(summary(sides, byGame, hidden[0]), factions, matchups, units, items, itemCounts, gear,
-                gearResults, missions, factionMissions, months, new MetaReport.Thresholds(minPlayers, minSample));
+                gearResults, missions, factionMissions, flow, factionFlow, schemes, months,
+                new MetaReport.Thresholds(minPlayers, minSample));
     }
 
     // ------------------------------------------------------------------ sections
@@ -290,6 +298,128 @@ public final class MetaStats {
     static String gearLoad(SideFact f) {
         int n = f.items().size();
         return n <= 1 ? "LIGHT" : n <= 3 ? "MEDIUM" : "HEAVY";
+    }
+
+    /** Cumulative VP after each turn 1..turns (missing turns score 0). */
+    private static int[] cumulative(SideFact f, int turns) {
+        int[] out = new int[turns];
+        for (SideFact.TurnVp t : f.turns()) {
+            if (t.turn() >= 1 && t.turn() <= turns) {
+                out[t.turn() - 1] += t.scenario() + t.scheme();
+            }
+        }
+        for (int i = 1; i < turns; i++) {
+            out[i] += out[i - 1];
+        }
+        return out;
+    }
+
+    private static Flow flow(Map<UUID, List<SideFact>> byGame) {
+        List<List<SideFact>> games = byGame.values().stream()
+                .filter(g -> g.size() == 2 && !g.get(0).turns().isEmpty() && !g.get(1).turns().isEmpty()).toList();
+        int turns = games.stream().flatMap(g -> g.stream()).flatMap(f -> f.turns().stream())
+                .mapToInt(SideFact.TurnVp::turn).max().orElse(0);
+        int comebackTurn = (turns + 1) / 2;
+        int[] decidedBy = new int[turns];
+        int decided = 0;
+        int comebacks = 0;
+        double[] scenario = new double[turns];
+        double[] scheme = new double[turns];
+        for (List<SideFact> g : games) {
+            for (SideFact f : g) {
+                for (SideFact.TurnVp t : f.turns()) {
+                    if (t.turn() >= 1 && t.turn() <= turns) {
+                        scenario[t.turn() - 1] += t.scenario();
+                        scheme[t.turn() - 1] += t.scheme();
+                    }
+                }
+            }
+            SideFact a = g.get(0);
+            if (a.score() == 0.5) {
+                continue;
+            }
+            SideFact winner = a.score() == 1.0 ? a : g.get(1);
+            SideFact loser = winner == a ? g.get(1) : a;
+            int[] w = cumulative(winner, turns);
+            int[] l = cumulative(loser, turns);
+            int from = turns;
+            while (from > 0 && w[from - 1] > l[from - 1]) {
+                from--;
+            }
+            if (from == turns) {
+                continue; // the turn-by-turn totals do not show the winner ahead at the end
+            }
+            decided++;
+            decidedBy[from]++;
+            if (comebackTurn > 0 && w[comebackTurn - 1] < l[comebackTurn - 1]) {
+                comebacks++;
+            }
+        }
+        List<TurnAvg> byTurn = new ArrayList<>();
+        int sidesCount = games.size() * 2;
+        for (int t = 0; t < turns; t++) {
+            byTurn.add(new TurnAvg(t + 1, sidesCount == 0 ? 0 : r2(scenario[t] / sidesCount),
+                    sidesCount == 0 ? 0 : r2(scheme[t] / sidesCount)));
+        }
+        List<Integer> decidedList = new ArrayList<>();
+        for (int d : decidedBy) {
+            decidedList.add(d);
+        }
+        return new Flow(games.size(), decided, turns, decidedList, comebacks, comebackTurn, byTurn);
+    }
+
+    private static List<FactionFlow> factionFlow(List<SideFact> sides, int minPlayers, int[] hidden) {
+        Map<String, List<SideFact>> byFaction = new TreeMap<>();
+        sides.stream().filter(f -> f.faction() != null && !f.turns().isEmpty())
+                .forEach(f -> byFaction.computeIfAbsent(f.faction(), k -> new ArrayList<>()).add(f));
+        List<FactionFlow> out = new ArrayList<>();
+        byFaction.forEach((faction, list) -> {
+            Set<UUID> players = new HashSet<>();
+            double scenario = 0;
+            double scheme = 0;
+            for (SideFact f : list) {
+                players.add(f.playerId());
+                for (SideFact.TurnVp t : f.turns()) {
+                    scenario += t.scenario();
+                    scheme += t.scheme();
+                }
+            }
+            if (players.size() < minPlayers) {
+                hidden[0]++;
+                return;
+            }
+            out.add(new FactionFlow(faction, list.size(), players.size(), r2(scenario / list.size()),
+                    r2(scheme / list.size())));
+        });
+        return out;
+    }
+
+    private static List<SchemeRow> schemes(List<SideFact> sides, int minPlayers, int minSample, int[] hidden) {
+        List<SideFact> chosen = sides.stream().filter(f -> f.schemeKept() != null).toList();
+        Map<String, Integer> drawn = new TreeMap<>();
+        Map<String, List<SideFact>> kept = new TreeMap<>();
+        for (SideFact f : chosen) {
+            f.schemesDrawn().stream().distinct().forEach(c -> drawn.merge(c, 1, Integer::sum));
+            kept.computeIfAbsent(f.schemeKept(), k -> new ArrayList<>()).add(f);
+        }
+        List<SchemeRow> out = new ArrayList<>();
+        drawn.forEach((scheme, n) -> {
+            List<SideFact> keepers = kept.getOrDefault(scheme, List.of());
+            Acc acc = Acc.of(keepers);
+            if (acc.players.size() < minPlayers) {
+                hidden[0]++;
+                // still report how often it was drawn and kept – counts only, no results
+                out.add(new SchemeRow(scheme, n, keepers.size(), acc.players.size(), r4((double) keepers.size() / n),
+                        0, new Rate(0, 0, 0, 0, 0, 0, 0, 0, 0, false)));
+                return;
+            }
+            double vp = keepers.stream().filter(f -> !f.turns().isEmpty())
+                    .mapToInt(f -> f.turns().stream().mapToInt(SideFact.TurnVp::scheme).sum()).average().orElse(0);
+            out.add(new SchemeRow(scheme, n, keepers.size(), acc.players.size(), r4((double) keepers.size() / n),
+                    r2(vp), acc.rate(minSample)));
+        });
+        out.sort(Comparator.comparingDouble(SchemeRow::keepRate).reversed().thenComparing(SchemeRow::scheme));
+        return out;
     }
 
     private static List<MissionRow> missions(Map<UUID, List<SideFact>> byGame, int minPlayers, int[] hidden) {

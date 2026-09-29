@@ -10,5 +10,7 @@ public interface TurnScoreRepository extends JpaRepository<MatchTurnScore, UUID>
 
     List<MatchTurnScore> findByMatchId(UUID matchId);
 
+    List<MatchTurnScore> findByMatchIdIn(java.util.Collection<UUID> matchIds);
+
     Optional<MatchTurnScore> findByMatchIdAndUserIdAndTurn(UUID matchId, UUID userId, int turn);
 }

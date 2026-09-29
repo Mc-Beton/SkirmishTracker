@@ -6,7 +6,8 @@ import java.util.List;
 /** Aggregated meta statistics for the publisher panel. Only aggregates – never single players. */
 public record MetaReport(Summary summary, List<FactionRow> factions, List<Cell> matchups, List<UnitRow> units,
                          List<ItemRow> items, List<ItemCount> itemCounts, List<GearRow> gear, List<Cell> gearResults,
-                         List<MissionRow> missions, List<Cell> factionMissions, List<MonthRow> months,
+                         List<MissionRow> missions, List<Cell> factionMissions, Flow flow,
+                         List<FactionFlow> factionFlow, List<SchemeRow> schemes, List<MonthRow> months,
                          Thresholds thresholds) {
 
     /**
@@ -62,6 +63,30 @@ public record MetaReport(Summary summary, List<FactionRow> factions, List<Cell> 
 
     public record MissionRow(String mission, int games, int players, double drawRate, double avgWinnerVp,
                              double avgLoserVp, double avgMargin) {
+    }
+
+    /**
+     * How games unfold, from tournament games played turn by turn. {@code decidedBy[t-1]}: decided games whose
+     * winner was ahead from the end of turn t to the end; {@code comebacks}: decided games whose winner was behind
+     * after turn {@code comebackTurn}; {@code byTurn}: average VP per side scored in each turn.
+     */
+    public record Flow(int games, int decided, int turns, List<Integer> decidedBy, int comebacks, int comebackTurn,
+                       List<TurnAvg> byTurn) {
+    }
+
+    public record TurnAvg(int turn, double scenario, double scheme) {
+    }
+
+    /** Average VP per game of one faction from the scenario and from schemes (games with turn data). */
+    public record FactionFlow(String faction, int games, int players, double scenarioVp, double schemeVp) {
+    }
+
+    /**
+     * A scheme card: how often it was drawn and kept, the scheme VP scored in games where it was kept, and the
+     * results of those games.
+     */
+    public record SchemeRow(String scheme, int drawn, int kept, int players, double keepRate, double avgSchemeVp,
+                            Rate rate) {
     }
 
     /** {@code newPlayers}: players whose first rated game ever was in this month. */

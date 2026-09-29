@@ -187,4 +187,54 @@ class MetaStatsTest {
                 .orElseThrow();
         assertEquals(0.0, light.rate().score());
     }
+
+    private static List<SideFact.TurnVp> turns(int... vp) {
+        List<SideFact.TurnVp> out = new ArrayList<>();
+        for (int t = 0; t < vp.length; t++) {
+            out.add(new SideFact.TurnVp(t + 1, vp[t], 0));
+        }
+        return out;
+    }
+
+    @Test
+    void flowFindsDecidingTurnComebacksAndSchemeChoices() {
+        List<SideFact> facts = new ArrayList<>();
+        List<UUID> a = players(10);
+        List<UUID> b = players(10);
+        for (int i = 0; i < 10; i++) {
+            boolean comeback = i < 5;
+            // comeback: 1,2,3,6,9 vs 2,4,4,5,5 – behind after turn 3, ahead for good from turn 4
+            // wire to wire: 3,4,5,6,7 vs 0,1,2,3,4 – ahead from turn 1
+            List<SideFact.TurnVp> ta = comeback ? turns(1, 1, 1, 3, 3) : turns(3, 1, 1, 1, 1);
+            List<SideFact.TurnVp> tb = comeback ? turns(2, 2, 0, 1, 0) : turns(0, 1, 1, 1, 1);
+            UUID id = UUID.randomUUID();
+            facts.add(new SideFact(id, a.get(i), b.get(i), DAY, SideFact.Source.TOURNAMENT, null, "PL", "LOCAL", "ONI",
+                    "SOGA", Set.of(), "TREASURE_HUNT", 1500, 1500, 1, comeback ? 9 : 7, comeback ? 5 : 4, List.of(), 0, 0,
+                    ta, List.of("X", "Y"), "X"));
+            facts.add(new SideFact(id, b.get(i), a.get(i), DAY, SideFact.Source.TOURNAMENT, null, "PL", "LOCAL", "SOGA",
+                    "ONI", Set.of(), "TREASURE_HUNT", 1500, 1500, 0, comeback ? 5 : 4, comeback ? 9 : 7, List.of(), 0, 0,
+                    tb, List.of("X", "Z"), "Z"));
+        }
+        MetaReport r = MetaStats.compute(facts, MetaFilter.ALL);
+        MetaReport.Flow flow = r.flow();
+        assertEquals(10, flow.games());
+        assertEquals(10, flow.decided());
+        assertEquals(5, flow.turns());
+        assertEquals(List.of(5, 0, 0, 5, 0), flow.decidedBy());
+        assertEquals(3, flow.comebackTurn());
+        assertEquals(5, flow.comebacks());
+        assertEquals(1.5, flow.byTurn().get(0).scenario());
+        MetaReport.FactionFlow oni = r.factionFlow().stream().filter(f -> f.faction().equals("ONI")).findFirst()
+                .orElseThrow();
+        assertEquals(8.0, oni.scenarioVp());
+        MetaReport.SchemeRow x = r.schemes().stream().filter(s -> s.scheme().equals("X")).findFirst().orElseThrow();
+        assertEquals(20, x.drawn());
+        assertEquals(10, x.kept());
+        assertEquals(0.5, x.keepRate());
+        assertEquals(1.0, x.rate().score());
+        MetaReport.SchemeRow y = r.schemes().stream().filter(s -> s.scheme().equals("Y")).findFirst().orElseThrow();
+        assertEquals(0, y.kept());
+        assertEquals(0.0, y.keepRate());
+        assertEquals(1.0, r.schemes().get(0).keepRate());   // Z: always kept when drawn
+    }
 }

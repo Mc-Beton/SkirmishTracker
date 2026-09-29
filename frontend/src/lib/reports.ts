@@ -52,6 +52,20 @@ export type MissionRow = {
   avgLoserVp: number;
   avgMargin: number;
 };
+export type TurnAvg = { turn: number; scenario: number; scheme: number };
+export type Flow = {
+  games: number;
+  decided: number;
+  turns: number;
+  /** decidedBy[t-1]: decided games whose winner led from the end of turn t to the end */
+  decidedBy: number[];
+  comebacks: number;
+  comebackTurn: number;
+  byTurn: TurnAvg[];
+};
+export type FactionFlow = { faction: string; games: number; players: number; scenarioVp: number; schemeVp: number };
+export type SchemeRow = { scheme: string; drawn: number; kept: number; players: number; keepRate: number; avgSchemeVp: number; rate: Rate };
+
 export type MonthRow = { month: string; games: number; activePlayers: number; newPlayers: number; tournaments: number };
 
 export type MetaReport = {
@@ -79,6 +93,9 @@ export type MetaReport = {
   gearResults: Cell[];
   missions: MissionRow[];
   factionMissions: Cell[];
+  flow: Flow;
+  factionFlow: FactionFlow[];
+  schemes: SchemeRow[];
   months: MonthRow[];
   thresholds: { minPlayers: number; minSample: number };
 };
@@ -154,7 +171,7 @@ const rateCols = (r: Rate) => [r.n, r.wins, r.draws, r.losses, r.score, r.low, r
 const RATE_HEAD = ["games", "wins", "draws", "losses", "score", "ci_low", "ci_high", "elo_expected", "performance"];
 
 /** One CSV per section, names in English (stable for spreadsheets). */
-export function reportCsv(report: MetaReport, section: "factions" | "matchups" | "units" | "items" | "gear" | "missions" | "factionMissions" | "months"): string {
+export function reportCsv(report: MetaReport, section: "factions" | "matchups" | "units" | "items" | "gear" | "flow" | "schemes" | "missions" | "factionMissions" | "months"): string {
   switch (section) {
     case "factions":
       return toCsv(["faction", "players", "sides", "share", "avg_elo", ...RATE_HEAD],
@@ -179,6 +196,17 @@ export function reportCsv(report: MetaReport, section: "factions" | "matchups" |
           const g = report.gear.find((x) => x.faction === c.row);
           return [c.row, c.col, c.players, ...rateCols(c.rate), g?.lists, g?.avgItems, g?.avgItemShare];
         }));
+    case "flow":
+      return [
+        toCsv(["turn", "avg_scenario_vp", "avg_scheme_vp", "games_decided_from_turn"],
+          report.flow.byTurn.map((b) => [b.turn, b.scenario, b.scheme, report.flow.decidedBy[b.turn - 1] ?? 0])),
+        "",
+        toCsv(["faction", "games", "players", "avg_scenario_vp", "avg_scheme_vp"],
+          report.factionFlow.map((f) => [f.faction, f.games, f.players, f.scenarioVp, f.schemeVp])),
+      ].join("\n");
+    case "schemes":
+      return toCsv(["scheme", "drawn", "kept", "players", "keep_rate", "avg_scheme_vp", ...RATE_HEAD],
+        report.schemes.map((x) => [x.scheme, x.drawn, x.kept, x.players, x.keepRate, x.avgSchemeVp, ...rateCols(x.rate)]));
     case "missions":
       return toCsv(["mission", "games", "players", "draw_rate", "avg_winner_vp", "avg_loser_vp", "avg_margin"],
         report.missions.map((m) => [m.mission, m.games, m.players, m.drawRate, m.avgWinnerVp, m.avgLoserVp, m.avgMargin]));

@@ -59,6 +59,10 @@ public class MatchTurnScore extends AbstractEntity {
         return id;
     }
 
+    public UUID getMatchId() {
+        return matchId;
+    }
+
     public UUID getUserId() {
         return userId;
     }

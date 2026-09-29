@@ -10,5 +10,7 @@ public interface SchemeDrawRepository extends JpaRepository<MatchSchemeDraw, UUI
 
     List<MatchSchemeDraw> findByMatchId(UUID matchId);
 
+    List<MatchSchemeDraw> findByMatchIdIn(java.util.Collection<UUID> matchIds);
+
     Optional<MatchSchemeDraw> findByMatchIdAndUserId(UUID matchId, UUID userId);
 }

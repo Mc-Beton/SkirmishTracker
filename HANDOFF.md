@@ -146,6 +146,9 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
 - Przedmioty: popularność, wynik z/bez i ponad ELO, wykres koszt a efekt, „martwe” przedmioty (< 2% rozpisek),
   najczęstszy nosiciel (≥ 80% = efekt nieoddzielny od postaci), udział lidera i kosztu obniżonego; obciążenie
   sprzętem (lekki 0–1 / średni 2–3 / ciężki 4+ przedmiotów, udział punktów na przedmioty).
+- Przebieg gry (tylko gry turniejowe w trybie szczegółowym): od której tury zwycięzca prowadzi do końca, comebacki
+  (zwycięzca przegrywał po połowie gry), PZ ze scenariusza i schematów w turach i per frakcja; schematy:
+  jak często wylosowane / zatrzymane, PZ ze schematów i wynik gier, w których je zatrzymano.
 - Frontend: `app/admin/reports`, wykresy w `components/reports`, CSV generowany w przeglądarce (`lib/reports.ts`).
 
 ## 7. Dokumentacja w repo
