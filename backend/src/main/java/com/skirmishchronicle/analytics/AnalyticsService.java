@@ -3,6 +3,8 @@ package com.skirmishchronicle.analytics;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.skirmishchronicle.content.ArmyContent;
+import com.skirmishchronicle.content.ContentService;
 import com.skirmishchronicle.friendly.FriendlyGame;
 import com.skirmishchronicle.friendly.FriendlyGameRepository;
 import com.skirmishchronicle.friendly.FriendlyGameStatus;
@@ -50,9 +52,14 @@ public class AnalyticsService {
     private record Cache(List<RatedGame> games, long builtAt, List<SideFact> facts) {
     }
 
-    /** Faction and characters one player brought to a game. */
-    private record Side(String faction, Set<String> units) {
-        static final Side UNKNOWN = new Side(null, Set.of());
+    /** Faction, characters and items one player brought to a game. */
+    private record Side(String faction, Set<String> units, List<SideFact.ItemUse> items, int unitPoints,
+                        int itemPoints) {
+        static final Side UNKNOWN = new Side(null, Set.of(), List.of(), 0, 0);
+
+        static Side factionOnly(String faction) {
+            return faction == null ? UNKNOWN : new Side(faction, Set.of(), List.of(), 0, 0);
+        }
     }
 
     private final RatingService ratings;
@@ -62,11 +69,13 @@ public class AnalyticsService {
     private final WarbandRepository warbands;
     private final FriendlyGameRepository friendly;
     private final ObjectMapper mapper;
+    private final Map<String, ArmyContent.Unit> unitByCode = new HashMap<>();
+    private final Map<String, ArmyContent.Item> itemByCode = new HashMap<>();
     private volatile Cache cache;
 
     public AnalyticsService(RatingService ratings, TournamentRepository tournaments, MatchRepository matches,
                             RoundRepository rounds, WarbandRepository warbands, FriendlyGameRepository friendly,
-                            ObjectMapper mapper) {
+                            ObjectMapper mapper, ContentService content) {
         this.ratings = ratings;
         this.tournaments = tournaments;
         this.matches = matches;
@@ -74,6 +83,8 @@ public class AnalyticsService {
         this.warbands = warbands;
         this.friendly = friendly;
         this.mapper = mapper;
+        content.armies().units().forEach(u -> unitByCode.put(u.code(), u));
+        content.armies().items().forEach(i -> itemByCode.put(i.code(), i));
     }
 
     @Transactional(readOnly = true)
@@ -117,7 +128,7 @@ public class AnalyticsService {
             tournaments.findAllById(tids).forEach(t -> tournamentById.put(t.getId(), t));
             for (Warband w : warbands.findByTournamentIdIn(tids)) {
                 tournamentSides.put(w.getTournamentId() + "/" + w.getUserId(),
-                        new Side(w.getFaction(), warbandUnits(w.getUnits())));
+                        side(w.getFaction(), readTree(w.getUnits())));
             }
             List<TournamentMatch> ms = matches.findByTournamentIdIn(tids);
             Map<UUID, String> scenarioOfRound = new HashMap<>();
@@ -177,39 +188,61 @@ public class AnalyticsService {
             }
             double sa = g.scoreA();
             out.add(new SideFact(g.id(), g.playerA(), g.playerB(), day, source, g.tournamentId(), country, tier,
-                    a.faction(), b.faction(), a.units(), mission, pre.a(), pre.b(), sa, g.smallA(), g.smallB()));
+                    a.faction(), b.faction(), a.units(), mission, pre.a(), pre.b(), sa, g.smallA(), g.smallB(),
+                    a.items(), a.unitPoints(), a.itemPoints()));
             out.add(new SideFact(g.id(), g.playerB(), g.playerA(), day, source, g.tournamentId(), country, tier,
                     b.faction(), a.faction(), b.units(), mission, pre.b(), pre.a(), 1.0 - sa, g.smallB(),
-                    g.smallA()));
+                    g.smallA(), b.items(), b.unitPoints(), b.itemPoints()));
         }
         return out;
     }
 
+    /** Own-game list: {"faction", "units": [...]}, or only the faction field when no list was entered. */
     private Side friendlySide(String faction, String listJson) {
-        if (listJson == null) {
-            return faction == null ? Side.UNKNOWN : new Side(faction, Set.of());
+        JsonNode node = readTree(listJson);
+        if (node == null) {
+            return Side.factionOnly(faction);
+        }
+        String f = node.path("faction").asText(null);
+        return side(f != null ? f : faction, node.path("units"));
+    }
+
+    private JsonNode readTree(String json) {
+        if (json == null) {
+            return null;
         }
         try {
-            JsonNode node = mapper.readTree(listJson);
-            Set<String> set = new HashSet<>();
-            node.path("units").forEach(u -> set.add(u.path("unit").asText()));
-            String f = node.path("faction").asText(null);
-            return new Side(f != null ? f : faction, Set.copyOf(set));
+            return mapper.readTree(json);
         } catch (JsonProcessingException e) {
-            return new Side(faction, Set.of());
+            return null; // unreadable list: treated as unknown
         }
     }
 
-    private Set<String> warbandUnits(String warbandJson) {
-        Set<String> set = new HashSet<>();
-        if (warbandJson == null) {
-            return set;
+    /** Units array of a tournament warband or an own-game list: [{unit, leader, items: [{item, reduced}]}]. */
+    private Side side(String faction, JsonNode unitsNode) {
+        if (unitsNode == null || !unitsNode.isArray()) {
+            return Side.factionOnly(faction);
         }
-        try {
-            mapper.readTree(warbandJson).forEach(u -> set.add(u.path("unit").asText()));
-        } catch (JsonProcessingException e) {
-            // unreadable list: treat as unknown
+        Set<String> units = new HashSet<>();
+        List<SideFact.ItemUse> items = new ArrayList<>();
+        int unitPoints = 0;
+        int itemPoints = 0;
+        for (JsonNode u : unitsNode) {
+            String code = u.path("unit").asText();
+            boolean leader = u.path("leader").asBoolean(false);
+            units.add(code);
+            ArmyContent.Unit unit = unitByCode.get(code);
+            unitPoints += unit == null ? 0 : unit.points();
+            for (JsonNode i : u.path("items")) {
+                String itemCode = i.path("item").asText();
+                boolean reduced = i.path("reduced").asBoolean(false);
+                items.add(new SideFact.ItemUse(itemCode, code, leader, reduced));
+                ArmyContent.Item item = itemByCode.get(itemCode);
+                if (item != null) {
+                    itemPoints += reduced && item.reducedPoints() != null ? item.reducedPoints() : item.points();
+                }
+            }
         }
-        return Set.copyOf(set);
+        return new Side(faction, Set.copyOf(units), List.copyOf(items), unitPoints, itemPoints);
     }
 }

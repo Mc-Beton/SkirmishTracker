@@ -21,6 +21,28 @@ export type Rate = {
 export type FactionRow = { faction: string; players: number; sides: number; share: number; avgElo: number; rate: Rate };
 export type Cell = { row: string; col: string; players: number; rate: Rate };
 export type UnitRow = { faction: string; unit: string; players: number; pickRate: number; with: Rate; without: Rate };
+export type ItemRow = {
+  faction: string;
+  item: string;
+  players: number;
+  pickRate: number;
+  avgCopies: number;
+  reducedShare: number;
+  leaderShare: number;
+  topUnit: string | null;
+  topUnitShare: number;
+  with: Rate;
+  without: Rate;
+};
+export type ItemCount = { faction: string; item: string; lists: number };
+export type GearRow = { faction: string; lists: number; players: number; avgItems: number; avgItemShare: number };
+/** Gear buckets by item copies per list: LIGHT 0–1, MEDIUM 2–3, HEAVY 4+. */
+export const GEAR_LOADS = ["LIGHT", "MEDIUM", "HEAVY"] as const;
+/** Below this pick rate an available item counts as (almost) never used. */
+export const DEAD_ITEM_PICK = 0.02;
+/** From this share of copies on one character the item's effect cannot be told apart from it. */
+export const INSEPARABLE_SHARE = 0.8;
+
 export type MissionRow = {
   mission: string;
   games: number;
@@ -51,6 +73,10 @@ export type MetaReport = {
   factions: FactionRow[];
   matchups: Cell[];
   units: UnitRow[];
+  items: ItemRow[];
+  itemCounts: ItemCount[];
+  gear: GearRow[];
+  gearResults: Cell[];
   missions: MissionRow[];
   factionMissions: Cell[];
   months: MonthRow[];
@@ -128,7 +154,7 @@ const rateCols = (r: Rate) => [r.n, r.wins, r.draws, r.losses, r.score, r.low, r
 const RATE_HEAD = ["games", "wins", "draws", "losses", "score", "ci_low", "ci_high", "elo_expected", "performance"];
 
 /** One CSV per section, names in English (stable for spreadsheets). */
-export function reportCsv(report: MetaReport, section: "factions" | "matchups" | "units" | "missions" | "factionMissions" | "months"): string {
+export function reportCsv(report: MetaReport, section: "factions" | "matchups" | "units" | "items" | "gear" | "missions" | "factionMissions" | "months"): string {
   switch (section) {
     case "factions":
       return toCsv(["faction", "players", "sides", "share", "avg_elo", ...RATE_HEAD],
@@ -142,6 +168,17 @@ export function reportCsv(report: MetaReport, section: "factions" | "matchups" |
     case "units":
       return toCsv(["faction", "unit", "players", "pick_rate", ...RATE_HEAD.map((h) => `with_${h}`), ...RATE_HEAD.map((h) => `without_${h}`)],
         report.units.map((u) => [u.faction, u.unit, u.players, u.pickRate, ...rateCols(u.with), ...rateCols(u.without)]));
+    case "items":
+      return toCsv(["faction", "item", "players", "pick_rate", "avg_copies", "reduced_share", "leader_share", "top_unit", "top_unit_share",
+        ...RATE_HEAD.map((h) => `with_${h}`), ...RATE_HEAD.map((h) => `without_${h}`)],
+        report.items.map((i) => [i.faction, i.item, i.players, i.pickRate, i.avgCopies, i.reducedShare, i.leaderShare, i.topUnit,
+          i.topUnitShare, ...rateCols(i.with), ...rateCols(i.without)]));
+    case "gear":
+      return toCsv(["faction", "load", "players", ...RATE_HEAD, "lists", "avg_items", "avg_item_share"],
+        report.gearResults.map((c) => {
+          const g = report.gear.find((x) => x.faction === c.row);
+          return [c.row, c.col, c.players, ...rateCols(c.rate), g?.lists, g?.avgItems, g?.avgItemShare];
+        }));
     case "missions":
       return toCsv(["mission", "games", "players", "draw_rate", "avg_winner_vp", "avg_loser_vp", "avg_margin"],
         report.missions.map((m) => [m.mission, m.games, m.players, m.drawRate, m.avgWinnerVp, m.avgLoserVp, m.avgMargin]));

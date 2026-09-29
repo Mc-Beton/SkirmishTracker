@@ -1177,6 +1177,39 @@
       "lists": "{n} rozpisek · {players} graczy",
       "howToRead": "Różnica z/bez pokazuje wpływ postaci w obrębie frakcji; „ponad oczek.” dodatkowo odejmuje przewagę poziomu graczy, którzy ją wystawiają."
     },
+    "items": {
+      "title": "Przedmioty",
+      "lead": "Jak często przedmiot trafia do rozpisek frakcji, ile kosztuje i czy przekłada się na wyniki.",
+      "empty": "Brak gier z rozpiskami dla wybranych filtrów.",
+      "emptyFaction": "Żaden przedmiot tej frakcji nie ma jeszcze wystarczająco wielu graczy do raportu.",
+      "costEffect": "Koszt a efekt",
+      "costEffectLead": "Oś pozioma: koszt w punktach. Oś pionowa: wynik ponad oczekiwania z ELO. Wielkość: popularność. Kolor i podpis tylko tam, gdzie różnica jest istotna; puste kółko = za mało danych. Za tanie przedmioty są wysoko po lewej, za drogie nisko po prawej.",
+      "cost": "Koszt (pkt)",
+      "axisY": "Najedź na punkt, żeby zobaczyć szczegóły.",
+      "pick": "Wybór",
+      "points": "pkt",
+      "item": "Przedmiot",
+      "carrier": "najczęściej: {unit} ({share})",
+      "onLeader": "u lidera {share}",
+      "reduced": "koszt obniżony {share}",
+      "copies": "{n} szt. na rozpiskę",
+      "inseparable": "Prawie zawsze u postaci {unit} – efektu nie da się oddzielić od tej postaci.",
+      "dead": "Martwe przedmioty",
+      "deadLead": "Dostępne dla frakcji, a wybrane w mniej niż {share} z {n} rozpisek.",
+      "noDead": "Każdy dostępny przedmiot jest używany.",
+      "howToRead": "Wynik z/bez porównuje rozpiski tej samej frakcji. Przedmiot, który często trafia do rozpisek mocnych graczy, może mieć wysoki wynik bez nadwyżki ponad ELO – liczy się kolumna „ponad oczek.”."
+    },
+    "gear": {
+      "title": "Obciążenie sprzętem",
+      "lead": "Ile przedmiotów mają rozpiski i czy mocno wyposażone drużyny wygrywają częściej niż oszczędne.",
+      "lists": "Rozpiski",
+      "avgItems": "Śr. przedmiotów",
+      "share": "Punkty na przedmioty",
+      "corner": "frakcja / sprzęt",
+      "LIGHT": "lekki (0–1)",
+      "MEDIUM": "średni (2–3)",
+      "HEAVY": "ciężki (4+)"
+    },
     "missions": {
       "title": "Misje",
       "lead": "Jak rozstrzygają się gry w poszczególnych misjach.",
@@ -1207,7 +1240,7 @@
       "interval": "Każdy wynik ma 95% przedział ufności Wilsona. Wiersze z mniej niż {n} grami są oznaczone jako „za mało danych”.",
       "elo": "Wynik oczekiwany liczymy z ELO obu graczy sprzed danej gry (K = 32, start 1500), odtwarzając wszystkie gry chronologicznie.",
       "privacy": "Prywatność: pomijamy wiersze, za którymi stoi mniej niż {n} różnych graczy (teraz ukryte: {hidden}). Raport nie pokazuje wyników pojedynczych osób.",
-      "sources": "Źródła: zatwierdzone gry turniejowe (frakcja i postacie z rozpiski turniejowej, misja z rundy) oraz zatwierdzone gry własne (frakcja i rozpiski podane przy zgłoszeniu)."
+      "sources": "Źródła: zatwierdzone gry turniejowe (frakcja i postacie z rozpiski turniejowej, misja z rundy) oraz zatwierdzone gry własne (frakcja i rozpiski podane przy zgłoszeniu). Koszty przedmiotów z aktualnej listy przedmiotów (także koszt obniżony)."
     }
   }
 }

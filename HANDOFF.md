@@ -131,7 +131,7 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
 - Uruchamianie (PowerShell): `Get-Content tools/seed/<plik>.sql | docker compose exec -T postgres psql -U skirmish -d skirmish`.
   W Git Bash: `docker compose exec -T postgres psql -U skirmish -d skirmish < tools/seed/<plik>.sql`.
 - `tools/seed/demo_meta.sql` – **dane DEMO do raportów wydawcy**: 48 graczy (PL/PT/ES/DE), 18 zakończonych
-  turniejów i ~260 gier własnych (styczeń–wrzesień 2026) z ukrytymi efektami balansu do pokazania w panelu.
+  turniejów i ~420 gier własnych (styczeń–wrzesień 2026) z ukrytymi efektami balansu do pokazania w panelu.
   Konto wydawcy: `demo-wydawca@example.invalid` / `DruzynyTest2026`. Wszystko oznaczone `[DEMO]`;
   usuwanie: `tools/seed/demo_meta_remove.sql`. Generator i opis efektów: `tools/seed/make_demo_meta.py`.
 
@@ -143,6 +143,9 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   przedmioty, misja, ELO obu graczy sprzed gry), `MetaStats` liczy raport (czysta Java, testy `MetaStatsTest`).
 - Metodologia: gry lustrzane poza wynikiem frakcji, 95% przedział Wilsona, wynik oczekiwany z ELO
   (`Elo.preGame`), wiersze z < 5 graczami ukryte (prywatność), < 20 gier = „za mało danych”.
+- Przedmioty: popularność, wynik z/bez i ponad ELO, wykres koszt a efekt, „martwe” przedmioty (< 2% rozpisek),
+  najczęstszy nosiciel (≥ 80% = efekt nieoddzielny od postaci), udział lidera i kosztu obniżonego; obciążenie
+  sprzętem (lekki 0–1 / średni 2–3 / ciężki 4+ przedmiotów, udział punktów na przedmioty).
 - Frontend: `app/admin/reports`, wykresy w `components/reports`, CSV generowany w przeglądarce (`lib/reports.ts`).
 
 ## 7. Dokumentacja w repo

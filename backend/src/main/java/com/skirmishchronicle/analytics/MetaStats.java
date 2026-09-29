@@ -2,6 +2,9 @@ package com.skirmishchronicle.analytics;
 
 import com.skirmishchronicle.analytics.MetaReport.Cell;
 import com.skirmishchronicle.analytics.MetaReport.FactionRow;
+import com.skirmishchronicle.analytics.MetaReport.GearRow;
+import com.skirmishchronicle.analytics.MetaReport.ItemCount;
+import com.skirmishchronicle.analytics.MetaReport.ItemRow;
 import com.skirmishchronicle.analytics.MetaReport.MissionRow;
 import com.skirmishchronicle.analytics.MetaReport.MonthRow;
 import com.skirmishchronicle.analytics.MetaReport.Rate;
@@ -65,10 +68,16 @@ public final class MetaStats {
                 .filter(f -> f.faction() != null && f.mission() != null && !f.mirror()).toList(),
                 SideFact::faction, SideFact::mission, minPlayers, minSample, hidden);
         List<UnitRow> units = units(sides, minPlayers, minSample, hidden);
+        Map<String, List<SideFact>> lists = listsByFaction(sides);
+        List<ItemRow> items = items(lists, minPlayers, minSample, hidden);
+        List<ItemCount> itemCounts = itemCounts(lists);
+        List<GearRow> gear = gear(lists, minPlayers, hidden);
+        List<Cell> gearResults = cells(lists.values().stream().flatMap(List::stream).toList(), SideFact::faction,
+                MetaStats::gearLoad, minPlayers, minSample, hidden);
         List<MissionRow> missions = missions(byGame, minPlayers, hidden);
         List<MonthRow> months = months(byGame, firstGame);
-        return new MetaReport(summary(sides, byGame, hidden[0]), factions, matchups, units, missions,
-                factionMissions, months, new MetaReport.Thresholds(minPlayers, minSample));
+        return new MetaReport(summary(sides, byGame, hidden[0]), factions, matchups, units, items, itemCounts, gear,
+                gearResults, missions, factionMissions, months, new MetaReport.Thresholds(minPlayers, minSample));
     }
 
     // ------------------------------------------------------------------ sections
@@ -159,9 +168,7 @@ public final class MetaStats {
     }
 
     private static List<UnitRow> units(List<SideFact> sides, int minPlayers, int minSample, int[] hidden) {
-        Map<String, List<SideFact>> byFaction = new TreeMap<>();
-        sides.stream().filter(f -> f.faction() != null && !f.units().isEmpty() && !f.mirror())
-                .forEach(f -> byFaction.computeIfAbsent(f.faction(), k -> new ArrayList<>()).add(f));
+        Map<String, List<SideFact>> byFaction = listsByFaction(sides);
         List<UnitRow> out = new ArrayList<>();
         byFaction.forEach((faction, lists) -> {
             Set<String> codes = new java.util.TreeSet<>();
@@ -182,6 +189,107 @@ public final class MetaStats {
                 .thenComparing(Comparator.comparingDouble(UnitRow::pickRate).reversed())
                 .thenComparing(UnitRow::unit));
         return out;
+    }
+
+    /** Sides with a known faction and a list (mirror games left out, as for the faction results). */
+    private static Map<String, List<SideFact>> listsByFaction(List<SideFact> sides) {
+        Map<String, List<SideFact>> byFaction = new TreeMap<>();
+        sides.stream().filter(f -> f.faction() != null && !f.units().isEmpty() && !f.mirror())
+                .forEach(f -> byFaction.computeIfAbsent(f.faction(), k -> new ArrayList<>()).add(f));
+        return byFaction;
+    }
+
+    private static List<ItemRow> items(Map<String, List<SideFact>> lists, int minPlayers, int minSample,
+                                       int[] hidden) {
+        List<ItemRow> out = new ArrayList<>();
+        lists.forEach((faction, sides) -> {
+            Set<String> codes = new java.util.TreeSet<>();
+            sides.forEach(f -> f.items().forEach(i -> codes.add(i.item())));
+            for (String item : codes) {
+                Predicate<SideFact> has = f -> f.items().stream().anyMatch(i -> i.item().equals(item));
+                List<SideFact> withList = sides.stream().filter(has).toList();
+                Acc with = Acc.of(withList);
+                if (with.players.size() < minPlayers) {
+                    hidden[0]++;
+                    continue;
+                }
+                Acc without = Acc.of(sides.stream().filter(has.negate()).toList());
+                int copies = 0;
+                int reduced = 0;
+                int leader = 0;
+                Map<String, Integer> carriers = new HashMap<>();
+                for (SideFact f : withList) {
+                    for (SideFact.ItemUse use : f.items()) {
+                        if (use.item().equals(item)) {
+                            copies++;
+                            reduced += use.reduced() ? 1 : 0;
+                            leader += use.leader() ? 1 : 0;
+                            carriers.merge(use.unit(), 1, Integer::sum);
+                        }
+                    }
+                }
+                // Most frequent carrier; ties go to the alphabetically first character (deterministic).
+                Map.Entry<String, Integer> top = null;
+                for (Map.Entry<String, Integer> e : new TreeMap<>(carriers).entrySet()) {
+                    if (top == null || e.getValue() > top.getValue()) {
+                        top = e;
+                    }
+                }
+                out.add(new ItemRow(faction, item, with.players.size(), r4((double) with.n / sides.size()),
+                        r2((double) copies / with.n), r4((double) reduced / copies), r4((double) leader / copies),
+                        top == null ? null : top.getKey(), top == null ? 0 : r4((double) top.getValue() / copies),
+                        with.rate(minSample), without.rate(minSample)));
+            }
+        });
+        out.sort(Comparator.comparing(ItemRow::faction)
+                .thenComparing(Comparator.comparingDouble(ItemRow::pickRate).reversed())
+                .thenComparing(ItemRow::item));
+        return out;
+    }
+
+    private static List<ItemCount> itemCounts(Map<String, List<SideFact>> lists) {
+        List<ItemCount> out = new ArrayList<>();
+        lists.forEach((faction, sides) -> {
+            Map<String, Integer> counts = new TreeMap<>();
+            for (SideFact f : sides) {
+                f.items().stream().map(SideFact.ItemUse::item).distinct()
+                        .forEach(i -> counts.merge(i, 1, Integer::sum));
+            }
+            counts.forEach((item, n) -> out.add(new ItemCount(faction, item, n)));
+        });
+        return out;
+    }
+
+    private static List<GearRow> gear(Map<String, List<SideFact>> lists, int minPlayers, int[] hidden) {
+        List<GearRow> out = new ArrayList<>();
+        lists.forEach((faction, sides) -> {
+            Set<UUID> players = new HashSet<>();
+            double items = 0;
+            double share = 0;
+            int priced = 0;
+            for (SideFact f : sides) {
+                players.add(f.playerId());
+                items += f.items().size();
+                int total = f.unitPoints() + f.itemPoints();
+                if (total > 0) {
+                    share += (double) f.itemPoints() / total;
+                    priced++;
+                }
+            }
+            if (players.size() < minPlayers) {
+                hidden[0]++;
+                return;
+            }
+            out.add(new GearRow(faction, sides.size(), players.size(), r2(items / sides.size()),
+                    priced == 0 ? 0 : r4(share / priced)));
+        });
+        return out;
+    }
+
+    /** Equipment load bucket of a list by the number of item copies. */
+    static String gearLoad(SideFact f) {
+        int n = f.items().size();
+        return n <= 1 ? "LIGHT" : n <= 3 ? "MEDIUM" : "HEAVY";
     }
 
     private static List<MissionRow> missions(Map<UUID, List<SideFact>> byGame, int minPlayers, int[] hidden) {

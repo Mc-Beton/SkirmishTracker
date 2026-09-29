@@ -143,4 +143,48 @@ class MetaStatsTest {
         MetaReport rated = MetaStats.compute(facts, new MetaFilter(null, null, null, null, null, 1450));
         assertEquals(2, rated.summary().games());               // the 1600 vs 1400 game is left out
     }
+
+    @Test
+    void itemsCompareListsWithAndWithoutAndMeasureGearLoad() {
+        List<SideFact> facts = new ArrayList<>();
+        List<UUID> p = players(10);
+        List<UUID> opp = players(10);
+        for (int i = 0; i < 10; i++) {
+            boolean with = i < 5;
+            List<SideFact.ItemUse> items = with
+                    ? List.of(new SideFact.ItemUse("KING", "VIZIER", true, false),
+                            new SideFact.ItemUse("POUCH", "GUARD", false, false),
+                            new SideFact.ItemUse("POUCH", "GUARD", false, true))
+                    : List.of();
+            UUID id = UUID.randomUUID();
+            double score = with ? 1 : 0;
+            facts.add(new SideFact(id, p.get(i), opp.get(i), DAY, SideFact.Source.OWN, null, null, null, "SAND", "SOGA",
+                    Set.of("VIZIER", "GUARD"), null, 1500, 1500, score, with ? 8 : 3, with ? 3 : 8, items, 80,
+                    with ? 20 : 0));
+            facts.add(new SideFact(id, opp.get(i), p.get(i), DAY, SideFact.Source.OWN, null, null, null, "SOGA", "SAND",
+                    Set.of(), null, 1500, 1500, 1 - score, with ? 3 : 8, with ? 8 : 3));
+        }
+        MetaReport r = MetaStats.compute(facts, MetaFilter.ALL);
+        MetaReport.ItemRow king = r.items().stream().filter(x -> x.item().equals("KING")).findFirst().orElseThrow();
+        assertEquals(0.5, king.pickRate());
+        assertEquals(1.0, king.with().score());
+        assertEquals(0.0, king.without().score());
+        assertEquals("VIZIER", king.topUnit());
+        assertEquals(1.0, king.topUnitShare());
+        assertEquals(1.0, king.leaderShare());
+        MetaReport.ItemRow pouch = r.items().stream().filter(x -> x.item().equals("POUCH")).findFirst().orElseThrow();
+        assertEquals(2.0, pouch.avgCopies());
+        assertEquals(0.5, pouch.reducedShare());
+        assertEquals(0.0, pouch.leaderShare());
+        assertTrue(r.itemCounts().stream().anyMatch(c -> c.item().equals("KING") && c.lists() == 5));
+        MetaReport.GearRow gear = r.gear().get(0);
+        assertEquals(1.5, gear.avgItems());
+        assertEquals(0.1, gear.avgItemShare(), 0.0001);
+        MetaReport.Cell medium = r.gearResults().stream().filter(c -> c.col().equals("MEDIUM")).findFirst()
+                .orElseThrow();
+        assertEquals(1.0, medium.rate().score());
+        MetaReport.Cell light = r.gearResults().stream().filter(c -> c.col().equals("LIGHT")).findFirst()
+                .orElseThrow();
+        assertEquals(0.0, light.rate().score());
+    }
 }

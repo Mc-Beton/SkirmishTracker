@@ -12,16 +12,17 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
+import { CostEffect } from "@/components/reports/cost-effect";
 import { HeatMatrix } from "@/components/reports/heat-matrix";
 import { MonthBars } from "@/components/reports/month-bars";
 import { RateInterval } from "@/components/reports/rate-interval";
 import { api } from "@/lib/api";
 import { useGameContent } from "@/lib/content";
 import {
-  EMPTY_FILTER, downloadCsv, pct, pp, reportCsv, reportQuery, reportRoles, signal,
+  DEAD_ITEM_PICK, EMPTY_FILTER, GEAR_LOADS, INSEPARABLE_SHARE, downloadCsv, pct, pp, reportCsv, reportQuery, reportRoles, signal,
   type MetaReport, type MetaResponse, type Rate, type ReportFilter,
 } from "@/lib/reports";
-import { factionName, useArmies } from "@/lib/warbands";
+import { NEUTRAL, factionName, useArmies, type Armies } from "@/lib/warbands";
 
 type Section = Parameters<typeof reportCsv>[1];
 
@@ -134,6 +135,8 @@ export function ReportsView() {
                   diagonal={t("matchups.mirror")} uncertain={t("uncertain")} />
               </SectionCard>
               <Units report={report} t={t} fName={fName} unitName={unitName} onCsv={() => csv("units")} />
+              <Items report={report} t={t} armies={armies} fName={fName} unitName={unitName} onCsv={() => csv("items")} />
+              <Gear report={report} t={t} fName={fName} onCsv={() => csv("gear")} />
               <Missions report={report} t={t} fName={fName} questName={questName}
                 onCsv={() => csv("missions")} onCsvMatrix={() => csv("factionMissions")} />
               <Activity report={report} t={t} onCsv={() => csv("months")} />
@@ -342,6 +345,147 @@ function Units({ report, t, fName, unitName, onCsv }: {
           <p className="text-xs text-muted-foreground">{t("units.howToRead")}</p>
         </>
       )}
+    </SectionCard>
+  );
+}
+
+function Items({ report, t, armies, fName, unitName, onCsv }: {
+  report: MetaReport; t: T; armies: Armies | null; fName: (c: string) => string; unitName: (c: string) => string; onCsv: () => void;
+}) {
+  const factions = useMemo(() => [...new Set(report.gear.map((g) => g.faction))], [report.gear]);
+  const [chosen, setChosen] = useState("");
+  const faction = factions.includes(chosen) ? chosen : factions[0] ?? "";
+  const rows = report.items.filter((i) => i.faction === faction);
+  const item = (c: string) => armies?.items.find((i) => i.code === c);
+  const itemName = (c: string) => item(c)?.name ?? c;
+  const cost = (c: string) => item(c)?.points ?? 0;
+  const costLabel = (c: string) => {
+    const it = item(c);
+    if (!it) return "–";
+    return it.reducedPoints != null ? `${it.points} / ${it.reducedPoints}` : String(it.points);
+  };
+  // Available to the faction: neutral items + its own list. "Dead" = picked in fewer than 2% of its lists.
+  const lists = report.gear.find((g) => g.faction === faction)?.lists ?? 0;
+  const available = armies ? [...new Set([...(armies.itemLists[NEUTRAL] ?? []), ...(armies.itemLists[faction] ?? [])])] : [];
+  const picks = (c: string) => report.itemCounts.find((x) => x.faction === faction && x.item === c)?.lists ?? 0;
+  const dead = lists ? available.map((c) => ({ c, pick: picks(c) / lists })).filter((d) => d.pick < DEAD_ITEM_PICK)
+    .sort((a, b) => a.pick - b.pick || itemName(a.c).localeCompare(itemName(b.c))) : [];
+
+  return (
+    <SectionCard title={t("items.title")} lead={t("items.lead")} onCsv={onCsv} csvLabel={t("csv")}>
+      {factions.length === 0 ? <p className="text-sm text-muted-foreground">{t("items.empty")}</p> : (
+        <>
+          <div className="grid max-w-xs gap-1.5">
+            <Label className="text-xs" htmlFor="items-faction">{t("factions.faction")}</Label>
+            <NativeSelect id="items-faction" value={faction} onChange={(e) => setChosen(e.target.value)}>
+              {factions.map((f) => <option key={f} value={f}>{fName(f)}</option>)}
+            </NativeSelect>
+          </div>
+          <div className="grid gap-2">
+            <h3 className="font-display text-lg">{t("items.costEffect")}</h3>
+            <p className="text-xs text-muted-foreground">{t("items.costEffectLead")}</p>
+            <CostEffect points={rows.map((r) => ({ row: r, cost: cost(r.item), label: itemName(r.item) }))}
+              xLabel={t("items.cost")} yLabel={t("items.axisY")} empty={t("items.emptyFaction")}
+              labels={{ pick: t("items.pick"), games: t("factions.games"), points: t("items.points") }} />
+          </div>
+          {rows.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="py-2 pr-3 font-medium">{t("items.item")}</th>
+                    <th className="py-2 pr-3 text-right font-medium">{t("items.cost")}</th>
+                    <th className="w-1/6 min-w-24 py-2 pr-3 font-medium">{t("items.pick")}</th>
+                    <th className="py-2 pr-3 text-right font-medium">{t("units.with")}</th>
+                    <th className="py-2 pr-3 text-right font-medium">{t("units.without")}</th>
+                    <th className="py-2 pr-3 text-right font-medium">{t("factions.performance")}</th>
+                    <th className="py-2 font-medium">{t("factions.verdict")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.item} className="border-b last:border-0">
+                      <td className="py-2 pr-3 font-medium">
+                        {itemName(r.item)}
+                        <span className="block text-xs font-normal text-muted-foreground">
+                          {t("items.carrier", { unit: r.topUnit ? unitName(r.topUnit) : "–", share: pct(r.topUnitShare) })}
+                          {r.leaderShare > 0 && ` · ${t("items.onLeader", { share: pct(r.leaderShare) })}`}
+                          {r.reducedShare > 0 && ` · ${t("items.reduced", { share: pct(r.reducedShare) })}`}
+                          {r.avgCopies > 1.05 && ` · ${t("items.copies", { n: r.avgCopies.toFixed(1) })}`}
+                        </span>
+                        {r.topUnitShare >= INSEPARABLE_SHARE && (
+                          <span className="block text-xs font-normal text-muted-foreground">⚠ {t("items.inseparable", { unit: r.topUnit ? unitName(r.topUnit) : "–" })}</span>
+                        )}
+                      </td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{costLabel(r.item)}</td>
+                      <td className="py-2 pr-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 flex-1 rounded-full bg-muted">
+                            <div className="h-full rounded-full" style={{ width: pct(r.pickRate), background: "var(--series-1)" }} />
+                          </div>
+                          <span className="w-10 text-right tabular-nums">{pct(r.pickRate)}</span>
+                        </div>
+                      </td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{pct(r.with.score, 1)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{r.without.n ? pct(r.without.score, 1) : "–"}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{pp(r.with.performance)}</td>
+                      <td className="py-2"><Signal rate={r.with} reference={r.with.expected} t={t} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {lists > 0 && armies && (
+            <div className="grid gap-2">
+              <h3 className="font-display text-lg">{t("items.dead")}</h3>
+              <p className="text-xs text-muted-foreground">{t("items.deadLead", { n: lists, share: pct(DEAD_ITEM_PICK) })}</p>
+              {dead.length === 0 ? <p className="text-sm text-muted-foreground">{t("items.noDead")}</p> : (
+                <ul className="flex flex-wrap gap-2">
+                  {dead.map((d) => (
+                    <li key={d.c} className="rounded-full border px-3 py-1 text-xs">
+                      {itemName(d.c)} <span className="text-muted-foreground tabular-nums">· {costLabel(d.c)} {t("items.points")} · {pct(d.pick, 1)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">{t("items.howToRead")}</p>
+        </>
+      )}
+    </SectionCard>
+  );
+}
+
+function Gear({ report, t, fName, onCsv }: { report: MetaReport; t: T; fName: (c: string) => string; onCsv: () => void }) {
+  if (report.gear.length === 0) return null;
+  return (
+    <SectionCard title={t("gear.title")} lead={t("gear.lead")} onCsv={onCsv} csvLabel={t("csv")}>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-muted-foreground">
+              <th className="py-2 pr-3 font-medium">{t("factions.faction")}</th>
+              <th className="py-2 pr-3 text-right font-medium">{t("gear.lists")}</th>
+              <th className="py-2 pr-3 text-right font-medium">{t("gear.avgItems")}</th>
+              <th className="py-2 text-right font-medium">{t("gear.share")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {report.gear.map((g) => (
+              <tr key={g.faction} className="border-b last:border-0">
+                <td className="py-2 pr-3 font-medium">{fName(g.faction)}</td>
+                <td className="py-2 pr-3 text-right tabular-nums">{g.lists}</td>
+                <td className="py-2 pr-3 text-right tabular-nums">{g.avgItems.toFixed(1)}</td>
+                <td className="py-2 text-right tabular-nums">{pct(g.avgItemShare, 1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <HeatMatrix rows={report.gear.map((g) => g.faction)} cols={[...GEAR_LOADS]} cells={report.gearResults}
+        rowLabel={fName} colLabel={(c) => t(`gear.${c as (typeof GEAR_LOADS)[number]}`)} corner={t("gear.corner")} uncertain={t("uncertain")} />
     </SectionCard>
   );
 }

@@ -1177,6 +1177,39 @@
       "lists": "{n} lists · {players} players",
       "howToRead": "The with/without difference shows the character's impact within the faction; \"above exp.\" also removes the skill advantage of the players who field it."
     },
+    "items": {
+      "title": "Items",
+      "lead": "How often an item makes it into a faction's lists, what it costs and whether it shows in the results.",
+      "empty": "No games with lists for the selected filters.",
+      "emptyFaction": "No item of this faction has enough players for the report yet.",
+      "costEffect": "Cost vs effect",
+      "costEffectLead": "Horizontal: cost in points. Vertical: result above ELO expectation. Size: pick rate. Colour and label only where the difference is significant; hollow = not enough data. Underpriced items sit top left, overpriced ones bottom right.",
+      "cost": "Cost (pts)",
+      "axisY": "Hover a point for details.",
+      "pick": "Pick rate",
+      "points": "pts",
+      "item": "Item",
+      "carrier": "mostly: {unit} ({share})",
+      "onLeader": "on the leader {share}",
+      "reduced": "reduced cost {share}",
+      "copies": "{n} per list",
+      "inseparable": "Almost always on {unit} – its effect cannot be told apart from that character.",
+      "dead": "Dead items",
+      "deadLead": "Available to the faction but picked in fewer than {share} of {n} lists.",
+      "noDead": "Every available item is in use.",
+      "howToRead": "With/without compares lists of the same faction. An item favoured by strong players can score high without any surplus over ELO – read the \"above exp.\" column."
+    },
+    "gear": {
+      "title": "Equipment load",
+      "lead": "How many items lists carry and whether heavily equipped warbands win more often than lean ones.",
+      "lists": "Lists",
+      "avgItems": "Avg items",
+      "share": "Points on items",
+      "corner": "faction / load",
+      "LIGHT": "light (0–1)",
+      "MEDIUM": "medium (2–3)",
+      "HEAVY": "heavy (4+)"
+    },
     "missions": {
       "title": "Missions",
       "lead": "How games are decided in each mission.",
@@ -1207,7 +1240,7 @@
       "interval": "Every score has a 95% Wilson confidence interval. Rows with fewer than {n} games are marked \"not enough data\".",
       "elo": "The expected score uses both players' ELO before the game (K = 32, start 1500), replaying all games in order.",
       "privacy": "Privacy: rows backed by fewer than {n} different players are left out (hidden now: {hidden}). The report never shows individual results.",
-      "sources": "Sources: confirmed tournament games (faction and characters from the tournament list, mission from the round) and confirmed own games (faction and lists entered with the report)."
+      "sources": "Sources: confirmed tournament games (faction and characters from the tournament list, mission from the round) and confirmed own games (faction and lists entered with the report). Item costs from the current item list (including reduced costs)."
     }
   }
 }

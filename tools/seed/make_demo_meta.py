@@ -3,18 +3,22 @@
 Generates tools/seed/demo_meta.sql: a DEMO community for the publisher reports (/admin/reports).
 
 48 players from PL, PT, ES and DE, 18 finished tournaments (Swiss, 3–5 rounds, missions per round, warband
-lists) and ~260 own games between January and September 2026 – roughly 700 rated games. Everything is marked:
+lists) and ~420 own games between January and September 2026 – roughly 830 rated games. Everything is marked:
 tournament names start with "[DEMO]", own games carry notes = '[demo]', accounts use
 demo-<nick>@example.invalid. Re-running the SQL first removes the previous demo data.
 
 Results are simulated from hidden "true" effects, so the report has real findings to show:
-  * Oni Clans win a lot, but mostly because strong players pick them (performance vs ELO ~ 0).
+  * Oni Clans are the most played faction and the favourite of the strongest players; their results are
+    explained by the players' ELO (no surplus).
   * Helian League is genuinely strong – thanks to Paladin of the Order – until the (fictional) errata of
     2026-07-01 that removes the Paladin's edge (compare date ranges before / after).
   * Sand Kingdoms are weak overall but strong in Treasure Hunt.
-  * Empire of Soga players love Great Guard, which actually costs them games.
+  * Empire of Soga is clearly below expectation: its players love Great Guard and the Imported Crossbow.
   * Goblin Wartribes appear only from April; the Adventurers' Guild is played by too few people to report.
   * Snail Chase ends in a draw far more often than other missions.
+  * Items: King of the Battlefield (2 pts) is underpriced, the Imported Crossbow (5 pts) overpriced, the
+    Flying Carpet is strong but nearly always carried by the Vizier of Conjurations, and four items are
+    never taken (Camaraderie, Glyphscribe: Reduce Weight, Devotion: Paimon, Kassen Buki: Kanabou-tsukai).
 
 Accounts (password DruzynyTest2026 like the other seed accounts):
   demo-wydawca@example.invalid    role PUBLISHER – log in as the publisher and open /admin/reports
@@ -64,16 +68,21 @@ START = dt.date(2026, 1, 10)
 END = dt.date(2026, 9, 26)
 
 # Hidden truth (logit units, ~0.25 ≈ 6 percentage points in an even game).
-FACTION_BASE = {ONI: 0.0, HEL: 0.05, COA: 0.05, SOGA: 0.05, SAND: -0.2, GOB: -0.1, AG: 0.0}
+FACTION_BASE = {ONI: -0.15, HEL: 0.0, COA: 0.1, SOGA: 0.15, SAND: -0.25, GOB: -0.1, AG: 0.0}
 UNIT_POWER = {
-    "PALADIN_OF_THE_ORDER": (0.5, 0.0),   # (before errata, after errata)
-    "GREAT_GUARD": (-0.3, -0.3),
-    "LUPUS_REX": (0.2, 0.2),
-    "TROLL_PROWLER": (0.25, 0.25),
+    "PALADIN_OF_THE_ORDER": (0.9, 0.0),   # (before errata, after errata)
+    "GREAT_GUARD": (-0.55, -0.55),
+    "LUPUS_REX": (0.35, 0.35),
+    "TROLL_PROWLER": (0.4, 0.4),
 }
 # How often a faction's list includes a highlighted character.
-PICK = {"PALADIN_OF_THE_ORDER": 0.75, "GREAT_GUARD": 0.6, "LUPUS_REX": 0.4, "TROLL_PROWLER": 0.55}
-MISSION_BONUS = {(SAND, "TREASURE_HUNT"): 0.45}
+PICK = {"PALADIN_OF_THE_ORDER": 0.75, "GREAT_GUARD": 0.6, "LUPUS_REX": 0.4, "TROLL_PROWLER": 0.55,
+        "VIZIER_OF_CONJURATIONS": 0.6}
+# Items: hidden effect (logit), how often a list buys one copy, and items nobody takes.
+ITEM_POWER = {"KING_OF_THE_BATTLEFIELD": 0.55, "IMPORTED_CROSSBOW": -0.5, "FLYING_CARPET": 0.8}
+ITEM_PICK = {"KING_OF_THE_BATTLEFIELD": 0.4, "IMPORTED_CROSSBOW": 0.25, "FLYING_CARPET": 0.6}
+DEAD_ITEMS = {"CAMARADERIE", "GLYPHSCRIBE_REDUCE_WEIGHT", "DEVOTION_PAIMON", "KASSEN_BUKI_KANABOU_TSUKAI"}
+MISSION_BONUS = {(SAND, "TREASURE_HUNT"): 0.9}
 QUESTS = [q["code"] for q in json.loads((ROOT / "backend/src/main/resources/content/eldfall-core.json")
                                         .read_text(encoding="utf-8"))["quests"]]
 DRAW_RATE = {"SNAIL_CHASE": 0.26}
@@ -114,18 +123,32 @@ def make_list(faction):
     rng.shuffle(rest)
     chosen += rest[: max(0, rng.randint(4, 5) - len(chosen))]
     rng.shuffle(chosen)
-    ipool = item_pool(faction)
-    out, total = [], 0
-    for i, c in enumerate(chosen):
-        its = [{"item": code, "reduced": False} for code in (rng.sample(ipool, k=rng.choice([0, 1, 1, 2])) if ipool else [])]
-        total += units[c]["points"] + sum(items[x["item"]]["points"] for x in its)
-        out.append({"unit": c, "leader": i == 0, "items": its})
+    ipool = [c for c in item_pool(faction) if c not in DEAD_ITEMS and c not in ITEM_PICK]
+    out = [{"unit": c, "leader": i == 0, "items": []} for i, c in enumerate(chosen)]
+    for u in out:
+        for code in (rng.sample(ipool, k=rng.choice([0, 0, 0, 1, 1, 2])) if ipool else []):
+            u["items"].append({"item": code, "reduced": False})
+    available = set(item_pool(faction))
+    for code, chance in ITEM_PICK.items():
+        if code in available and rng.random() < chance:
+            if code == "FLYING_CARPET":  # the Vizier's carpet – nearly inseparable
+                carrier = next((u for u in out if u["unit"] == "VIZIER_OF_CONJURATIONS"), None)
+                if carrier is None and rng.random() < 0.85:
+                    continue
+                carrier = carrier or rng.choice(out)
+            elif code == "KING_OF_THE_BATTLEFIELD":
+                carrier = out[0]  # on the leader
+            else:
+                carrier = rng.choice(out)
+            carrier["items"].append({"item": code, "reduced": False})
+    total = sum(units[u["unit"]]["points"] + sum(items[x["item"]]["points"] for x in u["items"]) for u in out)
     return out, total
 
 
 def list_power(unit_list, day):
     k = 0 if day < ERRATA else 1
-    return sum(UNIT_POWER[u["unit"]][k] for u in unit_list if u["unit"] in UNIT_POWER)
+    power = sum(UNIT_POWER[u["unit"]][k] for u in unit_list if u["unit"] in UNIT_POWER)
+    return power + sum(ITEM_POWER.get(i["item"], 0) for u in unit_list for i in u["items"])
 
 
 # ------------------------------------------------------------------ players
@@ -283,7 +306,7 @@ for (tday, country, city, tier, size, n_rounds, name) in T_PLAN:
 
 own_rows = []
 span = (END - START).days
-for _ in range(260):
+for _ in range(420):
     day = START + dt.timedelta(days=rng.randint(0, span))
     country = rng.choices(list(NICKS), weights=[22, 12, 10, 4])[0]
     local = by_country[country] if rng.random() < 0.9 else players

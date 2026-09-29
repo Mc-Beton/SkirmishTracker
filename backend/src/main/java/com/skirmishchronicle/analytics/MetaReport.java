@@ -5,6 +5,7 @@ import java.util.List;
 
 /** Aggregated meta statistics for the publisher panel. Only aggregates – never single players. */
 public record MetaReport(Summary summary, List<FactionRow> factions, List<Cell> matchups, List<UnitRow> units,
+                         List<ItemRow> items, List<ItemCount> itemCounts, List<GearRow> gear, List<Cell> gearResults,
                          List<MissionRow> missions, List<Cell> factionMissions, List<MonthRow> months,
                          Thresholds thresholds) {
 
@@ -38,6 +39,25 @@ public record MetaReport(Summary summary, List<FactionRow> factions, List<Cell> 
      * {@code with} / {@code without} compare the faction's results with and without the character.
      */
     public record UnitRow(String faction, String unit, int players, double pickRate, Rate with, Rate without) {
+    }
+
+    /**
+     * An item within one faction. {@code pickRate}: part of the faction's lists with at least one copy;
+     * {@code avgCopies}: copies per list that has it; {@code reducedShare} / {@code leaderShare}: part of copies
+     * bought at the reduced cost / carried by the leader; {@code topUnit}: the character carrying it most often
+     * and its part of all copies (close to 1 = the item's effect cannot be told apart from that character's).
+     */
+    public record ItemRow(String faction, String item, int players, double pickRate, double avgCopies,
+                          double reducedShare, double leaderShare, String topUnit, double topUnitShare, Rate with,
+                          Rate without) {
+    }
+
+    /** How many of a faction's lists include the item – every item, no privacy threshold (counts only). */
+    public record ItemCount(String faction, String item, int lists) {
+    }
+
+    /** Equipment load of a faction's lists: items per list and the part of the points spent on items. */
+    public record GearRow(String faction, int lists, int players, double avgItems, double avgItemShare) {
     }
 
     public record MissionRow(String mission, int games, int players, double drawRate, double avgWinnerVp,
