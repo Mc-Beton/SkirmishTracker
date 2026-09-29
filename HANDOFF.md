@@ -120,6 +120,9 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
 ## 6. Dane testowe (tylko lokalnie)
 
 - `tools/seed/test1_games.sql` – 18 gier własnych z rozpiskami dla konta **test1**.
+- `tools/seed/stats_player.sql` – gotowe konto **Tester** (`seed-tester@example.invalid`, hasło `DruzynyTest2026`)
+  z 20 zatwierdzonymi grami własnymi (rozpiski, misje) i 12 grami między jego przeciwnikami; nie wymaga
+  wcześniej założonego konta. Generator: `tools/seed/make_stats_player.py`.
 - `tools/seed/team_tournament.sql` – dopisuje 5 pełnych drużyn 3-osobowych do najnowszego otwartego
   turnieju drużynowego. Konta: e-mail `seed-<nick>@example.invalid`, hasło `DruzynyTest2026`
   (np. `seed-borvin@example.invalid`, kapitan Stalowej Straży).
