@@ -41,14 +41,36 @@ public final class Elo {
         return 1.0 / (1.0 + Math.pow(10.0, (opponent - rating) / 400.0));
     }
 
+    /** Chronological replay order (ties broken by id, so the result is deterministic). */
+    private static final Comparator<RatedGame> ORDER = Comparator
+            .comparing(RatedGame::playedAt, Comparator.nullsFirst(Comparator.<java.time.Instant>naturalOrder()))
+            .thenComparing(g -> g.id().toString());
+
+    /** Ratings of both players right before a game (unrounded). */
+    public record PreGame(double a, double b) {
+    }
+
     public static Map<UUID, Rating> replay(List<RatedGame> games) {
+        return replay(games, null);
+    }
+
+    /** Ratings of both players before each game, keyed by game id – same replay as {@link #replay(List)}. */
+    public static Map<UUID, PreGame> preGame(List<RatedGame> games) {
+        Map<UUID, PreGame> out = new HashMap<>();
+        replay(games, out);
+        return out;
+    }
+
+    private static Map<UUID, Rating> replay(List<RatedGame> games, Map<UUID, PreGame> before) {
         List<RatedGame> ordered = new ArrayList<>(games);
-        ordered.sort(Comparator.comparing(RatedGame::playedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
-                .thenComparing(g -> g.id().toString()));
+        ordered.sort(ORDER);
         Map<UUID, Rating> ratings = new HashMap<>();
         for (RatedGame g : ordered) {
             Rating a = ratings.computeIfAbsent(g.playerA(), k -> new Rating());
             Rating b = ratings.computeIfAbsent(g.playerB(), k -> new Rating());
+            if (before != null) {
+                before.put(g.id(), new PreGame(a.value, b.value));
+            }
             double sa = g.scoreA();
             double ea = expected(a.value, b.value);
             double delta = K * (sa - ea);

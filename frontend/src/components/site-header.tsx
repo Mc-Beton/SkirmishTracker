@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useAuth } from "@/components/auth/auth-provider";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { reportRoles } from "@/lib/reports";
 
 export function SiteHeader() {
   const t = useTranslations();
@@ -27,6 +28,7 @@ export function SiteHeader() {
     { href: "/players", label: t("nav.ranking") },
     { href: "/scenarios", label: t("nav.scenarios") },
     ...(me ? [{ href: "/games", label: t("nav.games") }] : []),
+    ...(reportRoles(me?.roles) ? [{ href: "/admin/reports", label: t("nav.reports") }] : []),
   ];
 
   return (

@@ -80,6 +80,8 @@ public class SecurityConfig {
                                 "/api/tournaments/*/warbands/*", "/api/content", "/api/content/armies",
                                 "/api/tournaments/*/leagues", "/api/leagues", "/api/leagues/*", "/api/players/*",
                                 "/api/ranking", "/api/live").permitAll()
+                        // Reports (aggregates only) are also open to the game publisher.
+                        .requestMatchers(HttpMethod.GET, "/api/admin/reports/**").hasAnyRole("ADMIN", "PUBLISHER")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(rs -> rs

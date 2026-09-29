@@ -128,7 +128,22 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   (np. `seed-borvin@example.invalid`, kapitan Stalowej Straży).
 - `tools/seed/round_results.sql` – wpisuje losowe zatwierdzone wyniki bieżącej rundy wskazanego turnieju
   (ID turnieju na górze pliku).
-- Uruchamianie: `Get-Content tools/seed/<plik>.sql | docker compose exec -T postgres psql -U skirmish -d skirmish`.
+- Uruchamianie (PowerShell): `Get-Content tools/seed/<plik>.sql | docker compose exec -T postgres psql -U skirmish -d skirmish`.
+  W Git Bash: `docker compose exec -T postgres psql -U skirmish -d skirmish < tools/seed/<plik>.sql`.
+- `tools/seed/demo_meta.sql` – **dane DEMO do raportów wydawcy**: 48 graczy (PL/PT/ES/DE), 18 zakończonych
+  turniejów i ~260 gier własnych (styczeń–wrzesień 2026) z ukrytymi efektami balansu do pokazania w panelu.
+  Konto wydawcy: `demo-wydawca@example.invalid` / `DruzynyTest2026`. Wszystko oznaczone `[DEMO]`;
+  usuwanie: `tools/seed/demo_meta_remove.sql`. Generator i opis efektów: `tools/seed/make_demo_meta.py`.
+
+## 6a. Raporty dla wydawcy (/admin/reports)
+
+- Dostęp: role `ADMIN` i `PUBLISHER` (tylko odczyt raportów, `GET /api/admin/reports/**`). Rolę nadaje się w bazie:
+  `INSERT INTO user_roles (user_id, role) SELECT id, 'PUBLISHER' FROM users WHERE email = '…';` – potem ponowne logowanie.
+- Backend: pakiet `analytics` – `AnalyticsService` buduje fakty (jedna strona jednej gry: frakcja, postacie,
+  przedmioty, misja, ELO obu graczy sprzed gry), `MetaStats` liczy raport (czysta Java, testy `MetaStatsTest`).
+- Metodologia: gry lustrzane poza wynikiem frakcji, 95% przedział Wilsona, wynik oczekiwany z ELO
+  (`Elo.preGame`), wiersze z < 5 graczami ukryte (prywatność), < 20 gier = „za mało danych”.
+- Frontend: `app/admin/reports`, wykresy w `components/reports`, CSV generowany w przeglądarce (`lib/reports.ts`).
 
 ## 7. Dokumentacja w repo
 

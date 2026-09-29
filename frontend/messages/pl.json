@@ -16,7 +16,8 @@
     "games": "Moje gry",
     "profile": "Mój profil",
     "menu": "Menu",
-    "main": "Nawigacja"
+    "main": "Nawigacja",
+    "reports": "Raporty"
   },
   "home": {
     "headline": "Prowadź turnieje bez kartki i kalkulatora",
@@ -208,7 +209,8 @@
     "OFFLINE": "Brak połączenia z internetem. Spróbuj ponownie, gdy sieć wróci.",
     "LIVE_TOO_MANY_TOPICS": "Za dużo obserwowanych turniejów naraz.",
     "LIVE_TOO_MANY_STREAMS": "Za dużo otwartych kart z aplikacją.",
-    "LIVE_UNAVAILABLE": "Odświeżanie na żywo jest chwilowo niedostępne."
+    "LIVE_UNAVAILABLE": "Odświeżanie na żywo jest chwilowo niedostępne.",
+    "INVALID_REPORT_FILTER": "Nieprawidłowy filtr raportu."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -1093,5 +1095,119 @@
         ]
       }
     ]
+  },
+  "reports": {
+    "title": "Raport meta",
+    "lead": "Wyniki frakcji, postaci i misji ze wszystkich zatwierdzonych gier – z przedziałami ufności i poprawką na poziom graczy (ELO). Tylko dane zbiorcze.",
+    "loginRequired": "Raporty są dostępne po zalogowaniu.",
+    "login": "Zaloguj się",
+    "forbidden": "Raporty są dostępne dla administratora portalu i wydawcy gry.",
+    "loading": "Liczę statystyki…",
+    "empty": "Brak gier dla wybranych filtrów.",
+    "csv": "CSV",
+    "uncertain": "za mało danych",
+    "withinNoise": "w granicach szumu",
+    "above": "powyżej oczekiwań",
+    "below": "poniżej oczekiwań",
+    "filter": {
+      "from": "Od",
+      "to": "Do",
+      "source": "Rodzaj gier",
+      "all": "Wszystkie",
+      "tournament": "Turniejowe",
+      "own": "Własne (poza turniejami)",
+      "country": "Kraj turnieju",
+      "tier": "Ranga turnieju",
+      "LOCAL": "Lokalny",
+      "MASTER": "Master",
+      "INTERNATIONAL": "Międzynarodowy",
+      "minElo": "Poziom graczy",
+      "anyElo": "Każdy",
+      "eloAtLeast": "Obaj gracze ELO ≥ {elo}",
+      "hint": "Kraj i ranga dotyczą tylko gier turniejowych. Zakres dat pozwala porównać okresy przed i po erracie.",
+      "reset": "Wyczyść filtry"
+    },
+    "summary": {
+      "games": "Gry",
+      "split": "{tournament} turniejowych, {own} własnych",
+      "players": "Gracze",
+      "tournaments": "Turnieje",
+      "withLists": "Gry z rozpiskami",
+      "withFactions": "z frakcjami: {v}",
+      "withMission": "Gry z misją",
+      "draws": "Remisy",
+      "mirrors": "lustrzanych: {n}",
+      "period": "Okres: {first} – {last}.",
+      "generated": "Wygenerowano: {at}."
+    },
+    "legend": {
+      "score": "wynik",
+      "interval": "95% przedział ufności",
+      "expected": "oczekiwany z ELO"
+    },
+    "factions": {
+      "title": "Frakcje",
+      "lead": "Wynik = (wygrane + ½ remisów) / gry, bez gier lustrzanych. „Ponad oczekiwania” to różnica między wynikiem a tym, co przewidywało ELO graczy.",
+      "faction": "Frakcja",
+      "share": "Udział",
+      "games": "Gry",
+      "score": "Wynik",
+      "interval": "Wynik i przedział",
+      "expected": "Oczek. z ELO",
+      "performance": "Ponad oczek.",
+      "verdict": "Ocena",
+      "players": "{n} graczy · śr. ELO {elo}",
+      "howToRead": "Jak czytać: frakcja z wysokim wynikiem, ale bez nadwyżki ponad ELO, wygrywa, bo grają nią mocni gracze – to nie musi być problem balansu. Ocena pojawia się dopiero, gdy przedział ufności wyklucza wynik oczekiwany."
+    },
+    "matchups": {
+      "title": "Starcia frakcji",
+      "lead": "Wynik frakcji z wiersza przeciwko frakcji z kolumny. Pogrubienie: różnica od 50% jest istotna statystycznie.",
+      "corner": "wiersz vs kolumna",
+      "mirror": "lustro"
+    },
+    "units": {
+      "title": "Postacie",
+      "lead": "Jak często postać trafia do rozpisek frakcji i jak frakcja radzi sobie z nią i bez niej.",
+      "empty": "Brak gier z rozpiskami dla wybranych filtrów.",
+      "unit": "Postać",
+      "pick": "Wybór",
+      "with": "Wynik z nią",
+      "without": "Bez niej",
+      "difference": "Różnica",
+      "lists": "{n} rozpisek · {players} graczy",
+      "howToRead": "Różnica z/bez pokazuje wpływ postaci w obrębie frakcji; „ponad oczek.” dodatkowo odejmuje przewagę poziomu graczy, którzy ją wystawiają."
+    },
+    "missions": {
+      "title": "Misje",
+      "lead": "Jak rozstrzygają się gry w poszczególnych misjach.",
+      "empty": "Brak gier z zapisaną misją.",
+      "mission": "Misja",
+      "draws": "Remisy",
+      "winnerVp": "Śr. PZ zwycięzcy",
+      "loserVp": "Śr. PZ przegranego",
+      "margin": "Śr. różnica",
+      "matrixTitle": "Frakcje w misjach",
+      "matrixLead": "Wynik frakcji w danej misji (bez gier lustrzanych).",
+      "corner": "frakcja / misja"
+    },
+    "activity": {
+      "title": "Aktywność społeczności",
+      "lead": "Liczba gier, aktywni i nowi gracze w kolejnych miesiącach.",
+      "gamesPerMonth": "Gry w miesiącu",
+      "monthLine": "{month}: {games} gier · {active} aktywnych · {fresh} nowych",
+      "activeLast": "Aktywni ({month})",
+      "newLast": "Nowi ({month})",
+      "returning": "Powracający",
+      "returningNote": "suma z 3 ostatnich miesięcy",
+      "tournamentsLast": "Turnieje ({month})"
+    },
+    "method": {
+      "title": "Metodologia",
+      "mirrors": "Gry lustrzane (ta sama frakcja po obu stronach) liczą się do udziału frakcji, ale nie do jej wyniku – zawsze dają dokładnie 50%.",
+      "interval": "Każdy wynik ma 95% przedział ufności Wilsona. Wiersze z mniej niż {n} grami są oznaczone jako „za mało danych”.",
+      "elo": "Wynik oczekiwany liczymy z ELO obu graczy sprzed danej gry (K = 32, start 1500), odtwarzając wszystkie gry chronologicznie.",
+      "privacy": "Prywatność: pomijamy wiersze, za którymi stoi mniej niż {n} różnych graczy (teraz ukryte: {hidden}). Raport nie pokazuje wyników pojedynczych osób.",
+      "sources": "Źródła: zatwierdzone gry turniejowe (frakcja i postacie z rozpiski turniejowej, misja z rundy) oraz zatwierdzone gry własne (frakcja i rozpiski podane przy zgłoszeniu)."
+    }
   }
 }

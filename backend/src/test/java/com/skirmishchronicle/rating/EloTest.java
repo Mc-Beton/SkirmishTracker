@@ -58,4 +58,16 @@ class EloTest {
         Map<UUID, Elo.Rating> r = Elo.replay(games);
         assertTrue(r.get(weak).rounded() - 1500 > 16, "upset gain");
     }
+
+    @Test
+    void preGameRatingsFollowTheSameReplay() {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        RatedGame first = game(a, b, 8, 2, 1);
+        RatedGame second = game(a, b, 2, 8, 2);
+        Map<UUID, Elo.PreGame> pre = Elo.preGame(List.of(second, first));
+        assertEquals(1500.0, pre.get(first.id()).a());
+        assertEquals(1516.0, pre.get(second.id()).a());
+        assertEquals(1484.0, pre.get(second.id()).b());
+    }
 }

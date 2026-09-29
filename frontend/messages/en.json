@@ -16,7 +16,8 @@
     "games": "My games",
     "profile": "My profile",
     "menu": "Menu",
-    "main": "Navigation"
+    "main": "Navigation",
+    "reports": "Reports"
   },
   "home": {
     "headline": "Run tournaments without paper and calculators",
@@ -208,7 +209,8 @@
     "OFFLINE": "No internet connection. Try again when you are back online.",
     "LIVE_TOO_MANY_TOPICS": "Too many tournaments watched at once.",
     "LIVE_TOO_MANY_STREAMS": "Too many open tabs with the app.",
-    "LIVE_UNAVAILABLE": "Live updates are temporarily unavailable."
+    "LIVE_UNAVAILABLE": "Live updates are temporarily unavailable.",
+    "INVALID_REPORT_FILTER": "Invalid report filter."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -1093,5 +1095,119 @@
         ]
       }
     ]
+  },
+  "reports": {
+    "title": "Meta report",
+    "lead": "Faction, character and mission results from all confirmed games – with confidence intervals and a correction for player skill (ELO). Aggregates only.",
+    "loginRequired": "Reports are available after signing in.",
+    "login": "Sign in",
+    "forbidden": "Reports are available to the portal administrator and the game publisher.",
+    "loading": "Crunching the numbers…",
+    "empty": "No games match the selected filters.",
+    "csv": "CSV",
+    "uncertain": "not enough data",
+    "withinNoise": "within noise",
+    "above": "above expectation",
+    "below": "below expectation",
+    "filter": {
+      "from": "From",
+      "to": "To",
+      "source": "Games",
+      "all": "All",
+      "tournament": "Tournament",
+      "own": "Own (outside tournaments)",
+      "country": "Tournament country",
+      "tier": "Tournament tier",
+      "LOCAL": "Local",
+      "MASTER": "Master",
+      "INTERNATIONAL": "International",
+      "minElo": "Player level",
+      "anyElo": "Any",
+      "eloAtLeast": "Both players ELO ≥ {elo}",
+      "hint": "Country and tier apply to tournament games only. Use the date range to compare periods before and after an errata.",
+      "reset": "Clear filters"
+    },
+    "summary": {
+      "games": "Games",
+      "split": "{tournament} tournament, {own} own",
+      "players": "Players",
+      "tournaments": "Tournaments",
+      "withLists": "Games with lists",
+      "withFactions": "with factions: {v}",
+      "withMission": "Games with a mission",
+      "draws": "Draws",
+      "mirrors": "mirror: {n}",
+      "period": "Period: {first} – {last}.",
+      "generated": "Generated: {at}."
+    },
+    "legend": {
+      "score": "score",
+      "interval": "95% confidence interval",
+      "expected": "expected from ELO"
+    },
+    "factions": {
+      "title": "Factions",
+      "lead": "Score = (wins + ½ draws) / games, mirror games excluded. \"Above expectation\" is the gap between the score and what the players' ELO predicted.",
+      "faction": "Faction",
+      "share": "Share",
+      "games": "Games",
+      "score": "Score",
+      "interval": "Score and interval",
+      "expected": "ELO expected",
+      "performance": "Above exp.",
+      "verdict": "Verdict",
+      "players": "{n} players · avg ELO {elo}",
+      "howToRead": "How to read: a faction with a high score but no surplus over ELO wins because strong players choose it – not necessarily a balance problem. A verdict appears only when the confidence interval excludes the expected score."
+    },
+    "matchups": {
+      "title": "Faction matchups",
+      "lead": "Score of the row faction against the column faction. Bold: the difference from 50% is statistically significant.",
+      "corner": "row vs column",
+      "mirror": "mirror"
+    },
+    "units": {
+      "title": "Characters",
+      "lead": "How often a character makes it into a faction's lists and how the faction does with and without it.",
+      "empty": "No games with lists for the selected filters.",
+      "unit": "Character",
+      "pick": "Pick rate",
+      "with": "Score with",
+      "without": "Without",
+      "difference": "Difference",
+      "lists": "{n} lists · {players} players",
+      "howToRead": "The with/without difference shows the character's impact within the faction; \"above exp.\" also removes the skill advantage of the players who field it."
+    },
+    "missions": {
+      "title": "Missions",
+      "lead": "How games are decided in each mission.",
+      "empty": "No games with a recorded mission.",
+      "mission": "Mission",
+      "draws": "Draws",
+      "winnerVp": "Avg winner VP",
+      "loserVp": "Avg loser VP",
+      "margin": "Avg margin",
+      "matrixTitle": "Factions by mission",
+      "matrixLead": "Faction score in each mission (mirror games excluded).",
+      "corner": "faction / mission"
+    },
+    "activity": {
+      "title": "Community activity",
+      "lead": "Games, active and new players month by month.",
+      "gamesPerMonth": "Games per month",
+      "monthLine": "{month}: {games} games · {active} active · {fresh} new",
+      "activeLast": "Active ({month})",
+      "newLast": "New ({month})",
+      "returning": "Returning",
+      "returningNote": "total over the last 3 months",
+      "tournamentsLast": "Tournaments ({month})"
+    },
+    "method": {
+      "title": "Methodology",
+      "mirrors": "Mirror games (same faction on both sides) count towards a faction's share but not its score – they always give exactly 50%.",
+      "interval": "Every score has a 95% Wilson confidence interval. Rows with fewer than {n} games are marked \"not enough data\".",
+      "elo": "The expected score uses both players' ELO before the game (K = 32, start 1500), replaying all games in order.",
+      "privacy": "Privacy: rows backed by fewer than {n} different players are left out (hidden now: {hidden}). The report never shows individual results.",
+      "sources": "Sources: confirmed tournament games (faction and characters from the tournament list, mission from the round) and confirmed own games (faction and lists entered with the report)."
+    }
   }
 }
