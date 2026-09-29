@@ -651,7 +651,9 @@
       "place": "{n, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} place",
       "bigShort": "BP",
       "smallShort": "SP"
-    }
+    },
+    "calendar": "Calendar",
+    "addToCalendar": "Add to calendar"
   },
   "game": {
     "back": "Back to tournament",
@@ -1362,5 +1364,24 @@
       "playersN": "{n} players",
       "team": "team event – does not count for the individual ranking"
     }
+  },
+  "calendar": {
+    "title": "Tournament calendar",
+    "lead": "Upcoming and past tournaments month by month. Add any of them to your calendar or subscribe to the whole calendar.",
+    "earlier": "Earlier months",
+    "later": "Later months",
+    "today": "Today",
+    "country": "Country",
+    "allCountries": "All countries",
+    "officialOnly": "Official only",
+    "loading": "Loading…",
+    "empty": "No tournaments this month.",
+    "team": "team event",
+    "addOne": "Add {name} to your calendar",
+    "subscribeTitle": "Subscribe to the calendar",
+    "subscribeLead": "Your phone's calendar (Google, Apple, Outlook) picks up new tournaments by itself, with the chosen filters – country and “official only”.",
+    "subscribe": "Subscribe",
+    "copy": "Copy link",
+    "copied": "Copied"
   }
 }

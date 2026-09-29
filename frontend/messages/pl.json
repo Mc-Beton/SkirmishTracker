@@ -651,7 +651,9 @@
       "place": "{n}. miejsce",
       "bigShort": "DP",
       "smallShort": "MP"
-    }
+    },
+    "calendar": "Kalendarz",
+    "addToCalendar": "Dodaj do kalendarza"
   },
   "game": {
     "back": "Wróć do turnieju",
@@ -1362,5 +1364,24 @@
       "playersN": "{n} graczy",
       "team": "drużynowy – nie liczy się do rankingu indywidualnego"
     }
+  },
+  "calendar": {
+    "title": "Kalendarz turniejów",
+    "lead": "Nadchodzące i minione turnieje miesiąc po miesiącu. Każdy możesz dodać do swojego kalendarza albo zasubskrybować cały kalendarz.",
+    "earlier": "Wcześniejsze miesiące",
+    "later": "Kolejne miesiące",
+    "today": "Dziś",
+    "country": "Kraj",
+    "allCountries": "Wszystkie kraje",
+    "officialOnly": "Tylko oficjalne",
+    "loading": "Wczytuję…",
+    "empty": "Brak turniejów w tym miesiącu.",
+    "team": "drużynowy",
+    "addOne": "Dodaj {name} do kalendarza",
+    "subscribeTitle": "Subskrybuj kalendarz",
+    "subscribeLead": "Kalendarz w telefonie (Google, Apple, Outlook) sam dociągnie nowe turnieje z wybranymi filtrami – kraj i „tylko oficjalne”.",
+    "subscribe": "Subskrybuj",
+    "copy": "Kopiuj link",
+    "copied": "Skopiowano"
   }
 }

@@ -162,6 +162,13 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   (`SeasonScoring`, testy `SeasonScoringTest`). Do tego lista aktywnych organizatorów (Guildmasterzy).
 - Plakietka „Oficjalny” na kartach i stronach turniejów. Menu poziome od szerokości `xl`, niżej menu rozwijane.
 
+## 6c. Kalendarz
+
+- `/calendar`: turnieje miesiąc po miesiącu (filtr kraju i „tylko oficjalne”), link z listy turniejów.
+- iCalendar: `/api/tournaments/{id}/calendar.ics` (przycisk „Dodaj do kalendarza” na stronie turnieju) i
+  subskrypcja `/api/calendar.ics?country=PL&official=true` (ostatni miesiąc + rok naprzód, `webcal://`).
+  Generator `calendar/Ics` (RFC 5545: escapowanie, zawijanie linii, UTC), test `IcsTest`.
+
 ## 7. Dokumentacja w repo
 
 - `docs/game-content-model.md` – model treści gry (frakcje, postacie, scheme, scenariusze).

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus } from "lucide-react";
+import { CalendarDays, Plus } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,13 +53,18 @@ export function TournamentList() {
     <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-3xl">{t("title")}</h1>
-        {me && (
-          <Button asChild>
-            <Link href="/tournaments/new">
-              <Plus aria-hidden /> {t("create")}
-            </Link>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/calendar"><CalendarDays aria-hidden /> {t("calendar")}</Link>
           </Button>
-        )}
+          {me && (
+            <Button asChild>
+              <Link href="/tournaments/new">
+                <Plus aria-hidden /> {t("create")}
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3">

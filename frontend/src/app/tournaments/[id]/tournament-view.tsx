@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { Settings } from "lucide-react";
+import { CalendarPlus, Settings } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -202,13 +202,20 @@ export function TournamentView({ id }: { id: string }) {
         </div>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <h1 className="font-display text-3xl sm:text-4xl">{tournament.name}</h1>
-          {tournament.canManage && (
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
-              <Link href={`/tournaments/${id}/manage`}>
-                <Settings aria-hidden /> {t("manage")}
-              </Link>
+              <a href={`/api/tournaments/${id}/calendar.ics`} download>
+                <CalendarPlus aria-hidden /> {t("addToCalendar")}
+              </a>
             </Button>
-          )}
+            {tournament.canManage && (
+              <Button variant="outline" asChild>
+                <Link href={`/tournaments/${id}/manage`}>
+                  <Settings aria-hidden /> {t("manage")}
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
