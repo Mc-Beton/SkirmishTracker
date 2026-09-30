@@ -275,6 +275,9 @@ export type StandingsData = { rows: StandingRow[]; penalties: Penalty[] };
 
 export const LIST_STATUSES: ListStatus[] = ["NOT_SUBMITTED", "SUBMITTED", "APPROVED", "NEEDS_FIX"];
 
+/** CLASSIC: one list for every game. ROSTER: a roster submitted before the event, a party picked for each game. */
+export type ListFormat = "CLASSIC" | "ROSTER";
+
 export type TournamentSummary = {
   id: string;
   name: string;
@@ -290,6 +293,8 @@ export type TournamentSummary = {
   organizerName: string;
   /** Marked official by the publisher: counts towards season rankings. */
   official: boolean;
+  listFormat: ListFormat;
+  partyLimit: number | null;
 };
 
 export type TournamentDetail = {
@@ -320,6 +325,11 @@ export type TournamentDetail = {
   roundsCount: number;
   roundPlans: RoundPlan[];
   official: boolean;
+  listFormat: ListFormat;
+  /** ROSTER: points of the party picked for each game; pointsLimit is then the roster limit. */
+  partyLimit: number | null;
+  /** ROSTER: opponents do not see each other's rosters until the event ends. */
+  hiddenRosters: boolean;
 };
 
 export type Participant = {
@@ -354,6 +364,9 @@ export type TournamentInput = TournamentSettings & {
   format: TournamentFormat;
   maxPlayers: number | null;
   pointsLimit: number | null;
+  listFormat?: ListFormat;
+  partyLimit?: number | null;
+  hiddenRosters?: boolean;
   roundsPlanned: number | null;
   listDeadline: string | null;
   roundPlans: RoundPlan[];

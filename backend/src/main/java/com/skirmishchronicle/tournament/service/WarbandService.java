@@ -195,7 +195,7 @@ public class WarbandService {
         }
         Warband w = warbands.findByTournamentIdAndUserId(tournamentId, userId)
                 .orElseGet(() -> new Warband(tournamentId, userId));
-        w.update(v.faction, v.allied, input.leaderInt(), v.total, write(v.units));
+        w.update(v.faction, v.allied, t.isRoster() ? 0 : input.leaderInt(), v.total, write(v.units));
         warbands.save(w);
         p.setFaction(v.faction);
         if (own && !manager) {
@@ -245,9 +245,15 @@ public class WarbandService {
         return t.getStatus() != TournamentStatus.FINISHED && t.getStatus() != TournamentStatus.CANCELLED;
     }
 
-    /** Other players see lists once the deadline passed or the event started. */
+    /**
+     * Other players see lists once the deadline passed or the event started; hidden rosters (roster format
+     * option) only when the event is over.
+     */
     private static boolean listsPublic(Tournament t) {
         TournamentStatus s = t.getStatus();
+        if (t.isHiddenRosters()) {
+            return s == TournamentStatus.FINISHED;
+        }
         if (s == TournamentStatus.IN_PROGRESS || s == TournamentStatus.FINISHED) {
             return true;
         }
@@ -268,7 +274,9 @@ public class WarbandService {
         if (allied != null && !faction.optionalAllies().contains(allied)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ALLY");
         }
-        if (input.leaderInt() < 1 || input.leaderInt() > 30) {
+        // Roster format: the leader is chosen for each game from the party, not in the roster.
+        boolean roster = t.isRoster();
+        if (!roster && (input.leaderInt() < 1 || input.leaderInt() > 30)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_LEADER_INT");
         }
         List<UnitInput> units = input.units() == null ? List.of() : input.units();
@@ -314,8 +322,8 @@ public class WarbandService {
             total += unit.points() + u.extraPoints();
             stored.add(new StoredUnit(u.unit(), u.extraPoints(), notes, u.leader(), storedItems));
         }
-        if (leaders != 1) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "WARBAND_LEADER_REQUIRED");
+        if (roster ? leaders > 0 : leaders != 1) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, roster ? "ROSTER_HAS_NO_LEADER" : "WARBAND_LEADER_REQUIRED");
         }
         if (t.getPointsLimit() != null && total > t.getPointsLimit()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "WARBAND_OVER_LIMIT");
@@ -379,6 +387,11 @@ public class WarbandService {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    /** The stored units of a warband (roster entries in order – the party refers to them by index). */
+    public List<StoredUnit> units(Warband w) {
+        return read(w.getUnits());
     }
 
     private List<StoredUnit> read(String json) {

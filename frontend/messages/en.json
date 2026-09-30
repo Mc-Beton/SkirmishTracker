@@ -217,7 +217,17 @@
     "INVALID_DATE_RANGE": "Invalid date range (at most 2 years).",
     "TOURNAMENT_NOT_ELIGIBLE": "This tournament cannot be marked official (draft or cancelled).",
     "PUSH_DISABLED": "Push notifications are turned off on this server.",
-    "INVALID_PUSH_SUBSCRIPTION": "This browser returned an unsupported push subscription."
+    "INVALID_PUSH_SUBSCRIPTION": "This browser returned an unsupported push subscription.",
+    "PARTY_LIMIT_OVER_ROSTER": "The party limit cannot exceed the roster limit.",
+    "ROSTER_HAS_NO_LEADER": "In the Roster format the roster has no leader – the leader is chosen for each game.",
+    "NOT_A_ROSTER_TOURNAMENT": "This tournament does not use the Roster format.",
+    "PARTY_LOCKED": "The party for this game can no longer be changed (result entered or schemes drawn).",
+    "ROSTER_MISSING": "Submit your roster first.",
+    "PARTY_EMPTY": "Pick at least one character.",
+    "PARTY_NOT_FROM_ROSTER": "A party may only contain characters and upgrades from your roster.",
+    "PARTY_LEADER_REQUIRED": "Choose a leader among the picked characters.",
+    "PARTY_OVER_LIMIT": "The party is over the points limit.",
+    "PARTY_REQUIRED": "Pick your party for this game first – schemes are drawn for its leader."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -272,7 +282,10 @@
       "description": "Description",
       "participants": "Players",
       "waitlist": "Waiting list",
-      "noParticipants": "Nobody has registered yet."
+      "noParticipants": "Nobody has registered yet.",
+      "listFormat": "List format",
+      "rosterFormat": "Roster {roster} pts → party {party} pts per game",
+      "hiddenRosters": "rosters hidden"
     },
     "join": "Register",
     "leave": "Withdraw",
@@ -360,7 +373,21 @@
       "teamModeHint": "A captain creates the team and invites players. Teams play matches board by board (board 1 vs board 1…).",
       "teamUniqueFactions": "Unique factions within a team",
       "teamUniqueFactionsHint": "Two players of one team may not play the same faction.",
-      "maxTeams": "Team limit"
+      "maxTeams": "Team limit",
+      "listFormat": "List format",
+      "listFormats": {
+        "CLASSIC": "Classic – one list",
+        "ROSTER": "Roster – a party for each game"
+      },
+      "listFormatHint": {
+        "CLASSIC": "The same list for the whole event.",
+        "ROSTER": "A roster submitted before the event, a party picked from it before every game (Season 2)."
+      },
+      "rosterLimit": "Roster limit (pts)",
+      "partyLimit": "Party limit per game (pts)",
+      "partyLimitHint": "Recommended: roster 125, party 85.",
+      "hiddenRosters": "Hidden rosters",
+      "hiddenRostersHint": "Opponents do not see each other's rosters until the event ends (only the organizer does)."
     },
     "manageView": {
       "title": "Organizer panel",
@@ -655,7 +682,8 @@
       "smallShort": "SP"
     },
     "calendar": "Calendar",
-    "addToCalendar": "Add to calendar"
+    "addToCalendar": "Add to calendar",
+    "rosterShort": "Roster {roster}/{party}"
   },
   "game": {
     "back": "Back to tournament",
@@ -706,7 +734,8 @@
     },
     "fromWarband": "Faction and leader INT come from your warband.",
     "noSchemeTable": "This faction's scheme table is not available yet – drawing will be possible once it is added.",
-    "bothCanEdit": "Both of you can fill in points for either side."
+    "bothCanEdit": "Both of you can fill in points for either side.",
+    "partyFirst": "Pick your party for this game first (above) – schemes are drawn for its leader."
   },
   "scenarios": {
     "title": "Scenarios and schemes",
@@ -768,7 +797,8 @@
     "removeItem": "Remove {name}",
     "reducedCost": "Reduced cost ({points} pts) – {when}",
     "moreOptions": "Other points / note",
-    "otherPoints": "Other"
+    "otherPoints": "Other",
+    "rosterHint": "Roster format: this is your roster, without a leader. Before every game you pick a party of up to {party} pts and its leader from it."
   },
   "leagues": {
     "title": "Leagues",
@@ -1086,7 +1116,8 @@
       "finish": "game finish (table {table})",
       "report": "result (table {table})",
       "decision": "result confirmation or dispute (table {table})",
-      "result": "result set by the organizer (table {table})"
+      "result": "result set by the organizer (table {table})",
+      "party": "party for the game"
     }
   },
   "footer": {
@@ -1465,5 +1496,33 @@
     "test": "Send a test",
     "testSent": "Sent – it should arrive within a few seconds.",
     "testMessage": "Push notifications work on this device."
+  },
+  "party": {
+    "title": "Party for this game",
+    "lead": "Roster format: knowing the quest and the opponent's faction, pick a party of up to {party} pts and its leader from your roster ({roster} pts).",
+    "queued": "Party saved on this device – it will be sent when the connection is back.",
+    "opponent": "Opponent: {name}",
+    "chosen": "party chosen",
+    "notChosen": "still choosing",
+    "hiddenUntilEnd": "The opponent's party stays hidden until the game is over.",
+    "opponentRoster": "Opponent's roster ({points} pts)",
+    "rosterHidden": "Rosters are hidden in this tournament.",
+    "yours": "Your party",
+    "locked": "locked",
+    "noneLocked": "No party was chosen and it can no longer be changed – ask the organizer.",
+    "leader": "leader",
+    "summary": "{points} pts · leader INT {int}",
+    "pick": "Pick characters and upgrades",
+    "pts": "pts",
+    "leaderInt": "Leader INT",
+    "save": "Confirm party",
+    "update": "Save changes",
+    "hint": "You can change the party until you draw schemes or enter the result. Your opponent only sees that you have chosen.",
+    "problems": {
+      "empty": "Pick at least one character.",
+      "leader": "Choose a leader among the picked characters.",
+      "int": "Enter the leader's INT (1–30).",
+      "over": "Over the limit by {over} pts."
+    }
   }
 }

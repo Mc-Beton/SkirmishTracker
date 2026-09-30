@@ -31,7 +31,7 @@ const API_CACHEABLE = [
   /^\/api\/tournaments\/mine$/,
   /^\/api\/tournaments\/[0-9a-f-]{36}$/i,
   /^\/api\/tournaments\/[0-9a-f-]{36}\/(participants|rounds|standings|challenges|teams|team-standings|leagues|judge-calls|warbands|warbands\/me)$/i,
-  /^\/api\/tournaments\/[0-9a-f-]{36}\/matches\/[0-9a-f-]{36}\/game$/i,
+  /^\/api\/tournaments\/[0-9a-f-]{36}\/matches\/[0-9a-f-]{36}\/(game|party)$/i,
 ];
 
 self.addEventListener("install", (event) => {

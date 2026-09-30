@@ -71,11 +71,13 @@ public class GameService {
     private final TournamentGuard guard;
     private final AuditService audit;
     private final SecureRandom random = new SecureRandom();
+    private final com.skirmishchronicle.tournament.repo.MatchPartyRepository parties;
 
     public GameService(MatchRepository matches, RoundRepository rounds, SchemeDrawRepository draws,
                        TurnScoreRepository turns, WarbandRepository warbands, UserRepository users, ContentService content,
                        RoundService roundService, TournamentGuard guard, AuditService audit,
-            JudgeCallRepository judgeCalls) {
+            JudgeCallRepository judgeCalls, com.skirmishchronicle.tournament.repo.MatchPartyRepository parties) {
+        this.parties = parties;
         this.judgeCalls = judgeCalls;
         this.matches = matches;
         this.rounds = rounds;
@@ -123,8 +125,13 @@ public class GameService {
             }
             boolean canEdit = editable && viewer != null && (manager || m.involves(viewer.id()));
             Warband wb = warbands.findByTournamentIdAndUserId(tournamentId, player).orElse(null);
+            // Roster format: the leader (and its INT) belongs to the party chosen for this game.
+            Integer leaderInt = wb == null ? null : wb.getLeaderInt();
+            if (t.isRoster()) {
+                leaderInt = parties.findByMatchIdAndUserId(matchId, player).map(p -> p.getLeaderInt()).orElse(null);
+            }
             players.add(new PlayerGame(player, name(player), dv, tv, sc, sh, sc + sh, canEdit,
-                    wb == null ? null : wb.getFaction(), wb == null ? null : wb.getLeaderInt()));
+                    wb == null ? null : wb.getFaction(), leaderInt));
         }
         boolean participant = viewer != null && !m.isBye() && m.involves(viewer.id());
         return new GameView(m.getId(), r.getNumber(), r.getStatus(), m.getTableNumber(), m.getStatus(),
@@ -170,13 +177,18 @@ public class GameService {
     @Transactional
     public void drawSchemes(CurrentUser actor, UUID tournamentId, UUID matchId, String requestedFaction,
                             Integer requestedInt) {
-        guard.lock(tournamentId);
+        Tournament t = guard.lock(tournamentId);
         TournamentMatch m = editableMatch(tournamentId, matchId);
         requireParticipant(actor, m);
         // A submitted warband decides faction and leader INT; manual values are only a fallback.
         Warband wb = warbands.findByTournamentIdAndUserId(tournamentId, actor.id()).orElse(null);
         String faction = wb != null ? wb.getFaction() : requestedFaction;
         int leaderInt = wb != null ? wb.getLeaderInt() : requestedInt == null ? 0 : requestedInt;
+        if (t.isRoster() && wb != null) {
+            // Roster format: schemes are drawn for the party of this game – its leader decides the cards.
+            leaderInt = parties.findByMatchIdAndUserId(matchId, actor.id()).map(p -> p.getLeaderInt())
+                    .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "PARTY_REQUIRED"));
+        }
         if (faction == null || faction.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "FACTION_NOT_FOUND");
         }

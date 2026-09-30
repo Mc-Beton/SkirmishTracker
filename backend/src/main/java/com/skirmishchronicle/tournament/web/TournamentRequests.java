@@ -1,5 +1,9 @@
 package com.skirmishchronicle.tournament.web;
 
+import com.skirmishchronicle.common.ApiException;
+import com.skirmishchronicle.tournament.domain.ListFormat;
+import org.springframework.http.HttpStatus;
+
 import com.skirmishchronicle.pairing.PairingModels.FirstRoundMode;
 import com.skirmishchronicle.tournament.domain.DifferenceRow;
 import com.skirmishchronicle.tournament.domain.ListStatus;
@@ -69,7 +73,10 @@ public final class TournamentRequests {
             Integer topCut,
             @Min(2) @Max(5) Integer teamSize,
             Boolean teamUniqueFactions,
-            @Size(max = 30) List<@Valid RoundPlanRequest> roundPlans) {
+            @Size(max = 30) List<@Valid RoundPlanRequest> roundPlans,
+            ListFormat listFormat,
+            @Min(1) @Max(10000) Integer partyLimit,
+            Boolean hiddenRosters) {
 
         /** Null = keep the current plan (older clients); empty = no plan. */
         public List<TournamentViews.RoundPlan> toPlans() {
@@ -105,10 +112,21 @@ public final class TournamentRequests {
             return value == null ? fallback : value;
         }
 
+        /** ROSTER defaults to the Season 2 recommendation (roster 125, party 85); the party must fit the roster. */
         public TournamentDetails toDetails() {
+            ListFormat lf = listFormat == null ? ListFormat.CLASSIC : listFormat;
+            Integer limit = pointsLimit;
+            Integer party = null;
+            if (lf == ListFormat.ROSTER) {
+                limit = pointsLimit == null ? 125 : pointsLimit;
+                party = partyLimit == null ? 85 : partyLimit;
+                if (party > limit) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "PARTY_LIMIT_OVER_ROSTER");
+                }
+            }
             return new TournamentDetails(name, blankToNull(description), startsAt, endsAt, blankToNull(venueName),
                     blankToNull(address), city, country, entryFeeAmount, entryFeeCurrency, rank, format, maxPlayers,
-                    pointsLimit, roundsPlanned, listDeadline);
+                    limit, roundsPlanned, listDeadline, lf, party, lf == ListFormat.ROSTER && Boolean.TRUE.equals(hiddenRosters));
         }
 
         private static String blankToNull(String s) {

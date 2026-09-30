@@ -69,6 +69,16 @@ public class Tournament extends AbstractEntity {
     @Column(name = "points_limit")
     private Integer pointsLimit;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "list_format", nullable = false, length = 20)
+    private ListFormat listFormat = ListFormat.CLASSIC;
+
+    @Column(name = "party_limit")
+    private Integer partyLimit;
+
+    @Column(name = "hidden_rosters", nullable = false)
+    private boolean hiddenRosters;
+
     @Column(name = "rounds_planned")
     private Integer roundsPlanned;
 
@@ -198,6 +208,9 @@ public class Tournament extends AbstractEntity {
         this.pointsLimit = d.pointsLimit();
         this.roundsPlanned = d.roundsPlanned();
         this.listDeadline = d.listDeadline();
+        this.listFormat = d.listFormat() == null ? ListFormat.CLASSIC : d.listFormat();
+        this.partyLimit = this.listFormat == ListFormat.ROSTER ? d.partyLimit() : null;
+        this.hiddenRosters = this.listFormat == ListFormat.ROSTER && d.hiddenRosters();
     }
 
     public void updateSettings(TournamentSettings st) {
@@ -309,6 +322,22 @@ public class Tournament extends AbstractEntity {
 
     public Integer getPointsLimit() {
         return pointsLimit;
+    }
+
+    public ListFormat getListFormat() {
+        return listFormat;
+    }
+
+    public boolean isRoster() {
+        return listFormat == ListFormat.ROSTER;
+    }
+
+    public Integer getPartyLimit() {
+        return partyLimit;
+    }
+
+    public boolean isHiddenRosters() {
+        return hiddenRosters;
     }
 
     public Integer getRoundsPlanned() {

@@ -127,6 +127,9 @@ function Builder({ data, armies, tournamentId, userId, onSaved }: {
 
   const editable = data.editable;
   const limit = data.pointsLimit;
+  // Roster format: the roster has no leader – a party and its leader are picked for every game.
+  const roster = data.tournament.listFormat === "ROSTER";
+  const partyLimit = data.tournament.partyLimit;
   const factionInfo = armies.factions.find((f) => f.code === faction);
   const sources = useMemo(() => sourcesFor(armies, faction, allied || null), [armies, faction, allied]);
   const unitsByCode = useMemo(() => new Map(armies.units.map((u) => [u.code, u])), [armies]);
@@ -157,8 +160,8 @@ function Builder({ data, armies, tournamentId, userId, onSaved }: {
   const invalidUnits = rows.filter((r) => !allowed.has(r.unit));
   const problems: string[] = [];
   if (rows.length === 0) problems.push(t("problems.empty"));
-  if (leaders !== 1) problems.push(t("problems.leader"));
-  if (intValue < 1 || intValue > 30) problems.push(t("problems.int"));
+  if (!roster && leaders !== 1) problems.push(t("problems.leader"));
+  if (!roster && (intValue < 1 || intValue > 30)) problems.push(t("problems.int"));
   if (limit != null && total > limit) problems.push(t("problems.overLimit", { over: total - limit }));
   if (invalidUnits.length > 0) problems.push(t("problems.notAllowed", { n: invalidUnits.length }));
   if (rows.some((r) => extraOf(r) > MAX_EXTRA_POINTS)) problems.push(t("problems.extra", { max: MAX_EXTRA_POINTS }));
@@ -171,7 +174,7 @@ function Builder({ data, armies, tournamentId, userId, onSaved }: {
   }
   function add(code: string) {
     setSaved(false);
-    setRows((rs) => (rs.length >= MAX_UNITS ? rs : [...rs, { key: nextKey++, unit: code, extra: "", notes: "", leader: rs.length === 0, items: [], more: false }]));
+    setRows((rs) => (rs.length >= MAX_UNITS ? rs : [...rs, { key: nextKey++, unit: code, extra: "", notes: "", leader: !roster && rs.length === 0, items: [], more: false }]));
   }
   function addItem(key: number, item: string) {
     setSaved(false);
@@ -203,12 +206,12 @@ function Builder({ data, armies, tournamentId, userId, onSaved }: {
     const body: WarbandInput = {
       faction,
       alliedFaction: allied || null,
-      leaderInt: intValue,
+      leaderInt: roster ? 1 : intValue,
       units: rows.map((r) => ({
         unit: r.unit,
         extraPoints: extraOf(r),
         notes: r.notes.trim() || null,
-        leader: r.leader,
+        leader: !roster && r.leader,
         items: r.items.map((i) => ({ item: i.item, reduced: i.reduced })),
       })),
     };
@@ -281,7 +284,7 @@ function Builder({ data, armies, tournamentId, userId, onSaved }: {
             <p>
               <span className="font-medium">{factionName(armies, initial.faction)}</span>
               {initial.alliedFaction && <span className="text-muted-foreground"> + {factionName(armies, initial.alliedFaction)}</span>}
-              <span className="text-muted-foreground"> · {t("leaderInt")} {initial.leaderInt}</span>
+              {!roster && <span className="text-muted-foreground"> · {t("leaderInt")} {initial.leaderInt}</span>}
             </p>
             <ul className="grid gap-2">
               {initial.units.map((u, i) => (
@@ -375,11 +378,13 @@ function Builder({ data, armies, tournamentId, userId, onSaved }: {
                         <Trash2 aria-hidden />
                       </Button>
                     </div>
-                    <label className="flex w-fit items-center gap-2 text-sm">
-                      <input type="radio" name="leader" checked={r.leader}
-                        onChange={() => { setSaved(false); setRows((rs) => rs.map((x) => ({ ...x, leader: x.key === r.key }))); }} />
-                      <Crown className="size-4 text-amber-600" aria-hidden /> {t("leader")}
-                    </label>
+                    {!roster && (
+                      <label className="flex w-fit items-center gap-2 text-sm">
+                        <input type="radio" name="leader" checked={r.leader}
+                          onChange={() => { setSaved(false); setRows((rs) => rs.map((x) => ({ ...x, leader: x.key === r.key }))); }} />
+                        <Crown className="size-4 text-amber-600" aria-hidden /> {t("leader")}
+                      </label>
+                    )}
 
                     {r.items.length > 0 && (
                       <ul className="grid gap-1 border-l-2 border-primary/30 pl-3">
@@ -477,14 +482,18 @@ function Builder({ data, armies, tournamentId, userId, onSaved }: {
           <Card>
             <CardContent className="grid gap-4">
               {totalBar}
-              <div className="grid gap-2">
-                <Label htmlFor="wb-int">{t("leaderInt")}</Label>
-                <Input id="wb-int" type="number" inputMode="numeric" min={1} max={30} className="w-24" value={leaderInt}
-                  onChange={(e) => { setSaved(false); setLeaderInt(e.target.value); }} />
-                <p className="text-xs text-muted-foreground">
-                  {content && intValue >= 1 ? t("intHint", { n: cardsFor(content, intValue) }) : t("intHintEmpty")}
-                </p>
-              </div>
+              {roster ? (
+                <p className="text-sm text-muted-foreground">{t("rosterHint", { party: partyLimit ?? "–" })}</p>
+              ) : (
+                <div className="grid gap-2">
+                  <Label htmlFor="wb-int">{t("leaderInt")}</Label>
+                  <Input id="wb-int" type="number" inputMode="numeric" min={1} max={30} className="w-24" value={leaderInt}
+                    onChange={(e) => { setSaved(false); setLeaderInt(e.target.value); }} />
+                  <p className="text-xs text-muted-foreground">
+                    {content && intValue >= 1 ? t("intHint", { n: cardsFor(content, intValue) }) : t("intHintEmpty")}
+                  </p>
+                </div>
+              )}
               {problems.length > 0 && (
                 <ul className="grid list-disc gap-1 pl-5 text-sm text-destructive">
                   {problems.map((p) => <li key={p}>{p}</li>)}

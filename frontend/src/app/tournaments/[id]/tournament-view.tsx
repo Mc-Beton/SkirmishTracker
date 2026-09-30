@@ -180,7 +180,10 @@ export function TournamentView({ id }: { id: string }) {
     [t("details.where"), [tournament.venueName, tournament.address, tournament.city].filter(Boolean).join(", ")],
     [t("details.fee"), fee],
     [t("details.format"), t(`format.${tournament.format}`)],
-    ...(tournament.pointsLimit ? [[t("details.pointsLimit"), `${tournament.pointsLimit} ${t("points")}`] as [string, string]] : []),
+    ...(tournament.listFormat === "ROSTER"
+      ? [[t("details.listFormat"), t("details.rosterFormat", { roster: tournament.pointsLimit ?? "–", party: tournament.partyLimit ?? "–" })
+          + (tournament.hiddenRosters ? ` · ${t("details.hiddenRosters")}` : "")] as [string, string]]
+      : tournament.pointsLimit ? [[t("details.pointsLimit"), `${tournament.pointsLimit} ${t("points")}`] as [string, string]] : []),
     ...(tournament.roundsPlanned ? [[t("details.rounds"), String(tournament.roundsPlanned)] as [string, string]] : []),
     ...(tournament.listDeadline ? [[t("details.listDeadline"), dt(tournament.listDeadline)] as [string, string]] : []),
     [t("organizer"), tournament.organizer.displayName],

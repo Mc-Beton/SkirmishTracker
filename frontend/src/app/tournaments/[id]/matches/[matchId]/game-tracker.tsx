@@ -19,6 +19,7 @@ import { RoundTimer } from "@/components/tournaments/round-timer";
 import { api } from "@/lib/api";
 import { useLiveRefresh } from "@/lib/live";
 import { pending, sendOrQueue, type OutboxItem } from "@/lib/offline-queue";
+import { PartyPanel } from "@/components/game/party-panel";
 import { cn } from "@/lib/utils";
 import { cardsFor, useGameContent, type GameContent } from "@/lib/content";
 import type { GamePlayer, GameView } from "@/lib/tournaments";
@@ -190,6 +191,7 @@ export function GameTracker({ tournamentId, matchId }: { tournamentId: string; m
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem] [&>*]:min-w-0">
         <div className="grid content-start gap-6 [&>*]:min-w-0">
+          {pb && <PartyPanel tournamentId={tournamentId} matchId={matchId} meId={meId} onSaved={() => void load().catch(() => undefined)} />}
           {pb && <TurnGrid game={game} onSave={saveTurn} />}
           {game.canFinish && pb && !queued.includes("finish") && (
             <Button size="lg" className="w-full sm:w-auto sm:justify-self-start" onClick={() => save("POST", "finish", "finish")}>
@@ -347,10 +349,12 @@ function SchemesPanel({ player, content, onDraw, onKeep, isMe }: {
           <div className="grid gap-3">
             <p className="text-sm">
               <span className="font-medium">{content.factions.find((f) => f.code === player.warbandFaction)?.name ?? player.warbandFaction}</span>
-              <span className="text-muted-foreground"> · {t("leaderInt")} {player.warbandLeaderInt}</span>
+              {player.warbandLeaderInt != null && <span className="text-muted-foreground"> · {t("leaderInt")} {player.warbandLeaderInt}</span>}
             </p>
             <p className="text-xs text-muted-foreground">{t("fromWarband")}</p>
-            {warbandHasTable ? (
+            {player.warbandLeaderInt == null ? (
+              <p className="text-sm text-muted-foreground">{t("partyFirst")}</p>
+            ) : warbandHasTable ? (
               <Button type="button" className="justify-self-start" onClick={() => void onDraw(null, null)}>
                 <Dices aria-hidden /> {t("draw", { n: cardsFor(content, player.warbandLeaderInt ?? 1) })}
               </Button>

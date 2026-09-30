@@ -36,7 +36,8 @@ public class WarbandController {
 
     public record WarbandRequest(@NotBlank @Size(max = 60) String faction,
                                  @Size(max = 60) String alliedFaction,
-                                 @NotNull @Min(1) @Max(30) Integer leaderInt,
+                                 /** 1–30 (checked by the service); ignored in roster tournaments. */
+                                 @NotNull @Min(0) @Max(30) Integer leaderInt,
                                  @NotNull @Size(min = 1, max = WarbandService.MAX_UNITS) List<@Valid @NotNull UnitRequest> units) {
 
         WarbandService.SaveInput toInput() {

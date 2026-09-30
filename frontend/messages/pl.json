@@ -217,7 +217,17 @@
     "INVALID_DATE_RANGE": "Nieprawidłowy zakres dat (najwyżej 2 lata).",
     "TOURNAMENT_NOT_ELIGIBLE": "Tego turnieju nie można oznaczyć jako oficjalny (szkic lub odwołany).",
     "PUSH_DISABLED": "Powiadomienia push są wyłączone na tym serwerze.",
-    "INVALID_PUSH_SUBSCRIPTION": "Ta przeglądarka zwróciła nieobsługiwaną subskrypcję push."
+    "INVALID_PUSH_SUBSCRIPTION": "Ta przeglądarka zwróciła nieobsługiwaną subskrypcję push.",
+    "PARTY_LIMIT_OVER_ROSTER": "Limit drużyny nie może być większy niż limit rozpiski zgłoszeniowej.",
+    "ROSTER_HAS_NO_LEADER": "W formacie Roster rozpiska zgłoszeniowa nie ma lidera – lidera wybiera się na każdą grę.",
+    "NOT_A_ROSTER_TOURNAMENT": "Ten turniej nie używa formatu Roster.",
+    "PARTY_LOCKED": "Drużyny na tę grę nie można już zmienić (wynik wpisany albo schematy wylosowane).",
+    "ROSTER_MISSING": "Najpierw prześlij rozpiskę zgłoszeniową.",
+    "PARTY_EMPTY": "Wybierz co najmniej jedną postać.",
+    "PARTY_NOT_FROM_ROSTER": "Drużyna może zawierać tylko postacie i ulepszenia z rozpiski zgłoszeniowej.",
+    "PARTY_LEADER_REQUIRED": "Wskaż lidera spośród wybranych postaci.",
+    "PARTY_OVER_LIMIT": "Drużyna przekracza limit punktów.",
+    "PARTY_REQUIRED": "Najpierw wybierz drużynę na tę grę – schematy losuje się dla jej lidera."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -272,7 +282,10 @@
       "description": "Opis",
       "participants": "Uczestnicy",
       "waitlist": "Lista rezerwowa",
-      "noParticipants": "Nikt się jeszcze nie zapisał."
+      "noParticipants": "Nikt się jeszcze nie zapisał.",
+      "listFormat": "Format rozpisek",
+      "rosterFormat": "Roster {roster} pkt → drużyna {party} pkt na grę",
+      "hiddenRosters": "rozpiski ukryte"
     },
     "join": "Zapisz się",
     "leave": "Wypisz się",
@@ -360,7 +373,21 @@
       "teamModeHint": "Kapitan zakłada drużynę i zaprasza graczy. Drużyny grają mecze stół w stół (plansza 1 z planszą 1…).",
       "teamUniqueFactions": "Unikalne frakcje w drużynie",
       "teamUniqueFactionsHint": "Dwóch graczy jednej drużyny nie może grać tą samą frakcją.",
-      "maxTeams": "Limit drużyn"
+      "maxTeams": "Limit drużyn",
+      "listFormat": "Format rozpisek",
+      "listFormats": {
+        "CLASSIC": "Classic – jedna rozpiska",
+        "ROSTER": "Roster – drużyna na każdą grę"
+      },
+      "listFormatHint": {
+        "CLASSIC": "Ta sama rozpiska przez cały turniej.",
+        "ROSTER": "Rozpiska zgłoszeniowa przed turniejem, drużyna wybierana z niej przed każdą grą (Sezon 2)."
+      },
+      "rosterLimit": "Limit rozpiski zgłoszeniowej (pkt)",
+      "partyLimit": "Limit drużyny na grę (pkt)",
+      "partyLimitHint": "Zalecane: roster 125, drużyna 85.",
+      "hiddenRosters": "Ukryte rozpiski zgłoszeniowe",
+      "hiddenRostersHint": "Przeciwnicy nie widzą swoich rozpisek do końca turnieju (widzi je tylko organizator)."
     },
     "manageView": {
       "title": "Panel organizatora",
@@ -655,7 +682,8 @@
       "smallShort": "MP"
     },
     "calendar": "Kalendarz",
-    "addToCalendar": "Dodaj do kalendarza"
+    "addToCalendar": "Dodaj do kalendarza",
+    "rosterShort": "Roster {roster}/{party}"
   },
   "game": {
     "back": "Wróć do turnieju",
@@ -706,7 +734,8 @@
     },
     "fromWarband": "Frakcja i INT lidera pochodzą z Twojej rozpiski.",
     "noSchemeTable": "Tabela schematów tej frakcji nie jest jeszcze dostępna – losowanie będzie możliwe po jej dodaniu.",
-    "bothCanEdit": "Oboje możecie uzupełniać punkty obu stron."
+    "bothCanEdit": "Oboje możecie uzupełniać punkty obu stron.",
+    "partyFirst": "Najpierw wybierz drużynę na tę grę (powyżej) – schematy losuje się dla jej lidera."
   },
   "scenarios": {
     "title": "Scenariusze i scheme",
@@ -768,7 +797,8 @@
     "removeItem": "Usuń {name}",
     "reducedCost": "Tańszy koszt ({points} pkt) – {when}",
     "moreOptions": "Inne punkty / notatka",
-    "otherPoints": "Inne"
+    "otherPoints": "Inne",
+    "rosterHint": "Format Roster: to rozpiska zgłoszeniowa, bez lidera. Przed każdą grą wybierzesz z niej drużynę do {party} pkt i jej lidera."
   },
   "leagues": {
     "title": "Ligi",
@@ -1086,7 +1116,8 @@
       "finish": "zakończenie gry (stół {table})",
       "report": "wynik (stół {table})",
       "decision": "potwierdzenie lub zgłoszenie błędu wyniku (stół {table})",
-      "result": "wynik ustawiony przez organizatora (stół {table})"
+      "result": "wynik ustawiony przez organizatora (stół {table})",
+      "party": "wybór drużyny na grę"
     }
   },
   "footer": {
@@ -1465,5 +1496,33 @@
     "test": "Wyślij test",
     "testSent": "Wysłano – powinno dotrzeć w ciągu kilku sekund.",
     "testMessage": "Powiadomienia push działają na tym urządzeniu."
+  },
+  "party": {
+    "title": "Drużyna na tę grę",
+    "lead": "Format Roster: znając misję i frakcję przeciwnika, wybierz z rozpiski zgłoszeniowej ({roster} pkt) drużynę do {party} pkt i jej lidera.",
+    "queued": "Wybór drużyny zapisany na urządzeniu – zostanie wysłany, gdy wróci połączenie.",
+    "opponent": "Przeciwnik: {name}",
+    "chosen": "drużyna wybrana",
+    "notChosen": "jeszcze wybiera",
+    "hiddenUntilEnd": "Drużyna przeciwnika jest ukryta do końca gry.",
+    "opponentRoster": "Rozpiska zgłoszeniowa przeciwnika ({points} pkt)",
+    "rosterHidden": "Rozpiski zgłoszeniowe są w tym turnieju ukryte.",
+    "yours": "Twoja drużyna",
+    "locked": "zablokowana",
+    "noneLocked": "Nie wybrano drużyny, a zmiana nie jest już możliwa – skontaktuj się z organizatorem.",
+    "leader": "lider",
+    "summary": "{points} pkt · INT lidera {int}",
+    "pick": "Wybierz postacie i ulepszenia",
+    "pts": "pkt",
+    "leaderInt": "INT lidera",
+    "save": "Zatwierdź drużynę",
+    "update": "Zapisz zmiany",
+    "hint": "Możesz zmieniać drużynę do wylosowania schematów lub wpisania wyniku. Przeciwnik widzi tylko, że już wybrałeś.",
+    "problems": {
+      "empty": "Wybierz co najmniej jedną postać.",
+      "leader": "Wskaż lidera spośród wybranych postaci.",
+      "int": "Podaj INT lidera (1–30).",
+      "over": "Przekroczony limit o {over} pkt."
+    }
   }
 }

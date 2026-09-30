@@ -20,5 +20,11 @@ public record TournamentDetails(
         Integer maxPlayers,
         Integer pointsLimit,
         Integer roundsPlanned,
-        Instant listDeadline) {
+        Instant listDeadline,
+        /** CLASSIC (one list) or ROSTER; with ROSTER, {@code pointsLimit} is the roster limit. */
+        ListFormat listFormat,
+        /** Points of the party picked from the roster for each game (ROSTER only). */
+        Integer partyLimit,
+        /** ROSTER: opponents do not see each other's roster (only the organizer does) until the event ends. */
+        boolean hiddenRosters) {
 }

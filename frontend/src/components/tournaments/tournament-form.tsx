@@ -27,6 +27,7 @@ import {
   type TournamentFormat,
   type TournamentInput,
   type RoundPlan,
+  type ListFormat,
   type TournamentRank,
 } from "@/lib/tournaments";
 
@@ -41,7 +42,10 @@ type FormState = {
   rank: TournamentRank;
   format: TournamentFormat;
   maxPlayers: string;
+  listFormat: ListFormat;
   pointsLimit: string;
+  partyLimit: string;
+  hiddenRosters: boolean;
   roundsPlanned: string;
   listDeadline: string;
   entryFeeAmount: string;
@@ -60,7 +64,10 @@ function initialState(t?: TournamentDetail): FormState {
     rank: t?.rank ?? "LOCAL",
     format: t?.format ?? "SWISS",
     maxPlayers: t?.maxPlayers?.toString() ?? "",
+    listFormat: t?.listFormat ?? "CLASSIC",
     pointsLimit: t?.pointsLimit?.toString() ?? "",
+    partyLimit: t?.partyLimit?.toString() ?? "85",
+    hiddenRosters: t?.hiddenRosters ?? false,
     roundsPlanned: t?.roundsPlanned?.toString() ?? "",
     listDeadline: toLocalInput(t?.listDeadline ?? null),
     entryFeeAmount: t?.entryFeeAmount?.toString() ?? "",
@@ -139,6 +146,9 @@ export function TournamentForm({
         format: form.format,
         maxPlayers: int(form.maxPlayers),
         pointsLimit: int(form.pointsLimit),
+        listFormat: form.listFormat,
+        partyLimit: form.listFormat === "ROSTER" ? int(form.partyLimit) : null,
+        hiddenRosters: form.listFormat === "ROSTER" && form.hiddenRosters,
         roundsPlanned: int(form.roundsPlanned),
         listDeadline: fromLocalInput(form.listDeadline),
         roundPlans: plans,
@@ -237,9 +247,9 @@ export function TournamentForm({
             hint={settings.teamSize ? undefined : t("form.maxPlayersHint")}>
             <Input id="maxPlayers" type="number" min={2} max={512} value={form.maxPlayers} onChange={set("maxPlayers")} />
           </Field>
-          <Field id="pointsLimit" label={t("form.pointsLimit")}>
+          <Field id="pointsLimit" label={form.listFormat === "ROSTER" ? t("form.rosterLimit") : t("form.pointsLimit")}>
             <Input id="pointsLimit" type="number" min={1} max={10000} value={form.pointsLimit}
-              onChange={set("pointsLimit")} />
+              placeholder={form.listFormat === "ROSTER" ? "125" : undefined} onChange={set("pointsLimit")} />
           </Field>
           {form.format === "SWISS" ? (
             <Field id="roundsPlanned" label={t("form.roundsPlanned")}
@@ -249,6 +259,31 @@ export function TournamentForm({
             </Field>
           ) : (
             <p className="self-end text-xs text-muted-foreground">{t(`form.roundsAuto.${form.format}`)}</p>
+          )}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field id="listFormat" label={t("form.listFormat")} hint={t(`form.listFormatHint.${form.listFormat}`)}>
+            <NativeSelect id="listFormat" value={form.listFormat}
+              onChange={(e) => setForm((f) => ({ ...f, listFormat: e.target.value as ListFormat,
+                pointsLimit: e.target.value === "ROSTER" && !f.pointsLimit ? "125" : f.pointsLimit }))}>
+              <option value="CLASSIC">{t("form.listFormats.CLASSIC")}</option>
+              <option value="ROSTER">{t("form.listFormats.ROSTER")}</option>
+            </NativeSelect>
+          </Field>
+          {form.listFormat === "ROSTER" && (
+            <>
+              <Field id="partyLimit" label={t("form.partyLimit")} hint={t("form.partyLimitHint")}>
+                <Input id="partyLimit" type="number" min={1} max={10000} required value={form.partyLimit}
+                  onChange={set("partyLimit")} />
+              </Field>
+              <label className="flex items-start gap-2 self-end text-sm">
+                <input type="checkbox" className="mt-1 size-4 accent-[var(--primary)]" checked={form.hiddenRosters}
+                  onChange={(e) => setForm((f) => ({ ...f, hiddenRosters: e.target.checked }))} />
+                <span>{t("form.hiddenRosters")}
+                  <span className="block text-xs text-muted-foreground">{t("form.hiddenRostersHint")}</span>
+                </span>
+              </label>
+            </>
           )}
         </div>
         <div className="grid gap-4 sm:grid-cols-3">

@@ -33,7 +33,8 @@ export function TournamentCard({ tournament: t }: { tournament: TournamentSummar
         <span className="flex items-center gap-2">
           <Users className="size-4" aria-hidden />
           {t.registeredCount}
-          {t.maxPlayers ? ` / ${t.maxPlayers}` : ""} · {t.pointsLimit ? `${t.pointsLimit} ${tr("points")} · ` : ""}
+          {t.maxPlayers ? ` / ${t.maxPlayers}` : ""} · {t.listFormat === "ROSTER" && t.pointsLimit && t.partyLimit ? `${tr("rosterShort", { roster: t.pointsLimit, party: t.partyLimit })} · `
+            : t.pointsLimit ? `${t.pointsLimit} ${tr("points")} · ` : ""}
           {t.organizerName}
         </span>
       </div>

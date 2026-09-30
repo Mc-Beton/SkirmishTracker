@@ -1,5 +1,7 @@
 package com.skirmishchronicle.tournament.service;
 
+import com.skirmishchronicle.tournament.domain.ListFormat;
+
 import com.skirmishchronicle.tournament.domain.RoundPairing;
 import com.skirmishchronicle.tournament.domain.TableOrder;
 import com.skirmishchronicle.tournament.domain.ListStatus;
@@ -25,7 +27,7 @@ public final class TournamentViews {
     public record Summary(UUID id, String name, Instant startsAt, String city, String venueName,
                           TournamentRank rank, TournamentFormat format, TournamentStatus status,
                           Integer maxPlayers, long registeredCount, Integer pointsLimit, String organizerName,
-                          boolean official) {
+                          boolean official, ListFormat listFormat, Integer partyLimit) {
     }
 
     public record Detail(UUID id, String name, String description, Instant startsAt, Instant endsAt,
@@ -40,7 +42,10 @@ public final class TournamentViews {
                          TournamentSettings settings,
                          long roundsCount,
                          List<RoundPlan> roundPlans,
-                         boolean official) {
+                         boolean official,
+                         ListFormat listFormat,
+                         Integer partyLimit,
+                         boolean hiddenRosters) {
     }
 
     /** pairing / softPreferences null = default for that round. */

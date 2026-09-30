@@ -190,7 +190,7 @@ public class TournamentService {
                 roundPlans.findByTournamentIdOrderByNumberAsc(id).stream()
                         .map(p -> new TournamentViews.RoundPlan(p.getNumber(), p.getScenarioCode(), p.getPairing(),
                                 p.getTableOrder(), p.getSoftPreferences(), p.getDurationMinutes())).toList(),
-                t.isOfficial());
+                t.isOfficial(), t.getListFormat(), t.getPartyLimit(), t.isHiddenRosters());
     }
 
     @Transactional(readOnly = true)
@@ -468,7 +468,8 @@ public class TournamentService {
         return list.stream().map(t -> new TournamentViews.Summary(t.getId(), t.getName(), t.getStartsAt(),
                 t.getCity(), t.getVenueName(), t.getRank(), t.getFormat(), t.getStatus(), t.getMaxPlayers(),
                 counts.getOrDefault(t.getId(), 0L), t.getPointsLimit(),
-                owners.getOrDefault(t.getOwnerId(), "?"), t.isOfficial())).toList();
+                owners.getOrDefault(t.getOwnerId(), "?"), t.isOfficial(), t.getListFormat(),
+                t.getPartyLimit())).toList();
     }
 
     private Map<UUID, String> displayNames(Collection<UUID> ids) {
