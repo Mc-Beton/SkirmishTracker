@@ -11,13 +11,25 @@ import java.util.UUID;
  * {@code elo} / {@code opponentElo} are the ratings right before the game; faction, units and mission may be
  * unknown (null / empty) when the game was reported without them. {@code items} lists every item bought in the
  * list (one entry per copy); {@code unitPoints} / {@code itemPoints} split the list's cost. Tournament games played
- * in detailed mode add {@code turns} (VP per turn) and the scheme cards drawn / kept.
+ * in detailed mode add {@code turns} (VP per turn) and the scheme cards drawn / kept. In roster tournaments
+ * {@code units} / {@code items} are the party fielded in this game and {@code rosterUnits} the whole roster.
  */
 public record SideFact(UUID gameId, UUID playerId, UUID opponentId, LocalDate playedOn, Source source,
                        UUID tournamentId, String country, String tier, String faction, String opponentFaction,
                        Set<String> units, String mission, double elo, double opponentElo, double score, int vpFor,
                        int vpAgainst, List<ItemUse> items, int unitPoints, int itemPoints, List<TurnVp> turns,
-                       List<String> schemesDrawn, String schemeKept) {
+                       List<String> schemesDrawn, String schemeKept, Set<String> rosterUnits) {
+
+    /** A side without roster data (classic lists and own games). */
+    public SideFact(UUID gameId, UUID playerId, UUID opponentId, LocalDate playedOn, Source source, UUID tournamentId,
+                    String country, String tier, String faction, String opponentFaction, Set<String> units,
+                    String mission, double elo, double opponentElo, double score, int vpFor, int vpAgainst,
+                    List<ItemUse> items, int unitPoints, int itemPoints, List<TurnVp> turns, List<String> schemesDrawn,
+                    String schemeKept) {
+        this(gameId, playerId, opponentId, playedOn, source, tournamentId, country, tier, faction, opponentFaction,
+                units, mission, elo, opponentElo, score, vpFor, vpAgainst, items, unitPoints, itemPoints, turns,
+                schemesDrawn, schemeKept, Set.of());
+    }
 
     /** Victory points scored in one turn, split into scenario and scheme points. */
     public record TurnVp(int turn, int scenario, int scheme) {

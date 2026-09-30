@@ -21,6 +21,11 @@ export type Rate = {
 export type FactionRow = { faction: string; players: number; sides: number; share: number; avgElo: number; rate: Rate };
 export type Cell = { row: string; col: string; players: number; rate: Rate };
 export type UnitRow = { faction: string; unit: string; players: number; pickRate: number; with: Rate; without: Rate };
+/** Roster format: how often a rostered character made the fielded party (overall and by opponent faction). */
+export type RosterUsageRow = {
+  faction: string; unit: string; players: number; games: number; fielded: number; fieldRate: number;
+  mostVs: string | null; mostVsRate: number; leastVs: string | null; leastVsRate: number;
+};
 export type ItemRow = {
   faction: string;
   item: string;
@@ -87,6 +92,7 @@ export type MetaReport = {
   factions: FactionRow[];
   matchups: Cell[];
   units: UnitRow[];
+  rosterUsage: RosterUsageRow[];
   items: ItemRow[];
   itemCounts: ItemCount[];
   gear: GearRow[];
@@ -158,6 +164,8 @@ export function dayBefore(iso: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Minimum games against one faction before the roster report compares opponents (MetaReport.MIN_VS). */
+export const ROSTER_MIN_VS = 5;
 export const pct = (v: number, digits = 0) => `${(v * 100).toFixed(digits)}%`;
 /** Percentage points with sign, e.g. +4,2 pp. */
 export const pp = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v * 100).toFixed(1)} pp`;
@@ -190,7 +198,7 @@ const rateCols = (r: Rate) => [r.n, r.wins, r.draws, r.losses, r.score, r.low, r
 const RATE_HEAD = ["games", "wins", "draws", "losses", "score", "ci_low", "ci_high", "elo_expected", "performance"];
 
 /** One CSV per section, names in English (stable for spreadsheets). */
-export function reportCsv(report: MetaReport, section: "factions" | "matchups" | "units" | "items" | "gear" | "flow" | "schemes" | "missions" | "factionMissions" | "months"): string {
+export function reportCsv(report: MetaReport, section: "factions" | "matchups" | "units" | "rosterUsage" | "items" | "gear" | "flow" | "schemes" | "missions" | "factionMissions" | "months"): string {
   switch (section) {
     case "factions":
       return toCsv(["faction", "players", "sides", "share", "avg_elo", ...RATE_HEAD],
@@ -204,6 +212,9 @@ export function reportCsv(report: MetaReport, section: "factions" | "matchups" |
     case "units":
       return toCsv(["faction", "unit", "players", "pick_rate", ...RATE_HEAD.map((h) => `with_${h}`), ...RATE_HEAD.map((h) => `without_${h}`)],
         report.units.map((u) => [u.faction, u.unit, u.players, u.pickRate, ...rateCols(u.with), ...rateCols(u.without)]));
+    case "rosterUsage":
+      return toCsv(["faction", "unit", "players", "games_on_roster", "games_fielded", "field_rate", "most_vs", "most_vs_rate", "least_vs", "least_vs_rate"],
+        report.rosterUsage.map((r) => [r.faction, r.unit, r.players, r.games, r.fielded, r.fieldRate, r.mostVs, r.mostVsRate, r.leastVs, r.leastVsRate]));
     case "items":
       return toCsv(["faction", "item", "players", "pick_rate", "avg_copies", "reduced_share", "leader_share", "top_unit", "top_unit_share",
         ...RATE_HEAD.map((h) => `with_${h}`), ...RATE_HEAD.map((h) => `without_${h}`)],

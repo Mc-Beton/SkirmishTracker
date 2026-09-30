@@ -186,6 +186,23 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   najczęstsi przeciwnicy (top 5) i 12 odznak z postępem (`profile/Badges`, liczone z gier, ELO sprzed gry
   i turniejów – nic nie jest zapisywane; testy `BadgesTest`).
 
+## 6f. Format rozpisek Roster (Competitive Play – Season 2)
+
+- Ustawienie turnieju `listFormat`: `CLASSIC` (jak dotąd: jedna rozpiska z liderem) albo `ROSTER`
+  (domyślnie roster 125 pkt, drużyna 85 pkt; `PARTY_LIMIT_OVER_ROSTER`, gdy drużyna > roster). Opcja
+  `hiddenRosters` ukrywa rostery do końca turnieju. Migracja `V16__roster_format.sql`.
+- W trybie Roster rozpiska ze zgłoszenia jest rosterem: bez lidera i bez INT (`ROSTER_HAS_NO_LEADER`).
+- Przed każdą grą gracz wybiera drużynę z rosteru (`PartyService`, `GET/PUT /api/tournaments/{id}/matches/{matchId}/party`,
+  reguły w `PartyRules`): ≤ limitu drużyny, dokładnie jeden lider, INT lidera. Edycja do zgłoszenia wyniku
+  lub losowania scheme (organizator – do potwierdzenia). Działa offline (kolejka `party:{matchId}`).
+- Ukryta informacja: drużynę widzi właściciel i organizator; przeciwnik dopiero po potwierdzeniu wyniku
+  (albo zakończeniu rundy).
+- Losowanie scheme bierze INT lidera drużyny (`PARTY_REQUIRED`, gdy drużyny brak).
+- Statystyki liczą wystawioną drużynę zamiast rosteru; w raportach sekcja „Roster a wystawiona drużyna”
+  (`rosterUsage`: jak często postać z rosteru wychodzi na stół, przeciw komu najczęściej/najrzadziej, od 5 gier).
+- Demo: turnieje od 1.07.2026 są w formacie Roster; Paladyn Zakonu zostaje w domu przeciw Oni (~14% wystawień).
+- Nieuruchomione u mnie: `RosterFlowIntegrationTest` i całe `./gradlew test`, UI w przeglądarce.
+
 ## 7. Dokumentacja w repo
 
 - `docs/game-content-model.md` – model treści gry (frakcje, postacie, scheme, scenariusze).
@@ -211,6 +228,9 @@ Do sprawdzenia u Filipa: `.\gradlew.bat build` z nowymi testami (`LiveEventServi
 3. **Konta:** 2FA (TOTP), sprawdzanie haseł w HIBP.
 4. **Treści:** mapy scenariuszy, wzmocnienia Oni/Goblinów/AG (jeśli istnieją – brak w Excelu), INT postaci
    z danych zamiast ręcznego wpisywania.
+5. **Poprawki Season 2:** bye = 3 TP + 4 VP, dogrywka Strength of Schedule, dyskwalifikacja = 3 TP + 8 VP
+   dla przeciwnika, zegar 80 min i push „ostatnia runda”, Oni Marauder 25 → 24 pkt, nowe scheme Monster/AG
+   (potrzebny dokument „Competitive Quests – Season 2”), daty sezonu demo 1.07.2026–1.07.2027.
 
 ## 9. Otwarte pytania do Filipa
 

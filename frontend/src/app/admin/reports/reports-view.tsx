@@ -21,7 +21,7 @@ import { RateInterval } from "@/components/reports/rate-interval";
 import { api } from "@/lib/api";
 import { useGameContent } from "@/lib/content";
 import {
-  DEAD_ITEM_PICK, EMPTY_FILTER, dayBefore, GEAR_LOADS, INSEPARABLE_SHARE, downloadCsv, pct, pp, reportCsv, reportQuery, reportRoles, signal,
+  DEAD_ITEM_PICK, EMPTY_FILTER, dayBefore, GEAR_LOADS, INSEPARABLE_SHARE, downloadCsv, pct, ROSTER_MIN_VS, pp, reportCsv, reportQuery, reportRoles, signal,
   type MetaReport, type MetaResponse, type Rate, type ReportFilter,
 } from "@/lib/reports";
 import { NEUTRAL, factionName, useArmies, type Armies } from "@/lib/warbands";
@@ -164,6 +164,9 @@ export function ReportsView() {
                   diagonal={t("matchups.mirror")} uncertain={t("uncertain")} />
               </SectionCard>
               <Units report={report} t={t} fName={fName} unitName={unitName} onCsv={() => csv("units")} />
+              {report.rosterUsage.length > 0 && (
+                <RosterUsage report={report} t={t} fName={fName} unitName={unitName} onCsv={() => csv("rosterUsage")} />
+              )}
               <Items report={report} t={t} armies={armies} fName={fName} unitName={unitName} onCsv={() => csv("items")} />
               <Gear report={report} t={t} fName={fName} onCsv={() => csv("gear")} />
               <Missions report={report} t={t} fName={fName} questName={questName}
@@ -379,6 +382,58 @@ function Units({ report, t, fName, unitName, onCsv }: {
           <p className="text-xs text-muted-foreground">{t("units.howToRead")}</p>
         </>
       )}
+    </SectionCard>
+  );
+}
+
+function RosterUsage({ report, t, fName, unitName, onCsv }: {
+  report: MetaReport; t: T; fName: (c: string) => string; unitName: (c: string) => string; onCsv: () => void;
+}) {
+  const factions = useMemo(() => [...new Set(report.rosterUsage.map((u) => u.faction))], [report.rosterUsage]);
+  const [chosen, setChosen] = useState("");
+  const faction = factions.includes(chosen) ? chosen : factions[0] ?? "";
+  const rows = report.rosterUsage.filter((u) => u.faction === faction);
+  const vs = (code: string | null, rate: number) => code ? `${fName(code)} · ${pct(rate)}` : "–";
+  return (
+    <SectionCard title={t("roster.title")} lead={t("roster.lead")} onCsv={onCsv} csvLabel={t("csv")}>
+      <div className="grid max-w-xs gap-1.5">
+        <Label className="text-xs" htmlFor="roster-faction">{t("factions.faction")}</Label>
+        <NativeSelect id="roster-faction" value={faction} onChange={(e) => setChosen(e.target.value)}>
+          {factions.map((f) => <option key={f} value={f}>{fName(f)}</option>)}
+        </NativeSelect>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-muted-foreground">
+              <th className="py-2 pr-3 font-medium">{t("roster.unit")}</th>
+              <th className="w-1/5 min-w-24 py-2 pr-3 font-medium">{t("roster.fielded")}</th>
+              <th className="py-2 pr-3 font-medium">{t("roster.most")}</th>
+              <th className="py-2 font-medium">{t("roster.least")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((u) => (
+              <tr key={u.unit} className="border-b last:border-0">
+                <td className="py-2 pr-3 font-medium">{unitName(u.unit)}
+                  <span className="block text-xs font-normal text-muted-foreground">{t("roster.count", { games: u.games, players: u.players })}</span>
+                </td>
+                <td className="py-2 pr-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 flex-1 rounded-full bg-muted">
+                      <div className="h-full rounded-full" style={{ width: pct(u.fieldRate), background: "var(--series-2)" }} />
+                    </div>
+                    <span className="w-10 text-right tabular-nums">{pct(u.fieldRate)}</span>
+                  </div>
+                </td>
+                <td className="py-2 pr-3 tabular-nums">{vs(u.mostVs, u.mostVsRate)}</td>
+                <td className="py-2 tabular-nums">{vs(u.leastVs, u.leastVsRate)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground">{t("roster.howToRead", { min: ROSTER_MIN_VS })}</p>
     </SectionCard>
   );
 }

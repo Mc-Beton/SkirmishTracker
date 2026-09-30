@@ -11,11 +11,13 @@ import com.skirmishchronicle.friendly.FriendlyGameStatus;
 import com.skirmishchronicle.rating.Elo;
 import com.skirmishchronicle.rating.RatedGame;
 import com.skirmishchronicle.rating.RatingService;
+import com.skirmishchronicle.tournament.domain.MatchParty;
 import com.skirmishchronicle.tournament.domain.MatchSchemeDraw;
 import com.skirmishchronicle.tournament.domain.MatchTurnScore;
 import com.skirmishchronicle.tournament.domain.Tournament;
 import com.skirmishchronicle.tournament.domain.TournamentMatch;
 import com.skirmishchronicle.tournament.domain.Warband;
+import com.skirmishchronicle.tournament.repo.MatchPartyRepository;
 import com.skirmishchronicle.tournament.repo.MatchRepository;
 import com.skirmishchronicle.tournament.repo.RoundRepository;
 import com.skirmishchronicle.tournament.repo.SchemeDrawRepository;
@@ -75,6 +77,7 @@ public class AnalyticsService {
     private final ObjectMapper mapper;
     private final TurnScoreRepository turnScores;
     private final SchemeDrawRepository schemeDraws;
+    private final MatchPartyRepository parties;
     private final Map<String, ArmyContent.Unit> unitByCode = new HashMap<>();
     private final Map<String, ArmyContent.Item> itemByCode = new HashMap<>();
     private volatile Cache cache;
@@ -82,7 +85,8 @@ public class AnalyticsService {
     public AnalyticsService(RatingService ratings, TournamentRepository tournaments, MatchRepository matches,
                             RoundRepository rounds, WarbandRepository warbands, FriendlyGameRepository friendly,
                             ObjectMapper mapper, ContentService content, TurnScoreRepository turnScores,
-                            SchemeDrawRepository schemeDraws) {
+                            SchemeDrawRepository schemeDraws, MatchPartyRepository parties) {
+        this.parties = parties;
         this.turnScores = turnScores;
         this.schemeDraws = schemeDraws;
         this.ratings = ratings;
@@ -135,6 +139,7 @@ public class AnalyticsService {
         Map<UUID, String> missionOfMatch = new HashMap<>();
         Map<String, List<SideFact.TurnVp>> turnsOf = new HashMap<>();
         Map<String, MatchSchemeDraw> drawOf = new HashMap<>();
+        Map<String, Side> partyOf = new HashMap<>();
         if (!tids.isEmpty()) {
             tournaments.findAllById(tids).forEach(t -> tournamentById.put(t.getId(), t));
             for (Warband w : warbands.findByTournamentIdIn(tids)) {
@@ -162,6 +167,10 @@ public class AnalyticsService {
             }
             for (MatchSchemeDraw d : schemeDraws.findByMatchIdIn(matchIds)) {
                 drawOf.put(d.getMatchId() + "/" + d.getUserId(), d);
+            }
+            // Roster format: the party fielded in the game replaces the roster as "what was played".
+            for (MatchParty p : parties.findByMatchIdIn(matchIds)) {
+                partyOf.put(p.getMatchId() + "/" + p.getUserId(), side(null, readTree(p.getUnits())));
             }
         }
         Map<UUID, FriendlyGame> own = new HashMap<>();
@@ -208,16 +217,30 @@ public class AnalyticsService {
             double sa = g.scoreA();
             String keyA = g.id() + "/" + g.playerA();
             String keyB = g.id() + "/" + g.playerB();
+            Set<String> rosterA = Set.of();
+            Set<String> rosterB = Set.of();
+            if (partyOf.containsKey(keyA)) {
+                rosterA = a.units();
+                a = withFaction(partyOf.get(keyA), a.faction());
+            }
+            if (partyOf.containsKey(keyB)) {
+                rosterB = b.units();
+                b = withFaction(partyOf.get(keyB), b.faction());
+            }
             out.add(new SideFact(g.id(), g.playerA(), g.playerB(), day, source, g.tournamentId(), country, tier,
                     a.faction(), b.faction(), a.units(), mission, pre.a(), pre.b(), sa, g.smallA(), g.smallB(),
                     a.items(), a.unitPoints(), a.itemPoints(), turns(turnsOf.get(keyA)), drawn(drawOf.get(keyA)),
-                    kept(drawOf.get(keyA))));
+                    kept(drawOf.get(keyA)), rosterA));
             out.add(new SideFact(g.id(), g.playerB(), g.playerA(), day, source, g.tournamentId(), country, tier,
                     b.faction(), a.faction(), b.units(), mission, pre.b(), pre.a(), 1.0 - sa, g.smallB(),
                     g.smallA(), b.items(), b.unitPoints(), b.itemPoints(), turns(turnsOf.get(keyB)),
-                    drawn(drawOf.get(keyB)), kept(drawOf.get(keyB))));
+                    drawn(drawOf.get(keyB)), kept(drawOf.get(keyB)), rosterB));
         }
         return out;
+    }
+
+    private static Side withFaction(Side s, String faction) {
+        return new Side(faction, s.units(), s.items(), s.unitPoints(), s.itemPoints());
     }
 
     private static List<SideFact.TurnVp> turns(List<SideFact.TurnVp> list) {

@@ -5,7 +5,7 @@ import java.util.List;
 
 /** Aggregated meta statistics for the publisher panel. Only aggregates – never single players. */
 public record MetaReport(Summary summary, List<FactionRow> factions, List<Cell> matchups, List<UnitRow> units,
-                         List<ItemRow> items, List<ItemCount> itemCounts, List<GearRow> gear, List<Cell> gearResults,
+                         List<RosterUsageRow> rosterUsage, List<ItemRow> items, List<ItemCount> itemCounts, List<GearRow> gear, List<Cell> gearResults,
                          List<MissionRow> missions, List<Cell> factionMissions, Flow flow,
                          List<FactionFlow> factionFlow, List<SchemeRow> schemes, List<MonthRow> months,
                          Thresholds thresholds) {
@@ -40,6 +40,16 @@ public record MetaReport(Summary summary, List<FactionRow> factions, List<Cell> 
      * {@code with} / {@code without} compare the faction's results with and without the character.
      */
     public record UnitRow(String faction, String unit, int players, double pickRate, Rate with, Rate without) {
+    }
+
+    /**
+     * Roster format: how often a character that is in the roster is actually fielded. {@code games}: games where
+     * it was available (in the roster); {@code fieldRate} = fielded / games. {@code mostVs} / {@code leastVs}: the
+     * opponent factions against which it is fielded most / least often (at least {@link #MIN_VS} games).
+     */
+    public record RosterUsageRow(String faction, String unit, int players, int games, int fielded, double fieldRate,
+                                 String mostVs, double mostVsRate, String leastVs, double leastVsRate) {
+        public static final int MIN_VS = 5;
     }
 
     /**

@@ -12,6 +12,7 @@ import com.skirmishchronicle.analytics.MetaReport.ItemRow;
 import com.skirmishchronicle.analytics.MetaReport.MissionRow;
 import com.skirmishchronicle.analytics.MetaReport.MonthRow;
 import com.skirmishchronicle.analytics.MetaReport.Rate;
+import com.skirmishchronicle.analytics.MetaReport.RosterUsageRow;
 import com.skirmishchronicle.analytics.MetaReport.Summary;
 import com.skirmishchronicle.analytics.MetaReport.UnitRow;
 import java.time.LocalDate;
@@ -83,7 +84,9 @@ public final class MetaStats {
         Flow flow = flow(byGame);
         List<FactionFlow> factionFlow = factionFlow(sides, minPlayers, hidden);
         List<SchemeRow> schemes = schemes(sides, minPlayers, minSample, hidden);
-        return new MetaReport(summary(sides, byGame, hidden[0]), factions, matchups, units, items, itemCounts, gear,
+        List<RosterUsageRow> rosterUsage = rosterUsage(sides, minPlayers, hidden);
+        return new MetaReport(summary(sides, byGame, hidden[0]), factions, matchups, units, rosterUsage, items,
+                itemCounts, gear,
                 gearResults, missions, factionMissions, flow, factionFlow, schemes, months,
                 new MetaReport.Thresholds(minPlayers, minSample));
     }
@@ -196,6 +199,61 @@ public final class MetaStats {
         out.sort(Comparator.comparing(UnitRow::faction)
                 .thenComparing(Comparator.comparingDouble(UnitRow::pickRate).reversed())
                 .thenComparing(UnitRow::unit));
+        return out;
+    }
+
+    private static List<RosterUsageRow> rosterUsage(List<SideFact> sides, int minPlayers, int[] hidden) {
+        Map<String, List<SideFact>> byFaction = new TreeMap<>();
+        sides.stream().filter(f -> f.faction() != null && !f.rosterUnits().isEmpty())
+                .forEach(f -> byFaction.computeIfAbsent(f.faction(), k -> new ArrayList<>()).add(f));
+        List<RosterUsageRow> out = new ArrayList<>();
+        byFaction.forEach((faction, list) -> {
+            Set<String> codes = new java.util.TreeSet<>();
+            list.forEach(f -> codes.addAll(f.rosterUnits()));
+            for (String unit : codes) {
+                List<SideFact> available = list.stream().filter(f -> f.rosterUnits().contains(unit)).toList();
+                Set<UUID> players = new HashSet<>();
+                available.forEach(f -> players.add(f.playerId()));
+                if (players.size() < minPlayers) {
+                    hidden[0]++;
+                    continue;
+                }
+                int fielded = (int) available.stream().filter(f -> f.units().contains(unit)).count();
+                Map<String, int[]> vs = new TreeMap<>(); // games, fielded
+                for (SideFact f : available) {
+                    if (f.opponentFaction() == null) {
+                        continue;
+                    }
+                    int[] c = vs.computeIfAbsent(f.opponentFaction(), k -> new int[2]);
+                    c[0]++;
+                    c[1] += f.units().contains(unit) ? 1 : 0;
+                }
+                String most = null;
+                String least = null;
+                double mostRate = -1;
+                double leastRate = 2;
+                for (Map.Entry<String, int[]> e : vs.entrySet()) {
+                    if (e.getValue()[0] < RosterUsageRow.MIN_VS) {
+                        continue;
+                    }
+                    double rate = (double) e.getValue()[1] / e.getValue()[0];
+                    if (rate > mostRate) {
+                        mostRate = rate;
+                        most = e.getKey();
+                    }
+                    if (rate < leastRate) {
+                        leastRate = rate;
+                        least = e.getKey();
+                    }
+                }
+                out.add(new RosterUsageRow(faction, unit, players.size(), available.size(), fielded,
+                        r4((double) fielded / available.size()), most, most == null ? 0 : r4(mostRate), least,
+                        least == null ? 0 : r4(leastRate)));
+            }
+        });
+        out.sort(Comparator.comparing(RosterUsageRow::faction)
+                .thenComparing(Comparator.comparingInt(RosterUsageRow::games).reversed())
+                .thenComparing(RosterUsageRow::unit));
         return out;
     }
 

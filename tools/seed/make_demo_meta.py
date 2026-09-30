@@ -21,6 +21,8 @@ Results are simulated from hidden "true" effects, so the report has real finding
     never taken (Camaraderie, Glyphscribe: Reduce Weight, Devotion: Paimon, Kassen Buki: Kanabou-tsukai).
   * Official program: 4 local organizers (Guildmaster PL/PT/ES/DE), masters, internationals and every other
     local event marked official, season "[DEMO] Sezon 2026" (needs migration V14 – start the backend once).
+  * Roster format (Season 2): tournaments from 1 July 2026 use rosters of 125 pts and a party of 85 pts picked for
+    every game. Paladin of the Order is in most Helian rosters but mostly left at home against the Oni Clans.
   * Game flow (detailed mode in ~75% of tournament games): points per turn and scheme cards. Decisive Victory
     is kept whenever drawn and scores well, Peacekeeping Paragon is almost never kept, Stand Your Ground is
     popular but scores little (a trap).
@@ -51,6 +53,10 @@ PASSWORD_HASH = "$argon2id$v=19$m=16384,t=2,p=1$ecJFJfDX8tXq7qgNWKm7yg$YMlEscuP0
 rng = random.Random(20261001)
 # Separate stream for game-flow data (turns, scheme cards), so adding it leaves every other result unchanged.
 frng = random.Random(20261002)
+# … one for roster-format choices (extra roster entries, party picks) …
+prng = random.Random(20261004)
+SEASON2 = dt.date(2026, 7, 1)
+ROSTER_LIMIT, PARTY_LIMIT = 125, 85
 # … and one for the official program (organizers per country, season) – also independent of the rest.
 grng = random.Random(20261003)
 
@@ -274,7 +280,49 @@ for i, name in enumerate(names):
     day += dt.timedelta(days=rng.randint(10, 17))
 
 t_rows, part_rows, war_rows, round_rows, match_rows = [], [], [], [], []
-draw_rows, turn_rows = [], []
+draw_rows, turn_rows, party_rows = [], [], []
+
+
+def entries_points(entries):
+    return sum(units[u["unit"]]["points"] + u.get("extraPoints", 0) + sum(items[i["item"]]["points"] for i in u["items"])
+               for u in entries)
+
+
+def build_roster(faction, lst):
+    """Roster = the usual list plus up to two extra characters, at most ROSTER_LIMIT points; no leader."""
+    roster = [{"unit": u["unit"], "leader": False, "items": list(u["items"])} for u in lst]
+    while entries_points(roster) > ROSTER_LIMIT and len(roster) > 1:
+        roster.pop()
+    extras = [c for c in pool(faction) if c not in {u["unit"] for u in roster}]
+    prng.shuffle(extras)
+    for code in extras[:2]:
+        entry = {"unit": code, "leader": False, "items": []}
+        if entries_points(roster + [entry]) <= ROSTER_LIMIT:
+            roster.append(entry)
+    return roster
+
+
+def pick_party(roster, usual, opponent_faction):
+    """Party of up to PARTY_LIMIT points: the usual list first (the paladin mostly stays home against Oni),
+    then extra roster entries that still fit. Returns (stored party entries, list used for the game)."""
+    usual_codes = [u["unit"] for u in usual]
+    order = [i for i, r in enumerate(roster) if r["unit"] in usual_codes]
+    rest = [i for i, r in enumerate(roster) if r["unit"] not in usual_codes]
+    prng.shuffle(rest)
+    chosen, total = [], 0
+    for i in order + rest:
+        r = roster[i]
+        if r["unit"] == "PALADIN_OF_THE_ORDER" and opponent_faction == "ONI_CLANS" and prng.random() < 0.8:
+            continue
+        cost = entries_points([r])
+        if total + cost <= PARTY_LIMIT:
+            chosen.append(i)
+            total += cost
+    if not chosen:
+        chosen = [min(range(len(roster)), key=lambda i: entries_points([roster[i]]))]
+    party = [{"slot": i, "unit": roster[i]["unit"], "extraPoints": 0, "leader": n == 0, "items": roster[i]["items"],
+              "itemIndexes": list(range(len(roster[i]["items"])))} for n, i in enumerate(chosen)]
+    return party, [{"unit": e["unit"], "leader": e["leader"], "items": e["items"]} for e in party]
 
 
 def draw_schemes(faction):
@@ -315,23 +363,29 @@ for t_index, (tday, country, city, tier, size, n_rounds, name) in enumerate(T_PL
         field = field[:-1]
     owner = organizer if tier != "LOCAL" else GUILDMASTERS[country]
     official = tier != "LOCAL" or t_index % 2 == 0  # masters, internationals and every other local event
+    roster_mode = tday >= SEASON2
     t_rows.append([q(tid), q(owner["id"]), q(name), q("Turniej demonstracyjny (dane wygenerowane)."),
                    ts(tday, 9), ts(tday, 20), q(city), q(country), q(tier), q("SWISS"), q(len(field)), q(n_rounds),
                    q("FINISHED"), ts(tday - dt.timedelta(days=21)), ts(tday, 20), q(official),
-                   q(publisher["id"]) if official else "NULL", ts(tday - dt.timedelta(days=20)) if official else "NULL"])
+                   q(publisher["id"]) if official else "NULL", ts(tday - dt.timedelta(days=20)) if official else "NULL",
+                   q(ROSTER_LIMIT) if roster_mode else "NULL", q("ROSTER" if roster_mode else "CLASSIC"),
+                   q(PARTY_LIMIT) if roster_mode else "NULL"])
     sides = {}
     leader_int = {}
     for p in field:
         f = faction_for(p, tday)
         lst, total = make_list(f)
-        sides[p["id"]] = (f, lst)
+        roster = build_roster(f, lst) if roster_mode else None
+        sides[p["id"]] = (f, lst, roster)
         stored = [{"unit": u["unit"], "extraPoints": 0, "notes": None, "leader": u["leader"], "items": u["items"]}
-                  for u in lst]
+                  for u in (roster or lst)]
+        if roster:
+            total = entries_points(roster)
         part_rows.append([q(uid()), q(tid), q(p["id"]), q("REGISTERED"), ts(tday - dt.timedelta(days=14)), "TRUE",
                           q("APPROVED"), q(p["city"]), q(f)])
         wid = uid()  # drawn before the leader INT – keeps the random stream of earlier versions
         leader_int[p["id"]] = rng.randint(3, 6)
-        war_rows.append([q(wid), q(tid), q(p["id"]), q(f), "NULL", q(leader_int[p["id"]]), q(total),
+        war_rows.append([q(wid), q(tid), q(p["id"]), q(f), "NULL", q(0 if roster else leader_int[p["id"]]), q(total),
                          q(json.dumps(stored)), ts(tday - dt.timedelta(days=10)), ts(tday - dt.timedelta(days=10))])
     points = {p["id"]: 0 for p in field}
     met = set()
@@ -351,12 +405,22 @@ for t_index, (tday, country, city, tier, size, n_rounds, name) in enumerate(T_PL
             met.add(frozenset((a["id"], b["id"])))
             pairs.append((a, b))
         for table, (a, b) in enumerate(pairs, start=1):
-            fa, la = sides[a["id"]]
-            fb, lb = sides[b["id"]]
+            fa, la, ra = sides[a["id"]]
+            fb, lb, rb = sides[b["id"]]
+            parties = None
+            if roster_mode:
+                # Each player picks a party from the roster, knowing the opponent's faction and the quest.
+                pa_, la = pick_party(ra, la, fb)
+                pb_, lb = pick_party(rb, lb, fa)
+                parties = ((a, pa_), (b, pb_))
             va, vb = play(a, b, fa, fb, la, lb, mission, tday)
             points[a["id"]] += 3 if va > vb else 1 if va == vb else 0
             points[b["id"]] += 3 if vb > va else 1 if va == vb else 0
             mid = uid()
+            for pl_, party in parties or ():
+                party_rows.append([q(str(uuid.UUID(int=prng.getrandbits(128), version=4))), q(mid), q(pl_["id"]),
+                                   q(json.dumps(party)), q(leader_int[pl_["id"]]), q(entries_points(party)),
+                                   ts(tday, start_h), ts(tday, start_h)])
             match_rows.append([q(mid), q(rid), q(tid), q(table), q(a["id"]), q(b["id"]), q("PLAYED"), q(va), q(vb),
                                q("CONFIRMED"), q(a["id"]), ts(tday, start_h + 2), q(b["id"]), ts(tday, start_h + 2)])
             if frng.random() < DETAILED_MODE:
@@ -420,7 +484,8 @@ insert("users", ["id", "email", "display_name", "password_hash", "email_verified
 insert("user_roles", ["user_id", "role"], [[r[0], q("USER")] for r in user_rows] + [[q(publisher["id"]), q("PUBLISHER")]])
 insert("tournaments", ["id", "owner_id", "name", "description", "starts_at", "ends_at", "city", "country",
                        "tournament_rank", "format", "max_players", "rounds_planned", "status", "created_at",
-                       "updated_at", "official", "official_by", "official_at"], t_rows)
+                       "updated_at", "official", "official_by", "official_at", "points_limit", "list_format",
+                       "party_limit"], t_rows)
 insert("seasons", ["id", "name", "starts_on", "ends_on", "created_at", "updated_at"],
        [[q(str(uuid.UUID(int=grng.getrandbits(128), version=4))), q("[DEMO] Sezon 2026"), "DATE '2026-01-01'",
          "DATE '2026-12-31'", created, created]])
@@ -433,6 +498,8 @@ insert("tournament_rounds", ["id", "tournament_id", "number", "status", "bye_big
 insert("tournament_matches", ["id", "round_id", "tournament_id", "table_number", "player_a", "player_b",
                               "result_type", "small_a", "small_b", "status", "reported_by", "reported_at",
                               "confirmed_by", "confirmed_at"], match_rows)
+insert("match_parties", ["id", "match_id", "user_id", "units", "leader_int", "total_points", "created_at", "updated_at"],
+       party_rows)
 insert("match_scheme_draws", ["id", "match_id", "user_id", "faction", "leader_int", "cards", "kept_code", "created_at"],
        draw_rows)
 insert("match_turn_scores", ["id", "match_id", "user_id", "turn", "scenario_vp", "scheme_vp", "updated_at",

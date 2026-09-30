@@ -237,4 +237,37 @@ class MetaStatsTest {
         assertEquals(0.0, y.keepRate());
         assertEquals(1.0, r.schemes().get(0).keepRate());   // Z: always kept when drawn
     }
+
+    @Test
+    void rosterUsageComparesRosterWithTheFieldedParty() {
+        List<SideFact> facts = new ArrayList<>();
+        List<UUID> p = players(10);
+        List<UUID> opp = players(10);
+        for (int i = 0; i < 20; i++) {
+            // The paladin is in every roster; fielded against Soga, left at home against Oni.
+            String vs = i < 10 ? "SOGA" : "ONI";
+            Set<String> party = vs.equals("SOGA") ? Set.of("PALADIN", "GUARD") : Set.of("GUARD");
+            UUID id = UUID.randomUUID();
+            facts.add(new SideFact(id, p.get(i % 10), opp.get(i % 10), DAY, SideFact.Source.TOURNAMENT, null, "PL",
+                    "LOCAL", "HELIAN", vs, party, null, 1500, 1500, 1, 8, 3, List.of(), 0, 0, List.of(), List.of(), null,
+                    Set.of("PALADIN", "GUARD", "RUNNER")));
+            facts.add(new SideFact(id, opp.get(i % 10), p.get(i % 10), DAY, SideFact.Source.TOURNAMENT, null, "PL",
+                    "LOCAL", vs, "HELIAN", Set.of(), null, 1500, 1500, 0, 3, 8));
+        }
+        MetaReport r = MetaStats.compute(facts, MetaFilter.ALL);
+        MetaReport.RosterUsageRow paladin = r.rosterUsage().stream().filter(u -> u.unit().equals("PALADIN"))
+                .findFirst().orElseThrow();
+        assertEquals(20, paladin.games());
+        assertEquals(10, paladin.fielded());
+        assertEquals(0.5, paladin.fieldRate());
+        assertEquals("SOGA", paladin.mostVs());
+        assertEquals(1.0, paladin.mostVsRate());
+        assertEquals("ONI", paladin.leastVs());
+        assertEquals(0.0, paladin.leastVsRate());
+        MetaReport.RosterUsageRow runner = r.rosterUsage().stream().filter(u -> u.unit().equals("RUNNER"))
+                .findFirst().orElseThrow();
+        assertEquals(0, runner.fielded());
+        // Unit statistics use the party, not the roster.
+        assertTrue(r.units().stream().noneMatch(u -> u.unit().equals("RUNNER")));
+    }
 }

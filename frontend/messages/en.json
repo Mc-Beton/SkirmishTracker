@@ -1280,6 +1280,17 @@
       "lists": "{n} lists · {players} players",
       "howToRead": "The with/without difference shows the character's impact within the faction; \"above exp.\" also removes the skill advantage of the players who field it."
     },
+    "roster": {
+      "title": "Roster vs fielded party",
+      "lead": "Roster-format tournaments: how often a character on the roster actually hits the table, and against whom it stays home.",
+      "unit": "Character",
+      "games": "On roster",
+      "fielded": "Fielded",
+      "most": "Most often vs",
+      "least": "Least often vs",
+      "count": "{games} games · {players} players",
+      "howToRead": "Fielded = share of games in which the rostered character made the party. Opponent comparisons appear from {min} games against a faction."
+    },
     "items": {
       "title": "Items",
       "lead": "How often an item makes it into a faction's lists, what it costs and whether it shows in the results.",

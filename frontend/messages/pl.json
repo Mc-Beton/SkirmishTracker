@@ -1280,6 +1280,17 @@
       "lists": "{n} rozpisek · {players} graczy",
       "howToRead": "Różnica z/bez pokazuje wpływ postaci w obrębie frakcji; „ponad oczek.” dodatkowo odejmuje przewagę poziomu graczy, którzy ją wystawiają."
     },
+    "roster": {
+      "title": "Roster a wystawiona drużyna",
+      "lead": "Turnieje w formacie Roster: jak często postać zapisana w rosterze faktycznie wychodzi na stół i przeciw komu zostaje w domu.",
+      "unit": "Postać",
+      "games": "W rosterze",
+      "fielded": "Wystawiana",
+      "most": "Najczęściej przeciw",
+      "least": "Najrzadziej przeciw",
+      "count": "{games} gier · {players} graczy",
+      "howToRead": "Wystawiana = odsetek gier, w których postać z rosteru trafiła do drużyny. Porównania z przeciwnikami pokazujemy od {min} gier przeciw danej frakcji."
+    },
     "items": {
       "title": "Przedmioty",
       "lead": "Jak często przedmiot trafia do rozpisek frakcji, ile kosztuje i czy przekłada się na wyniki.",
