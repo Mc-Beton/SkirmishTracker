@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /** Online tables: create, join by invitation, play (commands), live hints. Players, the judge and allowed observers only. */
-@RestController
+@RestController("onlineTableController") // tournament.web.TableController takes the default name
 @RequestMapping("/api/tables")
 public class TableController {
 

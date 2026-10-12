@@ -44,7 +44,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * the invitation link and a list of their own. Every command is checked by {@link TableEngine} under a row lock
  * and stored as events; watchers get a live hint and refetch {@link TableView}.
  */
-@Service
+@Service("onlineTableService") // tournament.service.TableService takes the default name
 public class TableService {
 
     public static final int MAX_OPEN_TABLES = 10;
