@@ -1,0 +1,7 @@
+package com.skirmishchronicle.table.geo;
+
+/** Environments (rulebook p.74–76, errata FEB 2026). */
+public enum Env {
+    AQUATIC_SHALLOW, AQUATIC_DEEP, DANGEROUS, DARK, DENSE, DIFFICULT, FOREST, FREEZING, HAZY, MANAGMATIC,
+    MOUNTAINOUS, PROFANE_MIASMA, SACRED_GROUND, SCORCHING, SWAMP, TOXIC, UNSCALABLE
+}

@@ -56,13 +56,16 @@ public class LiveEventService {
         final SseEmitter emitter;
         final UUID userId;
         final Set<UUID> tournaments;
+        /** Online table this stream follows (null for tournament/notification streams). */
+        final UUID table;
         final String clientKey;
         volatile boolean closed;
 
-        Client(SseEmitter emitter, UUID userId, Set<UUID> tournaments, String clientKey) {
+        Client(SseEmitter emitter, UUID userId, Set<UUID> tournaments, UUID table, String clientKey) {
             this.emitter = emitter;
             this.userId = userId;
             this.tournaments = tournaments;
+            this.table = table;
             this.clientKey = clientKey;
         }
 
@@ -95,6 +98,15 @@ public class LiveEventService {
         if (tournamentIds.size() > MAX_TOURNAMENTS_PER_STREAM) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "LIVE_TOO_MANY_TOPICS");
         }
+        return openClient(userId, Set.copyOf(tournamentIds), null, clientKey);
+    }
+
+    /** Stream of one online table; the caller has already checked that the user may watch it. */
+    public SseEmitter openTable(UUID userId, UUID tableId, String clientKey) {
+        return openClient(userId, Set.of(), tableId, clientKey);
+    }
+
+    private SseEmitter openClient(UUID userId, Set<UUID> tournamentIds, UUID tableId, String clientKey) {
         if (clients.size() >= MAX_STREAMS_TOTAL) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "LIVE_UNAVAILABLE");
         }
@@ -105,7 +117,7 @@ public class LiveEventService {
         }
 
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MS);
-        Client client = new Client(emitter, userId, Set.copyOf(tournamentIds), clientKey);
+        Client client = new Client(emitter, userId, tournamentIds, tableId, clientKey);
         emitter.onCompletion(() -> remove(client));
         emitter.onTimeout(client::close);
         emitter.onError(e -> client.close());
@@ -130,12 +142,21 @@ public class LiveEventService {
         dispatch(c -> c.tournaments.contains(tournamentId), "tournament", data);
     }
 
+    /** Something happened at an online table; {@code seq} is the newest event, clients refetch the table. */
+    public void tableChanged(UUID tableId, long seq) {
+        dispatch(c -> tableId.equals(c.table), "table", "{\"id\":\"" + tableId + "\",\"seq\":" + seq + "}");
+    }
+
+    public void tableChangedAfterCommit(UUID tableId, long seq) {
+        afterCommit(() -> tableChanged(tableId, seq));
+    }
+
     /** The user's notification inbox changed. */
     public void notificationsChanged(UUID userId) {
         if (userId == null) {
             return;
         }
-        dispatch(c -> userId.equals(c.userId), "notifications", "{}");
+        dispatch(c -> c.table == null && userId.equals(c.userId), "notifications", "{}");
     }
 
     /** Like {@link #tournamentChanged}, but waits for the surrounding transaction to commit (if any). */

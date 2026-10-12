@@ -59,13 +59,15 @@ export function isOfflineError(error: unknown): boolean {
 async function rawRequest(method: string, path: string, body?: unknown): Promise<Response> {
   try {
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    // A Blob (an uploaded picture) goes as the raw body; everything else as JSON.
+    const raw = typeof Blob !== "undefined" && body instanceof Blob;
+    if (body !== undefined) headers["Content-Type"] = raw ? "application/octet-stream" : "application/json";
     if (MUTATING.has(method)) headers["X-XSRF-TOKEN"] = await ensureCsrfToken();
     return await fetch(path, {
       method,
       headers,
       credentials: "same-origin",
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : raw ? (body as Blob) : JSON.stringify(body),
     });
   } catch {
     // fetch() rejects only on network failure (offline, DNS, connection reset) – never on HTTP errors.

@@ -86,7 +86,7 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   (tylko za frontendem / reverse proxy).
 - **Błędy API:** `throw new ApiException(status, "KOD")`, a kod dopisujemy do `errors` w `pl.json` i `en.json`.
 - **Baza:** zmiany wyłącznie nowymi migracjami `V<n>__opis.sql` (Hibernate ma `ddl-auto=validate`).
-  Następna wolna: **V13**.
+  Następna wolna: **V19**.
 - **Teksty UI:** zawsze w obu plikach `messages/pl.json` i `messages/en.json`.
 - **Mobile first:** żaden widok nie może przewijać się na boki na telefonie (~390 px). Tabele na telefonie
   chowają kolumny (`hidden sm:table-cell`) i pokazują skrót pod nazwą.
@@ -224,6 +224,27 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   kodzie, repozytoria w pamięci), tsc/eslint, parytet PL/EN. Nieuruchomione: `ArmyListAndLiveGameIntegrationTest`
   i całe `./gradlew test`, UI w przeglądarce.
 
+## 6h. Gra online (stół) – Etapy 0–3
+
+Pełny opis: `docs/online-play.md`. W skrócie:
+
+- Partie 1v1 w przeglądarce (`/tables`): stół z mapy i rozpiski, przeciwnik dołącza jednorazowym linkiem.
+  Serwer pilnuje ruchu (Walk/Run z efektywnego SPD, cała trasa, teren, wrogowie), rzuca k20 (wiele kości),
+  liczy AP (Upkeep = STA), HP (Incapacitated/Dead), stany zmieniające statystyki i cofanie (tylko aktywny gracz,
+  w swojej turze, nigdy po rzucie kośćmi). Linia wzroku 180° z podświetleniem w przeglądarce.
+- Backend `table/` (geo, rules, engine, library, play), migracja `V18__online_table.sql`, profile modeli
+  `content/eldfall-profiles.json` (`tools/make_profiles.py`). SSE przez `LiveEventService.openTable`.
+- Mapy: admin wgrywa tła (z obszarami wody/lasu) i elementy terenu (ściany z grubością, przeszkody, obszary)
+  w `/admin/table`; gracze układają mapy w `/maps` (prywatne/publiczne), admin publikuje oficjalne.
+- Geometria ma bliźniaka w TS (`frontend/src/lib/table`); zgodność pilnuje `GeometryParityTest` na wektorach
+  z `make-vectors.ts`. Testy TS: `npm run test:table`.
+- Etap 3: scenariusz przy zakładaniu stołu, losowanie scheme kośćmi serwera, żetony, tabela PZ, szablony AoE
+  z podglądem trafionych i LoS, osłona, Awareness, linijka, koniec gry za zgodą i zgłoszenie jako gra własna
+  (`POST /api/tables/{id}/report`).
+- Tryb mierzenia (Assisted/Standard/Realism) wybierany przy zakładaniu stołu; sędzia (link jednorazowy, poprawia
+  wszystkie figurki, cofa dowolne kroki) i obserwatorzy (opcja założyciela, tylko podgląd), tabela `table_watchers`.
+- Nieuruchomione u mnie: `TableIntegrationTest` (Testcontainers), `next build`, UI w przeglądarce, V18 na Postgresie.
+
 ## 7. Dokumentacja w repo
 
 - `docs/game-content-model.md` – model treści gry (frakcje, postacie, scheme, scenariusze).
@@ -231,6 +252,7 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
 - `docs/formats-leagues.md` – eliminacje, round robin, top cut, ligi, ELO, profile, gry własne.
 - `docs/teams-timer-notifications.md` – drużyny, zegar rundy, powiadomienia, wezwanie sędziego.
 - `docs/offline-live.md` – odświeżanie na żywo (SSE), service worker, kolejka zmian offline, test ręczny.
+- `docs/online-play.md` – gra online: zasady w silniku, mapy i teren, API, bezpieczeństwo, plan.
 - Dawny „plan działania” był w Claude Docs na poprzednim koncie – na nowym koncie jest niedostępny;
   jego aktualna treść jest w tym pliku.
 

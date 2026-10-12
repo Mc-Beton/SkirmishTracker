@@ -1,0 +1,1661 @@
+{
+ "version": 1,
+ "source": "Eldfall profile cards (eld docs, 2026-10-12); transcribed by hand, stats only",
+ "units": "inches for distances; mm for hitboxes (25.4 mm = 1 in)",
+ "sizes": {
+  "SMALL": {
+   "baseMm": 25,
+   "heightMm": 25
+  },
+  "MEDIUM": {
+   "baseMm": 32,
+   "heightMm": 45
+  },
+  "LARGE": {
+   "baseMm": 40,
+   "heightMm": 45
+  },
+  "HUGE": {
+   "baseMm": 50,
+   "heightMm": 50
+  },
+  "GIGANTIC": {
+   "baseMm": 60,
+   "heightMm": 60
+  },
+  "COLOSSAL": {
+   "baseMm": 80,
+   "heightMm": 80
+  },
+  "EPIC": {
+   "baseMm": 100,
+   "heightMm": 100
+  }
+ },
+ "templates": {
+  "circularSmallDiameterMm": 70,
+  "circularLargeDiameterMm": 120,
+  "spraySmallLengthMm": 213,
+  "sprayLargeLengthMm": 260
+ },
+ "field": {
+  "widthIn": 36,
+  "heightIn": 36,
+  "deploymentDepthIn": 8
+ },
+ "models": [
+  {
+   "code": "NIGHTSHADE",
+   "name": "Nightshade",
+   "factions": [
+    "COALITION_OF_THENION"
+   ],
+   "classes": [
+    "ASSASSIN",
+    "ROGUE"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 1,
+   "HP": 1,
+   "OFF": 17,
+   "DEF": 8,
+   "ACC": 10,
+   "INT": 13,
+   "AG": 16,
+   "T": 10,
+   "M": 8,
+   "keywords": [
+    "DUAL_WIELD",
+    "FLICKER",
+    "INFILTRATION_II",
+    "STEALTH_II"
+   ]
+  },
+  {
+   "code": "RANGERS_GUILD_HUNTER",
+   "name": "Rangers-Guild Hunter",
+   "factions": [
+    "COALITION_OF_THENION"
+   ],
+   "classes": [
+    "ASSASSIN",
+    "RANGER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 2,
+   "HP": 1,
+   "OFF": 13,
+   "DEF": 8,
+   "ACC": 14,
+   "INT": 10,
+   "AG": 13,
+   "T": 10,
+   "M": 10,
+   "keywords": [
+    "SURVIVAL:FOREST,DIFFICULT",
+    "CLIMBING",
+    "INFILTRATION_I",
+    "STEALTH_II",
+    "TRACKING"
+   ]
+  },
+  {
+   "code": "THENRIN_SWASHBUCKLER",
+   "name": "Thenrin Swashbuckler",
+   "factions": [
+    "COALITION_OF_THENION",
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "ROGUE",
+    "WARRIOR"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 3,
+   "HP": 2,
+   "OFF": 15,
+   "DEF": 10,
+   "ACC": 10,
+   "INT": 11,
+   "AG": 13,
+   "T": 12,
+   "M": 10,
+   "keywords": [
+    "DASH",
+    "DUAL_WIELD"
+   ]
+  },
+  {
+   "code": "NIGHT_TEMPLE_PRIESTESS",
+   "name": "Night-Temple Priestess",
+   "factions": [
+    "COALITION_OF_THENION"
+   ],
+   "classes": [
+    "ENCHANTER",
+    "MAGE"
+   ],
+   "size": "LARGE",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 2,
+   "HP": 1,
+   "OFF": 13,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 14,
+   "AG": 14,
+   "T": 12,
+   "M": 8,
+   "keywords": [
+    "FLIGHT",
+    "LEAP"
+   ]
+  },
+  {
+   "code": "SLAYER_DRAGOON",
+   "name": "Slayer Dragoon",
+   "factions": [
+    "COALITION_OF_THENION",
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "ASSASSIN",
+    "RIDER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 5,
+   "HP": 2,
+   "OFF": 17,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 10,
+   "AG": 12,
+   "T": 12,
+   "M": 15,
+   "keywords": [
+    "DASH",
+    "FOLLOW_UP"
+   ]
+  },
+  {
+   "code": "BLADEBRETHREN_ELITE",
+   "name": "Bladebrethren Elite",
+   "factions": [
+    "COALITION_OF_THENION"
+   ],
+   "classes": [
+    "ROGUE",
+    "WARRIOR"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 3,
+   "HP": 2,
+   "OFF": 16,
+   "DEF": 13,
+   "ACC": 11,
+   "INT": 11,
+   "AG": 14,
+   "T": 12,
+   "M": 12,
+   "keywords": [
+    "DASH",
+    "DUAL_WIELD",
+    "FOLLOW_UP",
+    "STEALTH_I"
+   ]
+  },
+  {
+   "code": "HIRED_BLADE",
+   "name": "Hired Blade",
+   "factions": [
+    "COALITION_OF_THENION",
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "ASSASSIN",
+    "ROGUE"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 1,
+   "HP": 1,
+   "OFF": 15,
+   "DEF": 8,
+   "ACC": 10,
+   "INT": 10,
+   "AG": 14,
+   "T": 10,
+   "M": 8,
+   "keywords": [
+    "DUAL_WIELD",
+    "INFILTRATION_II",
+    "STEALTH_II"
+   ]
+  },
+  {
+   "code": "THAROS_ONE_EYED_WOLF",
+   "name": "Tharos, One-Eyed Wolf",
+   "factions": [
+    "COALITION_OF_THENION"
+   ],
+   "classes": [
+    "ALCHEMIST",
+    "ROGUE"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 3,
+   "HP": 2,
+   "OFF": 13,
+   "DEF": 10,
+   "ACC": 14,
+   "INT": 13,
+   "AG": 13,
+   "T": 12,
+   "M": 12,
+   "keywords": [
+    "CLAIRVOYANCE",
+    "SURVIVAL:DIFFICULT,HAZY",
+    "CLIMBING",
+    "STEALTH_II"
+   ]
+  },
+  {
+   "code": "CLAN_CHAMPION",
+   "name": "Clan Champion",
+   "factions": [
+    "EMPIRE_OF_SOGA"
+   ],
+   "classes": [
+    "ARMSMASTER",
+    "WARRIOR"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 5,
+   "HP": 3,
+   "OFF": 16,
+   "DEF": 12,
+   "ACC": 12,
+   "INT": 13,
+   "AG": 10,
+   "T": 13,
+   "M": 17,
+   "keywords": [
+    "VIGILANCE",
+    "DASH"
+   ]
+  },
+  {
+   "code": "BUSHI_ATTENDANT",
+   "name": "Bushi Attendant",
+   "factions": [
+    "EMPIRE_OF_SOGA"
+   ],
+   "classes": [
+    "WARRIOR"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 4,
+   "HP": 2,
+   "OFF": 12,
+   "DEF": 10,
+   "ACC": 12,
+   "INT": 10,
+   "AG": 10,
+   "T": 13,
+   "M": 16,
+   "keywords": []
+  },
+  {
+   "code": "ONITAOSHI",
+   "name": "Onitaoshi",
+   "factions": [
+    "EMPIRE_OF_SOGA",
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "ARMSMASTER",
+    "WARRIOR"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 6,
+   "HP": 3,
+   "OFF": 16,
+   "DEF": 10,
+   "ACC": 8,
+   "INT": 10,
+   "AG": 10,
+   "T": 13,
+   "M": 17,
+   "keywords": []
+  },
+  {
+   "code": "KITSUNE_SPELLMAIDEN",
+   "name": "Kitsune Spellmaiden",
+   "factions": [
+    "EMPIRE_OF_SOGA"
+   ],
+   "classes": [
+    "MYSTIC"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 1,
+   "HP": 1,
+   "OFF": 8,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 14,
+   "AG": 14,
+   "T": 8,
+   "M": 15,
+   "keywords": [
+    "ACUTE_SENSES",
+    "VIGILANCE"
+   ]
+  },
+  {
+   "code": "MUSHA_BOWMASTER",
+   "name": "Musha Bowmaster",
+   "factions": [
+    "EMPIRE_OF_SOGA"
+   ],
+   "classes": [
+    "MARKSMAN",
+    "WARRIOR"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 2,
+   "HP": 2,
+   "OFF": 12,
+   "DEF": 12,
+   "ACC": 14,
+   "INT": 10,
+   "AG": 11,
+   "T": 13,
+   "M": 17,
+   "keywords": []
+  },
+  {
+   "code": "MUSHA_BLADEMASTER",
+   "name": "Musha Blademaster",
+   "factions": [
+    "EMPIRE_OF_SOGA",
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "BERSERKER",
+    "WARRIOR"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 2,
+   "HP": 2,
+   "OFF": 14,
+   "DEF": 12,
+   "ACC": 12,
+   "INT": 10,
+   "AG": 11,
+   "T": 13,
+   "M": 17,
+   "keywords": []
+  },
+  {
+   "code": "SCHOLAR_OF_THE_TRUE_WORD",
+   "name": "Scholar of the True Word",
+   "factions": [
+    "EMPIRE_OF_SOGA",
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "ARTIFICER",
+    "MYSTIC"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 1,
+   "HP": 2,
+   "OFF": 12,
+   "DEF": 12,
+   "ACC": 8,
+   "INT": 13,
+   "AG": 10,
+   "T": 13,
+   "M": 16,
+   "keywords": []
+  },
+  {
+   "code": "GREAT_GUARD",
+   "name": "Great Guard",
+   "factions": [
+    "EMPIRE_OF_SOGA"
+   ],
+   "classes": [
+    "SENTINEL",
+    "WARRIOR"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 4,
+   "ARM": 7,
+   "HP": 3,
+   "OFF": 12,
+   "DEF": 16,
+   "ACC": 10,
+   "INT": 10,
+   "AG": 8,
+   "T": 13,
+   "M": 17,
+   "keywords": [
+    "VIGILANCE",
+    "WATCHFUL"
+   ]
+  },
+  {
+   "code": "SEIGEN_OF_THE_KESHOBARAI",
+   "name": "Seigen, of the Keshōbarai",
+   "factions": [
+    "EMPIRE_OF_SOGA"
+   ],
+   "classes": [
+    "RANGER",
+    "SENTINEL"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 6,
+   "HP": 3,
+   "OFF": 14,
+   "DEF": 16,
+   "ACC": 12,
+   "INT": 13,
+   "AG": 11,
+   "T": 13,
+   "M": 17,
+   "keywords": [
+    "VIGILANCE"
+   ]
+  },
+  {
+   "code": "EXPEDITIONARY_HIEROPHANT",
+   "name": "Expeditionary Hierophant",
+   "factions": [
+    "HELIAN_LEAGUE"
+   ],
+   "classes": [
+    "MAGE",
+    "VITALIST"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 4,
+   "HP": 1,
+   "OFF": 8,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 15,
+   "AG": 11,
+   "T": 8,
+   "M": 12,
+   "keywords": [
+    "CLAIRVOYANCE"
+   ]
+  },
+  {
+   "code": "CITADEL_GUARD",
+   "name": "Citadel Guard",
+   "factions": [
+    "HELIAN_LEAGUE"
+   ],
+   "classes": [
+    "SENTINEL",
+    "SOLDIER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 4,
+   "ARM": 6,
+   "HP": 2,
+   "OFF": 12,
+   "DEF": 16,
+   "ACC": 8,
+   "INT": 12,
+   "AG": 10,
+   "T": 12,
+   "M": 14,
+   "keywords": [
+    "VIGILANCE",
+    "FOLLOW_UP"
+   ]
+  },
+  {
+   "code": "FLAMESHAPER",
+   "name": "Flameshaper",
+   "factions": [
+    "HELIAN_LEAGUE"
+   ],
+   "classes": [
+    "SOLDIER",
+    "SORCERER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 1,
+   "HP": 1,
+   "OFF": 8,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 12,
+   "AG": 12,
+   "T": 8,
+   "M": 12,
+   "keywords": []
+  },
+  {
+   "code": "HELRIN_EXPATRIATE",
+   "name": "Helrin Expatriate",
+   "factions": [
+    "HELIAN_LEAGUE",
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "ARTIFICER",
+    "RANGER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 6,
+   "HP": 2,
+   "OFF": 13,
+   "DEF": 13,
+   "ACC": 8,
+   "INT": 10,
+   "AG": 10,
+   "T": 12,
+   "M": 16,
+   "keywords": [
+    "SURVIVAL:DIFFICULT,FOREST"
+   ]
+  },
+  {
+   "code": "FLAMEWEAVER_ERRANT",
+   "name": "Flameweaver Errant",
+   "factions": [
+    "HELIAN_LEAGUE"
+   ],
+   "classes": [
+    "ARTIFICER",
+    "SOLDIER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 2,
+   "OFF": 14,
+   "DEF": 14,
+   "ACC": 8,
+   "INT": 13,
+   "AG": 12,
+   "T": 12,
+   "M": 16,
+   "keywords": []
+  },
+  {
+   "code": "FLAMEWEAVER_NOBLE",
+   "name": "Flameweaver Noble",
+   "factions": [
+    "HELIAN_LEAGUE"
+   ],
+   "classes": [
+    "ENCHANTER",
+    "MAGE"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 2,
+   "OFF": 8,
+   "DEF": 10,
+   "ACC": 8,
+   "INT": 14,
+   "AG": 12,
+   "T": 8,
+   "M": 12,
+   "keywords": []
+  },
+  {
+   "code": "PALADIN_OF_THE_ORDER",
+   "name": "Paladin of the Order",
+   "factions": [
+    "HELIAN_LEAGUE"
+   ],
+   "classes": [
+    "MYSTIC",
+    "SOLDIER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 6,
+   "HP": 2,
+   "OFF": 14,
+   "DEF": 14,
+   "ACC": 10,
+   "INT": 12,
+   "AG": 10,
+   "T": 12,
+   "M": 15,
+   "keywords": []
+  },
+  {
+   "code": "EONIAN_RUNNER",
+   "name": "Eonian Runner",
+   "factions": [
+    "HELIAN_LEAGUE",
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "RANGER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 3,
+   "HP": 2,
+   "OFF": 12,
+   "DEF": 10,
+   "ACC": 14,
+   "INT": 8,
+   "AG": 12,
+   "T": 13,
+   "M": 12,
+   "keywords": [
+    "TRACKING",
+    "LEAP",
+    "HIT_AND_RETREAT"
+   ]
+  },
+  {
+   "code": "ANARI_ERUDITE_PRODIGY",
+   "name": "Anari, Erudite Prodigy",
+   "factions": [
+    "HELIAN_LEAGUE"
+   ],
+   "classes": [
+    "ENCHANTER",
+    "MAGE"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 2,
+   "OFF": 9,
+   "DEF": 9,
+   "ACC": 8,
+   "INT": 16,
+   "AG": 12,
+   "T": 8,
+   "M": 12,
+   "keywords": []
+  },
+  {
+   "code": "VIZIER_OF_CONJURATIONS",
+   "name": "Vizier of Conjurations",
+   "factions": [
+    "SAND_KINGDOMS"
+   ],
+   "classes": [
+    "MAGE",
+    "SUMMONER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 0,
+   "HP": 1,
+   "OFF": 8,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 16,
+   "AG": 10,
+   "T": 8,
+   "M": 8,
+   "keywords": []
+  },
+  {
+   "code": "ACADEMY_EXPEDITIONER",
+   "name": "Academy Expeditioner",
+   "factions": [
+    "SAND_KINGDOMS"
+   ],
+   "classes": [
+    "MAGE",
+    "SORCERER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 4,
+   "HP": 2,
+   "OFF": 10,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 14,
+   "AG": 10,
+   "T": 10,
+   "M": 12,
+   "keywords": [
+    "SURVIVAL:SCORCHING"
+   ]
+  },
+  {
+   "code": "TASKMAGE_EXPLORER",
+   "name": "Taskmage Explorer",
+   "factions": [
+    "SAND_KINGDOMS",
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "MAGE",
+    "WIZARD"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 0,
+   "HP": 1,
+   "OFF": 8,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 14,
+   "AG": 12,
+   "T": 10,
+   "M": 12,
+   "keywords": [
+    "SURVIVAL:SCORCHING",
+    "STEALTH_I",
+    "TRACKING"
+   ]
+  },
+  {
+   "code": "FARIS_OUTRIDER",
+   "name": "Faris Outrider",
+   "factions": [
+    "SAND_KINGDOMS"
+   ],
+   "classes": [
+    "ARTIFICER",
+    "ROGUE"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 1,
+   "HP": 2,
+   "OFF": 14,
+   "DEF": 11,
+   "ACC": 8,
+   "INT": 13,
+   "AG": 12,
+   "T": 13,
+   "M": 12,
+   "keywords": [
+    "SURVIVAL:SCORCHING",
+    "FOLLOW_UP",
+    "STEALTH_I"
+   ]
+  },
+  {
+   "code": "SPELLDANCER_VOIDCASTER",
+   "name": "Spelldancer Voidcaster",
+   "factions": [
+    "SAND_KINGDOMS"
+   ],
+   "classes": [
+    "ARTIFICER",
+    "WIZARD"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 0,
+   "HP": 1,
+   "OFF": 8,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 12,
+   "AG": 14,
+   "T": 8,
+   "M": 12,
+   "keywords": [
+    "SURVIVAL:SCORCHING",
+    "HIT_AND_RETREAT"
+   ]
+  },
+  {
+   "code": "SPELLDANCER_AEROTURGE",
+   "name": "Spelldancer Aeroturge",
+   "factions": [
+    "SAND_KINGDOMS"
+   ],
+   "classes": [
+    "ENCHANTER",
+    "MAGE"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 0,
+   "HP": 1,
+   "OFF": 8,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 12,
+   "AG": 14,
+   "T": 8,
+   "M": 12,
+   "keywords": [
+    "SURVIVAL:SCORCHING"
+   ]
+  },
+  {
+   "code": "NARA_VEIL_WATCHER",
+   "name": "Na’ra, Veil Watcher",
+   "factions": [
+    "SAND_KINGDOMS"
+   ],
+   "classes": [
+    "ARTIFICER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 7,
+   "ARM": 0,
+   "HP": 2,
+   "OFF": 15,
+   "DEF": 12,
+   "ACC": 8,
+   "INT": 13,
+   "AG": 13,
+   "T": 12,
+   "M": 14,
+   "keywords": [
+    "ACUTE_SENSES",
+    "SURVIVAL:SCORCHING,DARK",
+    "CLIMBING",
+    "DASH",
+    "HIT_AND_RETREAT",
+    "LEAP",
+    "STEALTH_I"
+   ]
+  },
+  {
+   "code": "ONI_MARAUDER",
+   "name": "Oni Marauder",
+   "factions": [
+    "ONI_CLANS"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "HUGE",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 4,
+   "OFF": 14,
+   "DEF": 10,
+   "ACC": 8,
+   "INT": 8,
+   "AG": 8,
+   "T": 15,
+   "M": 14,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "LEAP"
+   ]
+  },
+  {
+   "code": "RED_RASETSU",
+   "name": "Red Rasetsu",
+   "factions": [
+    "ONI_CLANS"
+   ],
+   "classes": [
+    "BERSERKER"
+   ],
+   "size": "MEDIUM",
+   "STA": 3,
+   "SPD": 6,
+   "ARM": 3,
+   "HP": 6,
+   "OFF": 16,
+   "DEF": 13,
+   "ACC": 13,
+   "INT": 10,
+   "AG": 13,
+   "T": 15,
+   "M": 16,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "DASH",
+    "LEAP"
+   ]
+  },
+  {
+   "code": "BLUE_RASETSU",
+   "name": "Blue Rasetsu",
+   "factions": [
+    "ONI_CLANS"
+   ],
+   "classes": [
+    "SENTINEL"
+   ],
+   "size": "MEDIUM",
+   "STA": 3,
+   "SPD": 6,
+   "ARM": 3,
+   "HP": 4,
+   "OFF": 13,
+   "DEF": 16,
+   "ACC": 13,
+   "INT": 15,
+   "AG": 13,
+   "T": 15,
+   "M": 16,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "VIGILANCE"
+   ]
+  },
+  {
+   "code": "RED_YAKSHA",
+   "name": "Red Yaksha",
+   "factions": [
+    "ONI_CLANS"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "LARGE",
+   "STA": 3,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 5,
+   "OFF": 16,
+   "DEF": 12,
+   "ACC": 8,
+   "INT": 12,
+   "AG": 13,
+   "T": 15,
+   "M": 14,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "DASH",
+    "HIT_AND_RETREAT",
+    "LEAP",
+    "STEALTH_I"
+   ]
+  },
+  {
+   "code": "BLUE_YAKSHA",
+   "name": "Blue Yaksha",
+   "factions": [
+    "ONI_CLANS"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "LARGE",
+   "STA": 3,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 4,
+   "OFF": 15,
+   "DEF": 13,
+   "ACC": 10,
+   "INT": 12,
+   "AG": 14,
+   "T": 15,
+   "M": 14,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "FLICKER",
+    "HIT_AND_RETREAT",
+    "STEALTH_I"
+   ]
+  },
+  {
+   "code": "CHIYOHIME",
+   "name": "Chiyohime",
+   "factions": [
+    "ONI_CLANS"
+   ],
+   "classes": [
+    "MAGE",
+    "SORCERER"
+   ],
+   "size": "MEDIUM",
+   "STA": 3,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 4,
+   "OFF": 12,
+   "DEF": 12,
+   "ACC": 10,
+   "INT": 17,
+   "AG": 13,
+   "T": 15,
+   "M": 16,
+   "keywords": [
+    "SURVIVAL:DIFFICULT"
+   ]
+  },
+  {
+   "code": "ONI_PARIAH",
+   "name": "Oni Pariah",
+   "factions": [
+    "ONI_CLANS"
+   ],
+   "classes": [
+    "CREATURE",
+    "BERSERKER"
+   ],
+   "size": "GIGANTIC",
+   "STA": 3,
+   "SPD": 5,
+   "ARM": 4,
+   "HP": 8,
+   "OFF": 16,
+   "DEF": 10,
+   "ACC": 8,
+   "INT": 8,
+   "AG": 8,
+   "T": 17,
+   "M": 18,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "UNSTOPPABLE"
+   ]
+  },
+  {
+   "code": "CHANRA_GOBLIN_SHAMAN",
+   "name": "Chanra, Goblin Shaman",
+   "factions": [
+    "GOBLIN_WARTRIBES"
+   ],
+   "classes": [
+    "MYSTIC",
+    "RANGER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 0,
+   "HP": 3,
+   "OFF": 12,
+   "DEF": 10,
+   "ACC": 10,
+   "INT": 13,
+   "AG": 12,
+   "T": 12,
+   "M": 15,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "HIT_AND_RETREAT",
+    "INFILTRATION_I"
+   ]
+  },
+  {
+   "code": "GOBLIN_SHAMAN",
+   "name": "Goblin Shaman",
+   "factions": [
+    "GOBLIN_WARTRIBES"
+   ],
+   "classes": [
+    "MYSTIC",
+    "RANGER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 0,
+   "HP": 2,
+   "OFF": 12,
+   "DEF": 10,
+   "ACC": 10,
+   "INT": 12,
+   "AG": 12,
+   "T": 12,
+   "M": 14,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "HIT_AND_RETREAT",
+    "INFILTRATION_I"
+   ]
+  },
+  {
+   "code": "GOBLIN_BRAWLERS",
+   "name": "Goblin Brawlers",
+   "factions": [
+    "GOBLIN_WARTRIBES"
+   ],
+   "classes": [
+    "SOLDIER"
+   ],
+   "size": "SMALL",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 1,
+   "OFF": 10,
+   "DEF": 10,
+   "ACC": 8,
+   "INT": 6,
+   "AG": 10,
+   "T": 12,
+   "M": 8,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "CLIMBING",
+    "INFILTRATION_I"
+   ]
+  },
+  {
+   "code": "GOBLIN_SKIRMISHERS",
+   "name": "Goblin Skirmishers",
+   "factions": [
+    "GOBLIN_WARTRIBES"
+   ],
+   "classes": [
+    "SOLDIER"
+   ],
+   "size": "SMALL",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 1,
+   "HP": 1,
+   "OFF": 8,
+   "DEF": 8,
+   "ACC": 10,
+   "INT": 6,
+   "AG": 10,
+   "T": 10,
+   "M": 8,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "CLIMBING",
+    "INFILTRATION_I"
+   ]
+  },
+  {
+   "code": "GOBLIN_WARCHIEF",
+   "name": "Goblin Warchief",
+   "factions": [
+    "GOBLIN_WARTRIBES"
+   ],
+   "classes": [
+    "SOLDIER"
+   ],
+   "size": "LARGE",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 5,
+   "OFF": 14,
+   "DEF": 10,
+   "ACC": 8,
+   "INT": 8,
+   "AG": 8,
+   "T": 14,
+   "M": 12,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "INFILTRATION_I"
+   ]
+  },
+  {
+   "code": "TROLL_PROWLER",
+   "name": "Troll Prowler",
+   "factions": [
+    "GOBLIN_WARTRIBES"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "HUGE",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 6,
+   "OFF": 16,
+   "DEF": 8,
+   "ACC": 10,
+   "INT": 6,
+   "AG": 8,
+   "T": 15,
+   "M": 10,
+   "keywords": [
+    "SURVIVAL:AQUATIC,DIFFICULT,TOXIC",
+    "INFILTRATION_I"
+   ]
+  },
+  {
+   "code": "VENGEFUL_SPIRIT",
+   "name": "Vengeful Spirit",
+   "factions": [
+    "UNDEAD"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 0,
+   "HP": 1,
+   "OFF": 10,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 6,
+   "AG": 8,
+   "T": 10,
+   "M": 20,
+   "keywords": [
+    "INCORPOREAL",
+    "INFILTRATION_I",
+    "STEALTH_I"
+   ]
+  },
+  {
+   "code": "BONEWALKER",
+   "name": "Bonewalker",
+   "factions": [
+    "UNDEAD"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 2,
+   "HP": 1,
+   "OFF": 10,
+   "DEF": 10,
+   "ACC": 8,
+   "INT": 6,
+   "AG": 8,
+   "T": 10,
+   "M": 20,
+   "keywords": []
+  },
+  {
+   "code": "FORGOTTEN_HERO",
+   "name": "Forgotten Hero",
+   "factions": [
+    "UNDEAD"
+   ],
+   "classes": [
+    "WARRIOR",
+    "MARKSMAN"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 6,
+   "HP": 2,
+   "OFF": 14,
+   "DEF": 14,
+   "ACC": 14,
+   "INT": 8,
+   "AG": 8,
+   "T": 13,
+   "M": 20,
+   "keywords": [
+    "VIGILANCE"
+   ]
+  },
+  {
+   "code": "AMAZON_GLADIATRIX",
+   "name": "Amazon Gladiatrix",
+   "factions": [
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "BERSERKER"
+   ],
+   "size": "MEDIUM",
+   "STA": 3,
+   "SPD": 5,
+   "ARM": 2,
+   "HP": 3,
+   "OFF": 16,
+   "DEF": 12,
+   "ACC": 8,
+   "INT": 8,
+   "AG": 12,
+   "T": 14,
+   "M": 16,
+   "keywords": [
+    "SURVIVAL:SCORCHING"
+   ]
+  },
+  {
+   "code": "TOMOE_ENDLESS_RAIN",
+   "name": "Tomoe, Endless Rain",
+   "factions": [
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "MAGE",
+    "MYSTIC",
+    "SORCERER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 1,
+   "HP": 2,
+   "OFF": 10,
+   "DEF": 10,
+   "ACC": 12,
+   "INT": 10,
+   "AG": 12,
+   "T": 10,
+   "M": 14,
+   "keywords": []
+  },
+  {
+   "code": "RENEGADE_RASETSU",
+   "name": "Renegade Rasetsu",
+   "factions": [
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "BERSERKER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 6,
+   "ARM": 3,
+   "HP": 4,
+   "OFF": 16,
+   "DEF": 13,
+   "ACC": 8,
+   "INT": 10,
+   "AG": 13,
+   "T": 15,
+   "M": 16,
+   "keywords": [
+    "SURVIVAL:DIFFICULT",
+    "DASH",
+    "LEAP"
+   ]
+  },
+  {
+   "code": "KOGETSU_CURSED_MONK",
+   "name": "Kogetsu, Cursed Monk",
+   "factions": [
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "WARRIOR",
+    "SENTINEL"
+   ],
+   "size": "LARGE",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 3,
+   "HP": 3,
+   "OFF": 14,
+   "DEF": 16,
+   "ACC": 10,
+   "INT": 10,
+   "AG": 10,
+   "T": 13,
+   "M": 14,
+   "keywords": [
+    "VIGILANCE",
+    "LEAP"
+   ]
+  },
+  {
+   "code": "GUILDSWORN_KNIGHT",
+   "name": "Guildsworn Knight",
+   "factions": [
+    "ADVENTURERS_GUILD"
+   ],
+   "classes": [
+    "WARRIOR",
+    "ARMSMASTER"
+   ],
+   "size": "MEDIUM",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 7,
+   "HP": 4,
+   "OFF": 15,
+   "DEF": 15,
+   "ACC": 12,
+   "INT": 13,
+   "AG": 8,
+   "T": 14,
+   "M": 17,
+   "keywords": [
+    "FOLLOW_UP"
+   ]
+  },
+  {
+   "code": "BLIGHTED_RIFTSPAWN",
+   "name": "Blighted Riftspawn",
+   "factions": [
+    "UNDEAD"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "EPIC",
+   "STA": 3,
+   "SPD": 4,
+   "ARM": 4,
+   "HP": 16,
+   "OFF": 16,
+   "DEF": 13,
+   "ACC": 8,
+   "INT": 8,
+   "AG": 8,
+   "T": 18,
+   "M": 20,
+   "keywords": [
+    "UNSTOPPABLE",
+    "VIGILANCE"
+   ]
+  },
+  {
+   "code": "WATER_ELEMENTAL",
+   "name": "Water Elemental",
+   "factions": [
+    "CREATURES"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "GIGANTIC",
+   "STA": 2,
+   "SPD": 4,
+   "ARM": 2,
+   "HP": 5,
+   "OFF": 14,
+   "DEF": 14,
+   "ACC": 14,
+   "INT": 8,
+   "AG": 8,
+   "T": 14,
+   "M": 20,
+   "keywords": [
+    "SURVIVAL:AQUATIC",
+    "VIGILANCE"
+   ]
+  },
+  {
+   "code": "GARGOYLE",
+   "name": "Gargoyle",
+   "factions": [
+    "CREATURES"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "SMALL",
+   "STA": 2,
+   "SPD": 5,
+   "ARM": 5,
+   "HP": 1,
+   "OFF": 12,
+   "DEF": 8,
+   "ACC": 8,
+   "INT": 8,
+   "AG": 8,
+   "T": 12,
+   "M": 20,
+   "keywords": [
+    "SURVIVAL:SCORCHING",
+    "CLIMBING",
+    "LEAP"
+   ]
+  },
+  {
+   "code": "GOLEM",
+   "name": "Golem",
+   "factions": [
+    "CREATURES"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "HUGE",
+   "STA": 2,
+   "SPD": 3,
+   "ARM": 8,
+   "HP": 3,
+   "OFF": 10,
+   "DEF": 13,
+   "ACC": 8,
+   "INT": 8,
+   "AG": 6,
+   "T": 15,
+   "M": 20,
+   "keywords": [
+    "SURVIVAL:SCORCHING"
+   ]
+  },
+  {
+   "code": "EARTH_ELEMENTAL",
+   "name": "Earth Elemental",
+   "factions": [
+    "CREATURES"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "GIGANTIC",
+   "STA": 2,
+   "SPD": 4,
+   "ARM": 10,
+   "HP": 4,
+   "OFF": 12,
+   "DEF": 14,
+   "ACC": 10,
+   "INT": 8,
+   "AG": 6,
+   "T": 16,
+   "M": 20,
+   "keywords": [
+    "SURVIVAL:FOREST,SCORCHING,SWAMP",
+    "WATCHFUL"
+   ]
+  },
+  {
+   "code": "COLOSSUS",
+   "name": "Colossus",
+   "factions": [
+    "CREATURES"
+   ],
+   "classes": [
+    "CREATURE"
+   ],
+   "size": "COLOSSAL",
+   "STA": 3,
+   "SPD": 4,
+   "ARM": 10,
+   "HP": 6,
+   "OFF": 14,
+   "DEF": 14,
+   "ACC": 8,
+   "INT": 8,
+   "AG": 6,
+   "T": 17,
+   "M": 20,
+   "keywords": [
+    "SURVIVAL:SCORCHING",
+    "UNSTOPPABLE"
+   ]
+  }
+ ],
+ "mounts": [
+  {
+   "code": "LUPUS_REX",
+   "name": "Lupus Rex",
+   "factions": [
+    "COALITION_OF_THENION"
+   ],
+   "size": "HUGE",
+   "set": {
+    "SPD": 9
+   },
+   "mod": {
+    "ARM": -2,
+    "HP": 1,
+    "DEF": 3,
+    "T": 2
+   },
+   "keywords": [
+    "ACUTE_SENSES",
+    "VIGILANCE",
+    "HIT_AND_RETREAT"
+   ]
+  }
+ ]
+}
