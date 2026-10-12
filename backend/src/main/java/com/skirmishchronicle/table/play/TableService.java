@@ -129,7 +129,7 @@ public class TableService {
         }
         String watchInvite = observers ? Tokens.newToken() : null;
         t.observers(observers, watchInvite == null ? null : Tokens.sha256(watchInvite));
-        tables.save(t);
+        tables.saveAndFlush(t); // the event log (plain JDBC) references the row
         appendSystem(t, models(0, list));
         return new Created(t.getId(), invite, judgeInvite, watchInvite);
     }
