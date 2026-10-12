@@ -41,6 +41,10 @@ public class Warband extends AbstractEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String units;
 
+    /** The owner's saved list this was copied from (informational; deleting the saved list clears it). */
+    @Column(name = "source_list_id")
+    private UUID sourceListId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -77,6 +81,14 @@ public class Warband extends AbstractEntity {
         this.totalPoints = totalPoints;
         this.units = unitsJson;
         this.updatedAt = Instant.now();
+    }
+
+    public UUID getSourceListId() {
+        return sourceListId;
+    }
+
+    public void setSourceListId(UUID sourceListId) {
+        this.sourceListId = sourceListId;
     }
 
     @Override

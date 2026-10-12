@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -57,6 +58,22 @@ public class FriendlyGameController {
         }
     }
 
+    public record StartRequest(@NotNull UUID opponentId,
+                               @NotNull LocalDate playedOn,
+                               @Size(max = 60) String scenarioCode,
+                               @Size(max = 60) String myFaction,
+                               @Size(max = 60) String opponentFaction,
+                               UUID leagueId,
+                               @Size(max = 500) String notes,
+                               @Valid ListRequest myList,
+                               @Valid ListRequest opponentList) {
+    }
+
+    public record TurnRequest(@NotNull UUID playerId,
+                              @NotNull @Min(0) @Max(100) Integer scenarioVp,
+                              @NotNull @Min(0) @Max(100) Integer schemeVp) {
+    }
+
     private final FriendlyGameService games;
 
     public FriendlyGameController(FriendlyGameService games) {
@@ -77,6 +94,41 @@ public class FriendlyGameController {
                 body.myList() == null ? null : body.myList().toList(),
                 body.opponentList() == null ? null : body.opponentList().toList()));
         return Map.of("id", id);
+    }
+
+    /** Starts a game played in the app (points turn by turn, finished later). */
+    @PostMapping("/live")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, UUID> start(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody StartRequest body) {
+        UUID id = games.start(CurrentUser.from(jwt), new FriendlyGameService.Start(body.opponentId(), body.playedOn(),
+                blank(body.scenarioCode()), blank(body.myFaction()), blank(body.opponentFaction()), body.leagueId(),
+                body.notes(), body.myList() == null ? null : body.myList().toList(),
+                body.opponentList() == null ? null : body.opponentList().toList()));
+        return Map.of("id", id);
+    }
+
+    @GetMapping("/{id}")
+    public FriendlyGameService.LiveView detail(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        return games.detail(CurrentUser.from(jwt), id);
+    }
+
+    @PutMapping("/{id}/turns/{turn}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void saveTurn(@PathVariable UUID id, @PathVariable int turn, @AuthenticationPrincipal Jwt jwt,
+                         @Valid @RequestBody TurnRequest body) {
+        games.saveTurn(CurrentUser.from(jwt), id, body.playerId(), turn, body.scenarioVp(), body.schemeVp());
+    }
+
+    @PostMapping("/{id}/finish")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void finish(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        games.finish(CurrentUser.from(jwt), id);
+    }
+
+    @PostMapping("/{id}/reopen")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reopen(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        games.reopen(CurrentUser.from(jwt), id);
     }
 
     @PostMapping("/{id}/confirm")

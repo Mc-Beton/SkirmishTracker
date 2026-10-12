@@ -15,6 +15,7 @@ public enum NotificationType {
     TEAM_INVITATION,
     LINEUP_REQUIRED,
     // own games & leagues
+    GAME_STARTED,
     GAME_TO_CONFIRM,
     GAME_CONFIRMED,
     GAME_REJECTED,

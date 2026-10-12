@@ -32,6 +32,8 @@ const API_CACHEABLE = [
   /^\/api\/tournaments\/[0-9a-f-]{36}$/i,
   /^\/api\/tournaments\/[0-9a-f-]{36}\/(participants|rounds|standings|challenges|teams|team-standings|leagues|judge-calls|warbands|warbands\/me)$/i,
   /^\/api\/tournaments\/[0-9a-f-]{36}\/matches\/[0-9a-f-]{36}\/(game|party)$/i,
+  // An own game played in the app (points turn by turn at the table).
+  /^\/api\/games\/[0-9a-f-]{36}$/i,
 ];
 
 self.addEventListener("install", (event) => {

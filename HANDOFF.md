@@ -203,6 +203,27 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
 - Demo: turnieje od 1.07.2026 są w formacie Roster; Paladyn Zakonu zostaje w domu przeciw Oni (~14% wystawień).
 - Nieuruchomione u mnie: `RosterFlowIntegrationTest` i całe `./gradlew test`, UI w przeglądarce.
 
+## 6g. Moje rozpiski i gry własne runda po rundzie
+
+- **Moje rozpiski** (`/lists`, API `/api/army-lists`, pakiet `armylist`, migracja `V17`): numer gracza (#1, #2…),
+  nazwa, Classic/Roster, frakcja, punkty liczone z aktualnych kosztów (znaczek „koszty się zmieniły” po erracie).
+  Te same reguły co rozpiska turniejowa (`WarbandService.validateList`), bez limitu punktów. Duplikuj,
+  „zrób roster” (kopia bez lidera), usuń. Prywatne – tylko właściciel widzi swoje.
+- **Kopia, nie odnośnik:** wybór rozpiski przy zapisie na turniej (edytor rozpiski turniejowej) lub w grze
+  własnej kopiuje ją. Raporty i meta czytają kopie, więc edycja zapisanej rozpiski nie zmienia historii.
+  `warbands.source_list_id` pamięta tylko pochodzenie (ON DELETE SET NULL): edytor pokazuje „kopia #3”,
+  „zmieniona względem oryginału”, przyciski „Zaktualizuj też #3” / „Zapisz jako nową”.
+- **Gry własne runda po rundzie:** `POST /api/games/live` (status `IN_PROGRESS`), `/games/{id}` – ta sama tabela tur
+  co w turnieju (`components/game/turn-grid.tsx`), oboje gracze wpisują punkty obu stron, na żywo i offline.
+  „Zakończ grę” zgłasza sumę (status `PENDING`), drugi gracz potwierdza; „Wróć do gry” (reopen) przed
+  potwierdzeniem; „Porzuć grę” w trakcie. Dalej można też wpisać od razu wynik końcowy. Max 5 gier w trakcie.
+  Potwierdza zawsze gracz, który nie zgłosił wyniku (wcześniej: zawsze gracz B).
+- **ELO:** gry własne liczą się do ELO (i ligi) dopiero po potwierdzeniu – gry w trakcie i czekające nie.
+  Punkty tur gier własnych trafiają do statystyk przebiegu gry w raportach.
+- Sprawdzone u mnie: kompilacja backendu, migracja V17 na Postgresie, logika serwisów (harness na prawdziwym
+  kodzie, repozytoria w pamięci), tsc/eslint, parytet PL/EN. Nieuruchomione: `ArmyListAndLiveGameIntegrationTest`
+  i całe `./gradlew test`, UI w przeglądarce.
+
 ## 7. Dokumentacja w repo
 
 - `docs/game-content-model.md` – model treści gry (frakcje, postacie, scheme, scenariusze).

@@ -12,7 +12,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** A game outside tournaments. Counts for ELO (and optionally one league) once the opponent confirms it. */
+/**
+ * A game outside tournaments. Counts for ELO (and optionally one league) once the opponent confirms it.
+ * Either reported with the final score, or played in the app turn by turn (IN_PROGRESS, then finished).
+ */
 @Entity
 @Table(name = "friendly_games")
 public class FriendlyGame extends AbstractEntity {
@@ -95,6 +98,28 @@ public class FriendlyGame extends AbstractEntity {
         this.createdAt = Instant.now();
     }
 
+    /** A game played in the app: points come from the turns; whoever finishes it reports the totals. */
+    public static FriendlyGame live(UUID starter, UUID opponent, LocalDate playedOn, String scenarioCode,
+                                    String starterFaction, String opponentFaction, UUID leagueId, String notes) {
+        FriendlyGame g = new FriendlyGame(starter, opponent, 0, 0, playedOn, scenarioCode, starterFaction,
+                opponentFaction, leagueId, notes);
+        g.status = FriendlyGameStatus.IN_PROGRESS;
+        return g;
+    }
+
+    /** Ends a game played in the app: the totals become the reported result, the other player confirms. */
+    public void finish(UUID by, int scoreA, int scoreB) {
+        this.smallA = scoreA;
+        this.smallB = scoreB;
+        this.reportedBy = by;
+        this.status = FriendlyGameStatus.PENDING;
+    }
+
+    /** Back to the table (finished too early or a wrong turn): the result waits for a new finish. */
+    public void reopen() {
+        this.status = FriendlyGameStatus.IN_PROGRESS;
+    }
+
     public void setLists(String listA, String listB) {
         this.listA = listA;
         this.listB = listB;
@@ -115,6 +140,11 @@ public class FriendlyGame extends AbstractEntity {
 
     public boolean involves(UUID userId) {
         return playerA.equals(userId) || playerB.equals(userId);
+    }
+
+    /** The other player of the game. */
+    public UUID opponentOf(UUID userId) {
+        return playerA.equals(userId) ? playerB : playerA;
     }
 
     @Override

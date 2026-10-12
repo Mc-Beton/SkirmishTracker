@@ -78,6 +78,7 @@ public class AnalyticsService {
     private final TurnScoreRepository turnScores;
     private final SchemeDrawRepository schemeDraws;
     private final MatchPartyRepository parties;
+    private final com.skirmishchronicle.friendly.FriendlyTurnScoreRepository friendlyTurns;
     private final Map<String, ArmyContent.Unit> unitByCode = new HashMap<>();
     private final Map<String, ArmyContent.Item> itemByCode = new HashMap<>();
     private volatile Cache cache;
@@ -85,7 +86,9 @@ public class AnalyticsService {
     public AnalyticsService(RatingService ratings, TournamentRepository tournaments, MatchRepository matches,
                             RoundRepository rounds, WarbandRepository warbands, FriendlyGameRepository friendly,
                             ObjectMapper mapper, ContentService content, TurnScoreRepository turnScores,
-                            SchemeDrawRepository schemeDraws, MatchPartyRepository parties) {
+                            SchemeDrawRepository schemeDraws, MatchPartyRepository parties,
+                            com.skirmishchronicle.friendly.FriendlyTurnScoreRepository friendlyTurns) {
+        this.friendlyTurns = friendlyTurns;
         this.parties = parties;
         this.turnScores = turnScores;
         this.schemeDraws = schemeDraws;
@@ -176,6 +179,13 @@ public class AnalyticsService {
         Map<UUID, FriendlyGame> own = new HashMap<>();
         for (FriendlyGame g : friendly.findByStatus(FriendlyGameStatus.CONFIRMED)) {
             own.put(g.getId(), g);
+        }
+        // Own games played in the app have points per turn too (game flow statistics).
+        if (!own.isEmpty()) {
+            for (com.skirmishchronicle.friendly.FriendlyTurnScore t : friendlyTurns.findByGameIdIn(own.keySet())) {
+                turnsOf.computeIfAbsent(t.getGameId() + "/" + t.getUserId(), k -> new ArrayList<>())
+                        .add(new SideFact.TurnVp(t.getTurn(), t.getScenarioVp(), t.getSchemeVp()));
+            }
         }
 
         List<SideFact> out = new ArrayList<>();

@@ -14,6 +14,9 @@ public interface FriendlyGameRepository extends JpaRepository<FriendlyGame, UUID
 
     List<FriendlyGame> findByLeagueIdAndStatus(UUID leagueId, FriendlyGameStatus status);
 
+    @Query("select count(g) from FriendlyGame g where (g.playerA = :userId or g.playerB = :userId) and g.status = :status")
+    long countForPlayer(UUID userId, FriendlyGameStatus status);
+
     long countByReportedByAndStatus(UUID reportedBy, FriendlyGameStatus status);
 
     @Query("select count(g), max(g.decidedAt) from FriendlyGame g where g.status = :status")

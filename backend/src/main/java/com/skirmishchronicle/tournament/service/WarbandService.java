@@ -80,8 +80,13 @@ public class WarbandService {
                               Instant updatedAt, boolean editable) {
     }
 
-    /** Own list (may be empty) plus whether the caller may still edit it. */
-    public record MyWarband(WarbandView warband, boolean editable, Integer pointsLimit, Instant listDeadline) {
+    /** Own list (may be empty) plus whether the caller may still edit it and the saved list it was copied from. */
+    public record MyWarband(WarbandView warband, boolean editable, Integer pointsLimit, Instant listDeadline,
+                            SourceList sourceList) {
+    }
+
+    /** The caller's saved list ("My lists") a tournament list was copied from; null once that list is deleted. */
+    public record SourceList(UUID id, int number, String name) {
     }
 
     public record Summary(UUID userId, String displayName, String faction, String alliedFaction, int totalPoints,
@@ -98,12 +103,15 @@ public class WarbandService {
     private final TournamentGuard guard;
     private final AuditService audit;
     private final ObjectMapper mapper;
+    private final com.skirmishchronicle.armylist.ArmyListRepository savedLists;
 
     public WarbandService(WarbandRepository warbands, ParticipantRepository participants, RoundRepository rounds,
                           UserRepository users, ContentService content, TournamentGuard guard, AuditService audit,
                           ObjectMapper mapper,
             NotificationService notifications,
-            TeamMemberRepository teamMembers) {
+            TeamMemberRepository teamMembers,
+            com.skirmishchronicle.armylist.ArmyListRepository savedLists) {
+        this.savedLists = savedLists;
         this.teamMembers = teamMembers;
         this.notifications = notifications;
         this.warbands = warbands;
@@ -124,9 +132,12 @@ public class WarbandService {
         TournamentParticipant p = participants.findByTournamentIdAndUserId(tournamentId, actor.id())
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "NOT_A_PARTICIPANT"));
         boolean editable = playerMayEdit(t, p);
-        WarbandView view = warbands.findByTournamentIdAndUserId(tournamentId, actor.id())
-                .map(w -> view(w, t, p.getListStatus(), editable)).orElse(null);
-        return new MyWarband(view, editable, t.getPointsLimit(), t.getListDeadline());
+        Warband own = warbands.findByTournamentIdAndUserId(tournamentId, actor.id()).orElse(null);
+        WarbandView view = own == null ? null : view(own, t, p.getListStatus(), editable);
+        SourceList source = own == null || own.getSourceListId() == null ? null
+                : savedLists.findById(own.getSourceListId()).filter(l -> l.getUserId().equals(actor.id()))
+                        .map(l -> new SourceList(l.getId(), l.getNumber(), l.getName())).orElse(null);
+        return new MyWarband(view, editable, t.getPointsLimit(), t.getListDeadline(), source);
     }
 
     @Transactional(readOnly = true)
@@ -174,6 +185,15 @@ public class WarbandService {
 
     @Transactional
     public WarbandView save(CurrentUser actor, UUID tournamentId, UUID userId, SaveInput input) {
+        return save(actor, tournamentId, userId, input, null);
+    }
+
+    /**
+     * Saves a tournament list. {@code sourceListId} marks the player's saved list it was copied from (null keeps
+     * the current mark); the copy is independent – later changes on either side do not affect the other.
+     */
+    @Transactional
+    public WarbandView save(CurrentUser actor, UUID tournamentId, UUID userId, SaveInput input, UUID sourceListId) {
         Tournament t = guard.lock(tournamentId);
         if (!t.getStatus().isPublic() && !TournamentGuard.canManage(actor, t)) {
             throw TournamentGuard.notFound();
@@ -196,6 +216,13 @@ public class WarbandService {
         Warband w = warbands.findByTournamentIdAndUserId(tournamentId, userId)
                 .orElseGet(() -> new Warband(tournamentId, userId));
         w.update(v.faction, v.allied, t.isRoster() ? 0 : input.leaderInt(), v.total, write(v.units));
+        if (sourceListId != null) {
+            boolean ownsList = savedLists.findById(sourceListId).filter(l -> l.getUserId().equals(userId)).isPresent();
+            if (!ownsList) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "ARMY_LIST_NOT_FOUND");
+            }
+            w.setSourceListId(sourceListId);
+        }
         warbands.save(w);
         p.setFaction(v.faction);
         if (own && !manager) {
@@ -260,10 +287,19 @@ public class WarbandService {
         return t.getListDeadline() != null && !Instant.now().isBefore(t.getListDeadline());
     }
 
-    private record Validated(String faction, String allied, int total, List<StoredUnit> units) {
+    /** A checked list: faction codes, points total and the units in the stored JSON shape. */
+    public record Validated(String faction, String allied, int total, List<StoredUnit> units) {
     }
 
     private Validated validate(Tournament t, SaveInput input) {
+        return validateList(input, t.isRoster(), t.getPointsLimit());
+    }
+
+    /**
+     * The list rules shared by tournament lists and saved lists: playable faction and ally, characters and
+     * upgrades available to them, a leader with INT 1–30 (none in a roster) and an optional points limit.
+     */
+    public Validated validateList(SaveInput input, boolean roster, Integer pointsLimit) {
         ArmyContent.ArmyFaction faction = input.faction() == null ? null
                 : content.armyFaction(input.faction()).filter(ArmyContent.ArmyFaction::playable).orElse(null);
         if (faction == null) {
@@ -275,7 +311,6 @@ public class WarbandService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ALLY");
         }
         // Roster format: the leader is chosen for each game from the party, not in the roster.
-        boolean roster = t.isRoster();
         if (!roster && (input.leaderInt() < 1 || input.leaderInt() > 30)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_LEADER_INT");
         }
@@ -325,7 +360,7 @@ public class WarbandService {
         if (roster ? leaders > 0 : leaders != 1) {
             throw new ApiException(HttpStatus.BAD_REQUEST, roster ? "ROSTER_HAS_NO_LEADER" : "WARBAND_LEADER_REQUIRED");
         }
-        if (t.getPointsLimit() != null && total > t.getPointsLimit()) {
+        if (pointsLimit != null && total > pointsLimit) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "WARBAND_OVER_LIMIT");
         }
         return new Validated(faction.code(), allied, total, stored);
@@ -347,15 +382,15 @@ public class WarbandService {
     }
 
     /** Which list a unit came from, preferring the player's own faction for shared characters. */
-    private String sourceOf(String unit, Warband w) {
+    private String sourceOf(String unit, String faction, String allied) {
         Map<String, List<String>> lists = content.armies().lists();
-        if (lists.getOrDefault(w.getFaction(), List.of()).contains(unit)) {
-            return w.getFaction();
+        if (lists.getOrDefault(faction, List.of()).contains(unit)) {
+            return faction;
         }
-        if (w.getAlliedFaction() != null && lists.getOrDefault(w.getAlliedFaction(), List.of()).contains(unit)) {
-            return w.getAlliedFaction();
+        if (allied != null && lists.getOrDefault(allied, List.of()).contains(unit)) {
+            return allied;
         }
-        return content.armyFaction(w.getFaction()).stream()
+        return content.armyFaction(faction).stream()
                 .flatMap(f -> f.alwaysAvailable().stream())
                 .filter(s -> lists.getOrDefault(s, List.of()).contains(unit))
                 .findFirst().orElse(null);
@@ -364,7 +399,14 @@ public class WarbandService {
     // ------------------------------------------------------------------ helpers
 
     private WarbandView view(Warband w, Tournament t, ListStatus status, boolean editable) {
-        List<UnitView> units = read(w.getUnits()).stream().map(u -> {
+        List<UnitView> units = unitViews(w.getFaction(), w.getAlliedFaction(), w.getUnits());
+        return new WarbandView(w.getUserId(), name(w.getUserId()), w.getFaction(), w.getAlliedFaction(),
+                w.getLeaderInt(), w.getTotalPoints(), t.getPointsLimit(), units, status, w.getUpdatedAt(), editable);
+    }
+
+    /** Stored units (JSON) with names and points from the current army lists. */
+    public List<UnitView> unitViews(String faction, String allied, String unitsJson) {
+        return read(unitsJson).stream().map(u -> {
             ArmyContent.Unit unit = content.unit(u.unit()).orElse(null);
             int base = unit == null ? 0 : unit.points();
             List<ItemView> items = (u.items() == null ? List.<ItemInput>of() : u.items()).stream().map(i -> {
@@ -375,13 +417,12 @@ public class WarbandService {
             }).toList();
             int sum = base + u.extraPoints() + items.stream().mapToInt(ItemView::points).sum();
             return new UnitView(u.unit(), unit == null ? u.unit() : unit.name(), base, u.extraPoints(), u.notes(),
-                    u.leader(), sourceOf(u.unit(), w), items, sum);
+                    u.leader(), sourceOf(u.unit(), faction, allied), items, sum);
         }).toList();
-        return new WarbandView(w.getUserId(), name(w.getUserId()), w.getFaction(), w.getAlliedFaction(),
-                w.getLeaderInt(), w.getTotalPoints(), t.getPointsLimit(), units, status, w.getUpdatedAt(), editable);
     }
 
-    private String write(List<StoredUnit> units) {
+    /** Stored JSON of validated units. */
+    public String write(List<StoredUnit> units) {
         try {
             return mapper.writeValueAsString(units);
         } catch (JsonProcessingException e) {

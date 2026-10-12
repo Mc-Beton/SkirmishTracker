@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { Check, Trash2, X } from "lucide-react";
+import { Check, Library, Play, Trash2, X } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,8 @@ import { useErrorMessage } from "@/components/auth/use-error-message";
 import { api } from "@/lib/api";
 import { useLiveRefresh } from "@/lib/live";
 import { useGameContent } from "@/lib/content";
-import type { FriendlyGame, GameReport } from "@/lib/games";
+import type { FriendlyGame, GameReport, GameStart } from "@/lib/games";
+import { listLabel, toGameList, type ArmyList, type ArmyListSummary } from "@/lib/army-lists";
 import type { PlayerProfile, SearchHit } from "@/lib/players";
 import { factionName, useArmies, type Armies } from "@/lib/warbands";
 import { GameListPicker, type ListDraft } from "@/components/games/game-list-picker";
@@ -76,8 +77,9 @@ export function MyGames() {
     return <div className="mx-auto w-full max-w-5xl px-4 py-10">{error && <Alert variant="destructive">{error}</Alert>}</div>;
   }
   const toConfirm = games.filter((g) => g.canConfirm);
+  const playing = games.filter((g) => g.canPlay);
   const waiting = games.filter((g) => g.canWithdraw);
-  const history = games.filter((g) => g.status !== "PENDING");
+  const history = games.filter((g) => g.status === "CONFIRMED" || g.status === "REJECTED");
 
   return (
     <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-10 [&>*]:min-w-0">
@@ -97,6 +99,19 @@ export function MyGames() {
                   <Button size="sm" onClick={() => run(() => api("POST", `/api/games/${g.id}/confirm`))}><Check aria-hidden /> {t("confirm")}</Button>
                   <Button size="sm" variant="outline" onClick={() => run(() => api("POST", `/api/games/${g.id}/reject`))}><X aria-hidden /> {t("reject")}</Button>
                 </>
+              } />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {playing.length > 0 && (
+        <Card className="border-primary/40">
+          <CardHeader><CardTitle className="text-xl">{t("live.playing")}</CardTitle></CardHeader>
+          <CardContent className="grid gap-2">
+            {playing.map((g) => (
+              <GameLine key={g.id} game={g} meId={me.id} actions={
+                <Button size="sm" asChild><Link href={`/games/${g.id}`}><Play aria-hidden /> {t("live.resume")}</Link></Button>
               } />
             ))}
           </CardContent>
@@ -153,7 +168,7 @@ function GameLine({ game: g, meId, actions }: { game: FriendlyGame; meId: string
       <span>
         {t("vs")} <Link href={`/players/${opp.id}`} className="font-medium hover:underline">{opp.displayName}</Link>
       </span>
-      <span className="font-semibold tabular-nums">{my}:{their}</span>
+      {g.status !== "IN_PROGRESS" && <span className="font-semibold tabular-nums">{my}:{their}</span>}
       {(myFaction || oppFaction) && (
         <span className="text-xs text-muted-foreground">
           {factionName(armies, myFaction) || "?"} vs {factionName(armies, oppFaction) || "?"}
@@ -162,6 +177,8 @@ function GameLine({ game: g, meId, actions }: { game: FriendlyGame; meId: string
       {g.league && <Badge variant="outline">{g.league.name}</Badge>}
       {g.status === "REJECTED" && <Badge variant="destructive">{t("rejected")}</Badge>}
       {g.status === "CONFIRMED" && <Badge variant="success">{t("confirmed")}</Badge>}
+      {g.status === "IN_PROGRESS" && <Badge variant="warning">{t("status.IN_PROGRESS")}</Badge>}
+      <Link href={`/games/${g.id}`} className="text-xs text-primary hover:underline">{t("details")}</Link>
       {actions && <span className="ml-auto flex gap-2">{actions}</span>}
       {(g.listA || g.listB) && (
         <details className="w-full text-xs">
@@ -176,21 +193,46 @@ function GameLine({ game: g, meId, actions }: { game: FriendlyGame; meId: string
   );
 }
 
-function ListToggle({ id, label, title, armies, value, onChange, fallback }: {
+function ListToggle({ id, label, title, armies, value, onChange, fallback, library }: {
   id: string; label: string; title: string; armies: Armies; value: ListDraft | null; onChange: (v: ListDraft | null) => void; fallback: string;
+  /** The caller's saved lists ("My lists") to copy from; only for the caller's own list. */
+  library?: ArmyListSummary[];
 }) {
   const t = useTranslations("games.list");
+  const tl = useTranslations("lists");
+  const errorMessage = useErrorMessage();
+  const [error, setError] = useState<string | null>(null);
+  const pick = library && library.length > 0 && (
+    <NativeSelect aria-label={tl("pick")} value="" className="h-8 w-auto max-w-full text-xs"
+      onChange={async (e) => {
+        if (!e.target.value) return;
+        setError(null);
+        try {
+          onChange(toGameList(await api<ArmyList>("GET", `/api/army-lists/${e.target.value}`)));
+        } catch (err) {
+          setError(errorMessage(err));
+        }
+      }}>
+      <option value="">{tl("pickPlaceholder")}</option>
+      {library.map((l) => <option key={l.id} value={l.id}>{listLabel(l)} · {factionName(armies, l.faction)} · {l.totalPoints}</option>)}
+    </NativeSelect>
+  );
   if (!value) {
     const first = fallback || armies.factions.find((f) => f.playable)?.code || "";
     return (
-      <Button type="button" variant="outline" size="sm" className="justify-self-start"
-        onClick={() => onChange({ faction: first, alliedFaction: null, units: [] })}>
-        + {t("add", { who: label })}
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" size="sm"
+          onClick={() => onChange({ faction: first, alliedFaction: null, units: [] })}>
+          + {t("add", { who: label })}
+        </Button>
+        {pick && <span className="flex items-center gap-1.5"><Library className="size-4 text-muted-foreground" aria-hidden />{pick}</span>}
+        {error && <span className="text-xs text-destructive">{error}</span>}
+      </div>
     );
   }
   return (
     <div className="grid gap-1">
+      {pick && <span className="flex items-center gap-1.5"><Library className="size-4 text-muted-foreground" aria-hidden />{pick}</span>}
       <GameListPicker id={id} label={title} armies={armies} value={value} onChange={onChange} />
       <Button type="button" variant="ghost" size="sm" className="justify-self-start text-xs" onClick={() => onChange(null)}>
         {t("remove")}
@@ -225,6 +267,10 @@ function ListPreview({ list, armies, title }: { list: FriendlyGame["listA"]; arm
 function ReportForm({ leagues, onSaved }: { leagues: PlayerProfile["leagues"]; onSaved: () => Promise<void> }) {
   const t = useTranslations("games");
   const errorMessage = useErrorMessage();
+  const router = useRouter();
+  /** "final": the score is entered now; "live": the game is played in the app turn by turn. */
+  const [mode, setMode] = useState<"final" | "live">("final");
+  const [library, setLibrary] = useState<ArmyListSummary[]>([]);
   const content = useGameContent();
   const armies = useArmies();
   const [query, setQuery] = useState("");
@@ -243,6 +289,14 @@ function ReportForm({ leagues, onSaved }: { leagues: PlayerProfile["leagues"]; o
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api<ArmyListSummary[]>("GET", "/api/army-lists").then((l) => active && setLibrary(l)).catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const q = query.trim();
@@ -267,10 +321,8 @@ function ReportForm({ leagues, onSaved }: { leagues: PlayerProfile["leagues"]; o
     }
     setError(null);
     setBusy(true);
-    const body: GameReport = {
+    const start: GameStart = {
       opponentId: opponent.id,
-      myScore: Number(myScore),
-      opponentScore: Number(oppScore),
       playedOn,
       scenarioCode: scenario || null,
       myFaction: myList ? myList.faction : myFaction || null,
@@ -280,6 +332,17 @@ function ReportForm({ leagues, onSaved }: { leagues: PlayerProfile["leagues"]; o
       myList: myList && myList.units.length > 0 ? myList : null,
       opponentList: oppList && oppList.units.length > 0 ? oppList : null,
     };
+    if (mode === "live") {
+      try {
+        const res = await api<{ id: string }>("POST", "/api/games/live", start);
+        router.push(`/games/${res.id}`);
+      } catch (err) {
+        setError(errorMessage(err));
+        setBusy(false);
+      }
+      return;
+    }
+    const body: GameReport = { ...start, myScore: Number(myScore), opponentScore: Number(oppScore) };
     try {
       await api("POST", "/api/games", body);
       setSaved(true);
@@ -334,7 +397,22 @@ function ReportForm({ leagues, onSaved }: { leagues: PlayerProfile["leagues"]; o
           </>
         )}
       </div>
+      <fieldset className="grid gap-2">
+        <legend className="mb-1 text-sm font-medium">{t("live.mode")}</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(["final", "live"] as const).map((m) => (
+            <label key={m} className={`flex cursor-pointer gap-2 rounded-lg border p-3 text-sm ${mode === m ? "border-primary bg-primary/5" : ""}`}>
+              <input type="radio" name="mode" value={m} checked={mode === m} onChange={() => { setSaved(false); setMode(m); }} className="mt-0.5" />
+              <span className="grid gap-0.5">
+                <span className="font-medium">{t(`live.modes.${m}`)}</span>
+                <span className="text-xs text-muted-foreground">{t(`live.modeHints.${m}`)}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <div className="grid grid-cols-3 items-end gap-3">
+        {mode === "final" && (<>
         <div className="grid gap-2">
           <Label htmlFor="myScore">{t("myScore")}</Label>
           <Input id="myScore" type="number" min={0} max={1000} required value={myScore} onChange={(e) => setMyScore(e.target.value)} />
@@ -343,6 +421,7 @@ function ReportForm({ leagues, onSaved }: { leagues: PlayerProfile["leagues"]; o
           <Label htmlFor="oppScore">{t("opponentScore")}</Label>
           <Input id="oppScore" type="number" min={0} max={1000} required value={oppScore} onChange={(e) => setOppScore(e.target.value)} />
         </div>
+        </>)}
         <div className="grid gap-2">
           <Label htmlFor="playedOn">{t("playedOn")}</Label>
           <Input id="playedOn" type="date" required max={today()} value={playedOn} onChange={(e) => setPlayedOn(e.target.value)} />
@@ -370,7 +449,7 @@ function ReportForm({ leagues, onSaved }: { leagues: PlayerProfile["leagues"]; o
       </div>
       {armies && (
         <div className="grid gap-3">
-          <ListToggle label={t("list.mine")} title={t("list.mineTitle")} armies={armies} value={myList} onChange={setMyList} fallback={myFaction} id="my-list" />
+          <ListToggle label={t("list.mine")} title={t("list.mineTitle")} armies={armies} value={myList} onChange={setMyList} fallback={myFaction} id="my-list" library={library} />
           <ListToggle label={t("list.opponent")} title={t("list.opponentTitle")} armies={armies} value={oppList} onChange={setOppList} fallback={oppFaction} id="opp-list" />
         </div>
       )}
@@ -394,8 +473,10 @@ function ReportForm({ leagues, onSaved }: { leagues: PlayerProfile["leagues"]; o
         <Label htmlFor="notes">{t("notes")}</Label>
         <Input id="notes" maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
-      <p className="text-xs text-muted-foreground">{t("hint")}</p>
-      <Button type="submit" disabled={busy} className="justify-self-start">{t("submit")}</Button>
+      <p className="text-xs text-muted-foreground">{mode === "live" ? t("live.startHint") : t("hint")}</p>
+      <Button type="submit" disabled={busy} className="justify-self-start">
+        {mode === "live" ? <><Play aria-hidden /> {t("live.start")}</> : t("submit")}
+      </Button>
     </form>
   );
 }

@@ -6,7 +6,7 @@ export type GameList = {
   totalPoints: number;
 };
 
-export type FriendlyGameStatus = "PENDING" | "CONFIRMED" | "REJECTED";
+export type FriendlyGameStatus = "IN_PROGRESS" | "PENDING" | "CONFIRMED" | "REJECTED";
 
 export type FriendlyGame = {
   id: string;
@@ -26,6 +26,8 @@ export type FriendlyGame = {
   canWithdraw: boolean;
   listA: GameList | null;
   listB: GameList | null;
+  /** Being played in the app and the viewer is one of the players. */
+  canPlay: boolean;
 };
 
 export type GameReport = {
@@ -40,4 +42,41 @@ export type GameReport = {
   notes: string | null;
   myList: Omit<GameList, "totalPoints"> | null;
   opponentList: Omit<GameList, "totalPoints"> | null;
+};
+
+/** Starting a game played in the app turn by turn (no score yet). */
+export type GameStart = Omit<GameReport, "myScore" | "opponentScore">;
+
+export type OwnTurn = { turn: number; scenarioVp: number; schemeVp: number };
+
+export type OwnGamePlayer = {
+  userId: string;
+  displayName: string;
+  faction: string | null;
+  list: GameList | null;
+  turns: OwnTurn[];
+  totalScenario: number;
+  totalScheme: number;
+  total: number;
+  canEdit: boolean;
+};
+
+/** One own game for its players (GET /api/games/{id}). */
+export type OwnGame = {
+  id: string;
+  status: FriendlyGameStatus;
+  playedOn: string;
+  scenario: string | null;
+  league: { id: string; name: string } | null;
+  notes: string | null;
+  turns: number;
+  players: OwnGamePlayer[];
+  reportedBy: string;
+  smallA: number;
+  smallB: number;
+  canFinish: boolean;
+  canReopen: boolean;
+  canCancel: boolean;
+  canConfirm: boolean;
+  canWithdraw: boolean;
 };

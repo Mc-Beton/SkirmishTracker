@@ -18,7 +18,8 @@
     "menu": "Menu",
     "main": "Nawigacja",
     "reports": "Raporty",
-    "seasons": "Sezony"
+    "seasons": "Sezony",
+    "lists": "Moje rozpiski"
   },
   "home": {
     "headline": "Prowadź turnieje bez kartki i kalkulatora",
@@ -227,7 +228,13 @@
     "PARTY_NOT_FROM_ROSTER": "Drużyna może zawierać tylko postacie i ulepszenia z rozpiski zgłoszeniowej.",
     "PARTY_LEADER_REQUIRED": "Wskaż lidera spośród wybranych postaci.",
     "PARTY_OVER_LIMIT": "Drużyna przekracza limit punktów.",
-    "PARTY_REQUIRED": "Najpierw wybierz drużynę na tę grę – schematy losuje się dla jej lidera."
+    "PARTY_REQUIRED": "Najpierw wybierz drużynę na tę grę – schematy losuje się dla jej lidera.",
+    "TOO_MANY_LISTS": "Masz już maksymalną liczbę zapisanych rozpisek (100). Usuń którąś, aby dodać nową.",
+    "ARMY_LIST_NOT_FOUND": "Nie znaleziono tej rozpiski w Twoich rozpiskach.",
+    "INVALID_LIST_NAME": "Nazwa rozpiski może mieć najwyżej 80 znaków.",
+    "TOO_MANY_LIVE_GAMES": "Masz już 5 gier w trakcie. Zakończ lub porzuć którąś.",
+    "GAME_NOT_IN_PROGRESS": "Ta gra nie jest już w trakcie – punktów tur nie można zmieniać.",
+    "GAME_NOT_PLAYED_IN_APP": "Ta gra została zgłoszona z wynikiem końcowym – nie ma tur do poprawienia."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -1071,6 +1078,38 @@
       "show": "Pokaż rozpiski",
       "mineTitle": "Moja rozpiska",
       "opponentTitle": "Rozpiska przeciwnika"
+    },
+    "details": "Szczegóły",
+    "status": {
+      "IN_PROGRESS": "W trakcie",
+      "PENDING": "Czeka na potwierdzenie",
+      "CONFIRMED": "Potwierdzona",
+      "REJECTED": "Odrzucona"
+    },
+    "live": {
+      "mode": "Jak wpisujesz wynik?",
+      "modes": {
+        "final": "Wynik końcowy",
+        "live": "Runda po rundzie"
+      },
+      "modeHints": {
+        "final": "Gra już się odbyła – wpisz małe punkty obu graczy.",
+        "live": "Gracie teraz – punkty scenariusza i schematów wpisujecie po każdej turze (oboje, także offline)."
+      },
+      "start": "Rozpocznij grę",
+      "startHint": "Przeciwnik dostanie powiadomienie i też może wpisywać punkty. Po zakończeniu gry suma trafia do potwierdzenia.",
+      "playing": "W trakcie",
+      "resume": "Wróć do gry",
+      "title": "Gra z {opponent}",
+      "reported": "{player} zakończył(a) grę z wynikiem {a}:{b}.",
+      "reopen": "Wróć do gry (popraw tury)",
+      "confirmed": "Wynik {a}:{b} potwierdzony – gra liczy się do ELO.",
+      "rejected": "Wynik został odrzucony.",
+      "noTurns": "Ta gra została zgłoszona z wynikiem końcowym – bez punktów tur.",
+      "finishConfirm": "Zakończyć grę z wynikiem {a}:{b}? Przeciwnik potwierdzi wynik.",
+      "finishHint": "Oboje możecie wpisywać punkty obu stron. „Zakończ grę” zgłasza sumę – drugi gracz ją potwierdza.",
+      "abandon": "Porzuć grę",
+      "abandonConfirm": "Porzucić tę grę? Wpisane punkty zostaną usunięte."
     }
   },
   "notifications": {
@@ -1098,7 +1137,8 @@
       "RESULT_DISPUTED": "{tournament}: sporny wynik na stole {table} ({players}).",
       "WARBAND_SUBMITTED": "{tournament}: {player} przesłał(a) rozpiskę do sprawdzenia.",
       "JUDGE_CALL": "{tournament}: runda {round}, stół {table} ({players}) wzywa sędziego.",
-      "RESULT_RECORDED": "{tournament}: {opponent} wpisał(a) wynik Waszej gry – {score}."
+      "RESULT_RECORDED": "{tournament}: {opponent} wpisał(a) wynik Waszej gry – {score}.",
+      "GAME_STARTED": "{player} rozpoczął(-ęła) z Tobą grę – możesz wpisywać punkty."
     }
   },
   "offline": {
@@ -1117,7 +1157,9 @@
       "report": "wynik (stół {table})",
       "decision": "potwierdzenie lub zgłoszenie błędu wyniku (stół {table})",
       "result": "wynik ustawiony przez organizatora (stół {table})",
-      "party": "wybór drużyny na grę"
+      "party": "wybór drużyny na grę",
+      "ownTurn": "punkty tury {turn} (gra z {opponent})",
+      "ownFinish": "zakończenie gry z {opponent}"
     }
   },
   "footer": {
@@ -1535,5 +1577,52 @@
       "int": "Podaj INT lidera (1–30).",
       "over": "Przekroczony limit o {over} pkt."
     }
+  },
+  "lists": {
+    "title": "Moje rozpiski",
+    "lead": "Zapisane rozpiski do wykorzystania przy zapisach na turnieje i w grach własnych. Wybranie rozpiski robi jej kopię – późniejsze zmiany tutaj nie zmieniają rozegranych gier ani statystyk.",
+    "add": "Dodaj nową",
+    "new": "Nowa rozpiska",
+    "empty": "Nie masz jeszcze zapisanych rozpisek.",
+    "number": "Nr",
+    "name": "Nazwa",
+    "namePlaceholder": "np. Oni pod scenariusze",
+    "unnamed": "Bez nazwy",
+    "format": "Typ rozpiski",
+    "points": "Punkty",
+    "actions": "Akcje",
+    "units": "{n, plural, one {# postać} few {# postacie} many {# postaci} other {# postaci}}",
+    "formats": {
+      "CLASSIC": "Classic",
+      "ROSTER": "Roster"
+    },
+    "formatHintClassic": "Jedna rozpiska na wszystkie gry, z liderem i jego INT.",
+    "formatHintRoster": "Roster (Season 2): bez lidera – na każdą grę wybierasz z niego drużynę i jej lidera.",
+    "rosterNote": "Roster nie ma lidera – lidera i drużynę wybierasz przed każdą grą turnieju.",
+    "pointsChanged": "koszty się zmieniły",
+    "pointsChangedLong": "Koszty postaci lub przedmiotów zmieniły się od zapisu (errata) – suma pokazuje aktualne punkty.",
+    "duplicate": "Duplikuj",
+    "toRoster": "Zrób z niej roster (kopia bez lidera)",
+    "delete": "Usuń",
+    "confirmDelete": "Usunąć rozpiskę #{n}? Rozpiski zgłoszone już na turnieje zostaną bez zmian.",
+    "copyHint": "Wybranie rozpiski na turniej lub do gry tworzy kopię. Rozpiski zgłoszonej na turniej nie zmienisz stąd – i odwrotnie.",
+    "saveHint": "Zapis dotyczy tylko „Moich rozpisek” – nie zmienia rozpisek już zgłoszonych na turnieje.",
+    "pick": "Wczytaj z moich rozpisek",
+    "pickPlaceholder": "Wybierz zapisaną rozpiskę…",
+    "pickNone": "Brak zapisanych rozpisek",
+    "manage": "Moje rozpiski",
+    "why": {
+      "formatCLASSIC": "to Classic, turniej wymaga rosteru",
+      "formatROSTER": "to roster, turniej jest w formacie Classic",
+      "points": "{points} pkt > limit {limit}"
+    },
+    "loaded": "Wczytano {list}. Sprawdź i zapisz, aby zgłosić ją na turniej.",
+    "notSavedYet": "Wczytana {list} – jeszcze niezapisana w turnieju.",
+    "copiedFrom": "Kopia rozpiski {list}.",
+    "differs": "zmieniona względem oryginału",
+    "updateSource": "Zaktualizuj też {list}",
+    "saveAsNew": "Zapisz jako nową w moich rozpiskach",
+    "updated": "Zaktualizowano {list} w moich rozpiskach.",
+    "savedAs": "Zapisano jako {list} w moich rozpiskach."
   }
 }

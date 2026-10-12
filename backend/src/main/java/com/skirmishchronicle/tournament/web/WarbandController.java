@@ -38,9 +38,11 @@ public class WarbandController {
                                  @Size(max = 60) String alliedFaction,
                                  /** 1–30 (checked by the service); ignored in roster tournaments. */
                                  @NotNull @Min(0) @Max(30) Integer leaderInt,
-                                 @NotNull @Size(min = 1, max = WarbandService.MAX_UNITS) List<@Valid @NotNull UnitRequest> units) {
+                                 @NotNull @Size(min = 1, max = WarbandService.MAX_UNITS) List<@Valid @NotNull UnitRequest> units,
+                                 /** Optional: the caller's saved list this list was copied from. */
+                                 UUID sourceListId) {
 
-        WarbandService.SaveInput toInput() {
+        public WarbandService.SaveInput toInput() {
             return new WarbandService.SaveInput(faction, alliedFaction, leaderInt,
                     units.stream().map(u -> new WarbandService.UnitInput(u.unit(), u.extraPoints(), u.notes(),
                             u.leader(), u.items() == null ? List.of() : u.items().stream()
@@ -64,7 +66,7 @@ public class WarbandController {
     public WarbandService.WarbandView saveMine(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt,
                                                @Valid @RequestBody WarbandRequest body) {
         CurrentUser actor = CurrentUser.from(jwt);
-        return warbands.save(actor, id, actor.id(), body.toInput());
+        return warbands.save(actor, id, actor.id(), body.toInput(), body.sourceListId());
     }
 
     @GetMapping

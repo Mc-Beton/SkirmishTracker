@@ -28,7 +28,7 @@ export function SiteHeader() {
     { href: "/players", label: t("nav.ranking") },
     { href: "/seasons", label: t("nav.seasons") },
     { href: "/scenarios", label: t("nav.scenarios") },
-    ...(me ? [{ href: "/games", label: t("nav.games") }] : []),
+    ...(me ? [{ href: "/games", label: t("nav.games") }, { href: "/lists", label: t("nav.lists") }] : []),
     ...(reportRoles(me?.roles) ? [{ href: "/admin/reports", label: t("nav.reports") }] : []),
   ];
 

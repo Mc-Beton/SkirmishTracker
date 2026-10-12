@@ -62,6 +62,8 @@ export type MyWarband = {
   editable: boolean;
   pointsLimit: number | null;
   listDeadline: string | null;
+  /** The caller's saved list this tournament list was copied from. */
+  sourceList: { id: string; number: number; name: string | null } | null;
 };
 export type WarbandSummary = {
   userId: string;
@@ -73,6 +75,8 @@ export type WarbandSummary = {
   updatedAt: string;
 };
 export type WarbandInput = {
+  /** Tournament lists only: the saved list this was copied from. */
+  sourceListId?: string | null;
   faction: string;
   alliedFaction: string | null;
   leaderInt: number;

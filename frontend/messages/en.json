@@ -18,7 +18,8 @@
     "menu": "Menu",
     "main": "Navigation",
     "reports": "Reports",
-    "seasons": "Seasons"
+    "seasons": "Seasons",
+    "lists": "My lists"
   },
   "home": {
     "headline": "Run tournaments without paper and calculators",
@@ -227,7 +228,13 @@
     "PARTY_NOT_FROM_ROSTER": "A party may only contain characters and upgrades from your roster.",
     "PARTY_LEADER_REQUIRED": "Choose a leader among the picked characters.",
     "PARTY_OVER_LIMIT": "The party is over the points limit.",
-    "PARTY_REQUIRED": "Pick your party for this game first – schemes are drawn for its leader."
+    "PARTY_REQUIRED": "Pick your party for this game first – schemes are drawn for its leader.",
+    "TOO_MANY_LISTS": "You already have the maximum number of saved lists (100). Delete one to add a new one.",
+    "ARMY_LIST_NOT_FOUND": "This list was not found among your lists.",
+    "INVALID_LIST_NAME": "A list name can have at most 80 characters.",
+    "TOO_MANY_LIVE_GAMES": "You already have 5 games in progress. Finish or abandon one.",
+    "GAME_NOT_IN_PROGRESS": "This game is no longer in progress – turn points cannot be changed.",
+    "GAME_NOT_PLAYED_IN_APP": "This game was reported with the final score – there are no turns to fix."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -1071,6 +1078,38 @@
       "show": "Show lists",
       "mineTitle": "My list",
       "opponentTitle": "Opponent's list"
+    },
+    "details": "Details",
+    "status": {
+      "IN_PROGRESS": "In progress",
+      "PENDING": "Waiting for confirmation",
+      "CONFIRMED": "Confirmed",
+      "REJECTED": "Rejected"
+    },
+    "live": {
+      "mode": "How do you enter the result?",
+      "modes": {
+        "final": "Final score",
+        "live": "Turn by turn"
+      },
+      "modeHints": {
+        "final": "The game is over – enter both players' small points.",
+        "live": "You are playing now – enter scenario and scheme points after every turn (both of you, offline too)."
+      },
+      "start": "Start game",
+      "startHint": "Your opponent is notified and can enter points too. When the game is finished, the total goes to confirmation.",
+      "playing": "In progress",
+      "resume": "Back to the game",
+      "title": "Game vs {opponent}",
+      "reported": "{player} finished the game with {a}:{b}.",
+      "reopen": "Back to the game (fix turns)",
+      "confirmed": "Result {a}:{b} confirmed – the game counts for ELO.",
+      "rejected": "The result was rejected.",
+      "noTurns": "This game was reported with the final score – no turn points.",
+      "finishConfirm": "Finish the game with {a}:{b}? Your opponent will confirm the result.",
+      "finishHint": "Both of you can enter points for both sides. “Finish game” reports the total – the other player confirms it.",
+      "abandon": "Abandon game",
+      "abandonConfirm": "Abandon this game? The points entered will be deleted."
     }
   },
   "notifications": {
@@ -1098,7 +1137,8 @@
       "RESULT_DISPUTED": "{tournament}: disputed result at table {table} ({players}).",
       "WARBAND_SUBMITTED": "{tournament}: {player} submitted a warband list for review.",
       "JUDGE_CALL": "{tournament}: round {round}, table {table} ({players}) is calling a judge.",
-      "RESULT_RECORDED": "{tournament}: {opponent} entered the result of your game – {score}."
+      "RESULT_RECORDED": "{tournament}: {opponent} entered the result of your game – {score}.",
+      "GAME_STARTED": "{player} started a game with you – you can enter points."
     }
   },
   "offline": {
@@ -1117,7 +1157,9 @@
       "report": "result (table {table})",
       "decision": "result confirmation or dispute (table {table})",
       "result": "result set by the organizer (table {table})",
-      "party": "party for the game"
+      "party": "party for the game",
+      "ownTurn": "turn {turn} points (game vs {opponent})",
+      "ownFinish": "finishing the game vs {opponent}"
     }
   },
   "footer": {
@@ -1535,5 +1577,52 @@
       "int": "Enter the leader's INT (1–30).",
       "over": "Over the limit by {over} pts."
     }
+  },
+  "lists": {
+    "title": "My lists",
+    "lead": "Saved lists for tournament registrations and own games. Choosing a list makes a copy – later changes here never change games already played or the statistics.",
+    "add": "Add new",
+    "new": "New list",
+    "empty": "You have no saved lists yet.",
+    "number": "No.",
+    "name": "Name",
+    "namePlaceholder": "e.g. Oni for objectives",
+    "unnamed": "Unnamed",
+    "format": "List type",
+    "points": "Points",
+    "actions": "Actions",
+    "units": "{n, plural, one {# character} other {# characters}}",
+    "formats": {
+      "CLASSIC": "Classic",
+      "ROSTER": "Roster"
+    },
+    "formatHintClassic": "One list for every game, with a leader and its INT.",
+    "formatHintRoster": "Roster (Season 2): no leader – you pick a party and its leader from it for every game.",
+    "rosterNote": "A roster has no leader – the leader and the party are picked before every tournament game.",
+    "pointsChanged": "costs changed",
+    "pointsChangedLong": "Character or item costs changed since this list was saved (errata) – the total shows current points.",
+    "duplicate": "Duplicate",
+    "toRoster": "Make a roster from it (copy without a leader)",
+    "delete": "Delete",
+    "confirmDelete": "Delete list #{n}? Lists already submitted to tournaments stay as they are.",
+    "copyHint": "Choosing a list for a tournament or a game creates a copy. A list submitted to a tournament is not changed from here – and vice versa.",
+    "saveHint": "Saving changes only “My lists” – lists already submitted to tournaments stay as they are.",
+    "pick": "Load from my lists",
+    "pickPlaceholder": "Choose a saved list…",
+    "pickNone": "No saved lists",
+    "manage": "My lists",
+    "why": {
+      "formatCLASSIC": "Classic, the tournament needs a roster",
+      "formatROSTER": "a roster, the tournament is Classic",
+      "points": "{points} pts > limit {limit}"
+    },
+    "loaded": "Loaded {list}. Check it and save to submit it to the tournament.",
+    "notSavedYet": "Loaded {list} – not saved in the tournament yet.",
+    "copiedFrom": "Copy of list {list}.",
+    "differs": "changed since the original",
+    "updateSource": "Also update {list}",
+    "saveAsNew": "Save as a new list in my lists",
+    "updated": "Updated {list} in my lists.",
+    "savedAs": "Saved as {list} in my lists."
   }
 }
