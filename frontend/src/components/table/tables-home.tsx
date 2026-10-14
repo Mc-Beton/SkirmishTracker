@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DeploymentPreview } from "@/components/table/deployment-preview";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
@@ -134,6 +135,7 @@ export function TablesHome() {
                   <option value="">{t("noQuest")}</option>
                   {(content?.quests ?? []).map((q) => <option key={q.code} value={q.code}>{q.name}</option>)}
                 </NativeSelect>
+                <DeploymentPreview quest={content?.quests.find((q) => q.code === questCode) ?? null} />
               </section>
               <section className="grid gap-2">
                 <h2 className="text-sm font-medium">{t("step4Options")}</h2>

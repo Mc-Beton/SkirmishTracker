@@ -67,8 +67,10 @@ class TableEngineTest {
         log.add(new Recorded(log.size() + 1, -1, null, Instant.now(), e));
     }
 
+    private GameState.Deployment deployment = GameState.Deployment.STANDARD;
+
     private GameState state() {
-        return GameState.fold(36, 36, 8, terrain, log, PROFILES);
+        return GameState.fold(36, 36, 8, deployment, terrain, log, PROFILES);
     }
 
     private List<GameEvent> run(int side, Command c) {
@@ -299,6 +301,19 @@ class TableEngineTest {
         run(0, new Command.Activate("a2"));
         GameEvent.Moved m = (GameEvent.Moved) run(0, new Command.Move("a2", MoveMode.WALK, List.of(new Vec(18, 14)))).get(0);
         assertEquals(17 + 16 / 25.4, m.path().get(m.path().size() - 1).y(), 0.02);
+    }
+
+    @Test
+    void cornerDeploymentUsesNineInchQuarterCirclesInOppositeCorners() {
+        deployment = GameState.Deployment.CORNER;
+        // player 1: bottom-left corner, player 2: top-right corner; the whole base inside 9"
+        run(0, new Command.Deploy("a1", new Vec(3, 33), 270));
+        assertEquals("TABLE_OUTSIDE_DEPLOYMENT", code(0, new Command.Deploy("a2", new Vec(7, 30), 270)));
+        assertEquals("TABLE_OUTSIDE_DEPLOYMENT", code(0, new Command.Deploy("a2", new Vec(33, 3), 270)));
+        assertEquals("TABLE_OUTSIDE_DEPLOYMENT", code(0, new Command.Deploy("a2", new Vec(3, 3), 270)));
+        run(1, new Command.Deploy("b1", new Vec(33, 3), 90));
+        // a standard belt spot far from the corner is outside
+        assertEquals("TABLE_OUTSIDE_DEPLOYMENT", code(1, new Command.Deploy("b2", new Vec(18, 3), 90)));
     }
 
     @Test

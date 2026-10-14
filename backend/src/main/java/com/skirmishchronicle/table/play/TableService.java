@@ -109,6 +109,9 @@ public class TableService {
         if (quest != null && content.quest(quest).isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_QUEST");
         }
+        GameState.Deployment deployment = quest == null ? GameState.Deployment.STANDARD
+                : content.quest(quest).map(q -> "CORNER".equals(q.deploymentType()) ? GameState.Deployment.CORNER
+                        : GameState.Deployment.STANDARD).orElse(GameState.Deployment.STANDARD);
         users.findByIdForUpdate(actor.id());
         if (tables.countOpen(actor.id()) >= MAX_OPEN_TABLES) {
             throw new ApiException(HttpStatus.CONFLICT, "TABLE_TOO_MANY_OPEN");
@@ -122,7 +125,7 @@ public class TableService {
         ArmyList list = ownList(actor, listId);
         String invite = Tokens.newToken();
         GameTable t = new GameTable(actor.id(), mv.name(), quest, write(snap), snap.widthIn(), snap.heightIn(),
-                snap.deploymentDepth(), list.getUnits(), Tokens.sha256(invite), measureMode);
+                snap.deploymentDepth(), deployment, list.getUnits(), Tokens.sha256(invite), measureMode);
         String judgeInvite = judge ? Tokens.newToken() : null;
         if (judgeInvite != null) {
             t.newJudgeInvite(Tokens.sha256(judgeInvite));
@@ -487,7 +490,8 @@ public class TableService {
     }
 
     private GameState state(GameTable t, List<Recorded> log) {
-        return GameState.fold(t.getWidthIn(), t.getHeightIn(), t.getDeploymentDepth(), terrain(snapshot(t)), log, engine.profiles());
+        return GameState.fold(t.getWidthIn(), t.getHeightIn(), t.getDeploymentDepth(), t.getDeployment(), terrain(snapshot(t)), log,
+                engine.profiles());
     }
 
     private TableView view(CurrentUser actor, GameTable t, List<Recorded> log, GameState s) {
@@ -555,7 +559,8 @@ public class TableService {
                 .map(x -> new TableView.Template(x.id(), x.kind(), x.pos().x(), x.pos().y(), x.rotation(), x.modelId(), x.label(), x.side()))
                 .toList();
         return new TableView(t.getId(), t.getStatus().name(), snap.name(), t.getQuestCode(),
-                new TableView.Field(snap.widthIn(), snap.heightIn(), snap.deploymentDepth()),
+                new TableView.Field(snap.widthIn(), snap.heightIn(), snap.deploymentDepth(), t.getDeployment().name(),
+                        GameState.CORNER_RADIUS),
                 new TableView.Background(snap.background().imageId(), snap.background().widthIn(), snap.background().heightIn()),
                 placed, terrain, players(t),
                 you, game, models, parties, tokens, templates, vp, new int[] {s.totalVp(0), s.totalVp(1)}, s.endProposedBy,

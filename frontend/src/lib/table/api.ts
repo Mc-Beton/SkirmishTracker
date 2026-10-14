@@ -149,7 +149,7 @@ export type TableView = {
   vpTotal: [number, number];
   endProposedBy: 0 | 1 | null;
   reportedGameId: string | null;
-  field: { widthIn: number; heightIn: number; deploymentDepth: number };
+  field: { widthIn: number; heightIn: number; deploymentDepth: number; deployment: "STANDARD" | "CORNER"; cornerRadius: number };
   background: { imageId: string; widthIn: number; heightIn: number };
   placements: { assetId: string; imageId: string | null; widthIn: number; heightIn: number; x: number; y: number; rotation: number }[];
   terrain: { id: string; kind: "OBSTACLE" | "AREA"; points: Vec[]; height: number; envs: Env[] }[];

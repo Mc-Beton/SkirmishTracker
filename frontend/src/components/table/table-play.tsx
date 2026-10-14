@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Dices, Eye, Flag, Footprints, Gavel, History, Layers, MapPin, Minus, Plus, RotateCcw, RotateCw, Ruler, Target, Trash2, Undo2, Zap } from "lucide-react";
+import { Dices, Eye, Flag, Footprints, Gavel, History, Layers, MapPin, Minus, Plus, RotateCcw, RotateCw, Ruler, SquareDashed, Target, Trash2, Undo2, Zap } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import {
   hitbox, lineOfSight, planMove, visibilityPolygon, type MovePlan, type Piece, type Table, type Vec,
 } from "@/lib/table/geometry.ts";
 import { useTableLive } from "@/lib/table/live";
+import { deploymentZones } from "@/lib/table/deployment.ts";
 import { canMeasure, rulerAllowed, showsAwareness, showsRouteLength } from "@/lib/table/measuring.ts";
 
 const SIDE = ["A", "B"] as const;
@@ -81,6 +82,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
   const [templateKind, setTemplateKind] = useState<TemplateKind>("CIRCLE_L");
   const [ruler, setRuler] = useState<{ p: Vec; id: string | null }[]>([]);
   const [showAwareness, setShowAwareness] = useState(false);
+  const [showZones, setShowZones] = useState(true);
   const [undoTo, setUndoTo] = useState<number | null>(null);
 
   useEffect(() => {
@@ -123,6 +125,8 @@ export function TablePlay({ tableId }: { tableId: string }) {
   }, [tableId, tErr]);
 
   const table = useMemo(() => (view ? toTable(view) : null), [view]);
+  const zones = useMemo(() => (view ? deploymentZones(view.field.widthIn, view.field.heightIn, view.field.deployment ?? "STANDARD",
+    view.field.deploymentDepth, view.field.cornerRadius || undefined) : []), [view]);
 
   const report = useCallback(async () => {
     setBusy(true);
@@ -317,7 +321,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
               pictures={view.placements.map((p) => ({ imageId: p.imageId, x: p.x, y: p.y, widthIn: p.widthIn, heightIn: p.heightIn, rotation: p.rotation }))}
               terrain={view.terrain}
               showTerrain={showTerrain}
-              deploymentDepth={setup ? view.field.deploymentDepth : null}
+              zones={showZones ? zones : null}
               models={boardModels}
               ariaLabel={t("boardLabel")}
               under={(ctx, px) => {
@@ -416,6 +420,10 @@ export function TablePlay({ tableId }: { tableId: string }) {
               </Button>
               <Button size="sm" variant={showTerrain ? "default" : "outline"} onClick={() => setShowTerrain((s) => !s)}>
                 <Layers aria-hidden /> {t("terrainOverlay")}
+              </Button>
+              <Button size="sm" variant={showZones ? "default" : "outline"} onClick={() => setShowZones((s) => !s)}
+                title={t(`deploymentKind.${view.field.deployment ?? "STANDARD"}`)}>
+                <SquareDashed aria-hidden /> {t("deploymentZones")}
               </Button>
               <Button size="sm" variant={showAwareness ? "default" : "outline"} onClick={() => setShowAwareness((s) => !s)}
                 disabled={!model?.deployed || !showsAwareness(measureMode, role)}>

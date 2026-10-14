@@ -677,6 +677,7 @@
     "pl": "Standardowe rozstawienie: strefy 8\" przy przeciwległych krawędziach.",
     "en": "Standard deployment: 8\" zones on opposite edges."
    },
+   "deploymentType": "STANDARD",
    "setup": [
     {
      "pl": "2 żetony Intrigue na środku stołu, pod każdym żeton Cache (skrzynia).",
@@ -764,6 +765,7 @@
     "pl": "Standardowe rozstawienie: strefy 8\" przy przeciwległych krawędziach.",
     "en": "Standard deployment: 8\" zones on opposite edges."
    },
+   "deploymentType": "STANDARD",
    "setup": [
     {
      "pl": "2 żetony Intrigue na środku stołu – każdy to stos Zasobów.",
@@ -842,6 +844,7 @@
     "pl": "Standardowe rozstawienie: strefy 8\" przy przeciwległych krawędziach.",
     "en": "Standard deployment: 8\" zones on opposite edges."
    },
+   "deploymentType": "STANDARD",
    "setup": [
     {
      "pl": "3 znaczniki celu (Magiczne Kamienie) na linii środkowej.",
@@ -908,6 +911,7 @@
     "pl": "Rozstawienie narożne: strefy w przeciwległych narożnikach, 9\" od narożnika.",
     "en": "Corner deployment: zones in opposite corners, 9\" from the corner."
    },
+   "deploymentType": "CORNER",
    "setup": [
     {
      "pl": "Stół podzielony na cztery ćwiartki.",
@@ -980,6 +984,7 @@
     "pl": "Standardowe rozstawienie: strefy 8\" przy przeciwległych krawędziach.",
     "en": "Standard deployment: 8\" zones on opposite edges."
    },
+   "deploymentType": "STANDARD",
    "setup": [
     {
      "pl": "4 znaczniki celu (Tropy) na linii środkowej.",
@@ -1044,6 +1049,7 @@
     "pl": "Standardowe rozstawienie: strefy 8\" przy przeciwległych krawędziach.",
     "en": "Standard deployment: 8\" zones on opposite edges."
    },
+   "deploymentType": "STANDARD",
    "setup": [
     {
      "pl": "Po wyborze stron, przed rozstawieniem, każdy gracz (zaczynając od pierwszego) kładzie 2 znaczniki w całości w swojej strefie – to jego Ślimaki Atramentowe.",
@@ -1101,6 +1107,7 @@
     "pl": "Rozstawienie narożne: strefy w przeciwległych narożnikach, 9\" od narożnika.",
     "en": "Corner deployment: zones in opposite corners, 9\" from the corner."
    },
+   "deploymentType": "CORNER",
    "setup": [
     {
      "pl": "2 znaczniki celu (Toksyczne Pnącza) w przeciwległych narożnikach – tych niezajętych przez strefy rozstawienia.",

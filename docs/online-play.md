@@ -97,6 +97,12 @@ Komendy (`type`): `FIRST_PLAYER`, `DEPLOY`, `READY`, `ACTIVATE`, `MOVE`, `FREE_M
 ### Etap 3: scenariusz, scheme, żetony, PZ, szablony
 
 - **Scenariusz** wybierany przy zakładaniu stołu (opcjonalny); karta scenariusza w panelu gry.
+- **Strefy rozstawienia** wg scenariusza (`deploymentType` w `eldfall-core.json`, kolumna `game_tables.deployment`, V19):
+  *standardowe* – pasy przy dolnej (gracz 1) i górnej (gracz 2) krawędzi, głębokość z mapy (domyślnie 8″);
+  *narożne* (Quarter War, Toxic Infestation) – ćwiartki koła 9″ w lewym dolnym (gracz 1) i prawym górnym (gracz 2)
+  narożniku. Silnik sprawdza, czy cała podstawka mieści się w strefie. Bez scenariusza – standardowe.
+  Na planszy strefy są delikatnie podświetlone (przycisk „Strefy rozstawienia” obok Awareness), przy zakładaniu
+  stołu pod wyborem scenariusza jest szkic stref.
 - **Scheme:** każdy gracz losuje karty kośćmi serwera (liczba kart z INT lidera, jak w zwykłej grze), jedną
   zatrzymuje. Zgodnie z zasadami scheme są jawne – widzą je obaj gracze.
   „Gotowy” wymaga zatrzymanego scheme (`TABLE_SCHEME_FIRST`, gdy frakcja ma tabelę); gracz, który go pominął

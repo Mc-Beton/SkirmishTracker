@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Env, Vec } from "@/lib/table/geometry.ts";
+import type { DeploymentZone } from "@/lib/table/deployment.ts";
 import { imageUrl } from "@/lib/table/api";
 
 /** A picture placed on the board: centre in inches, real size in inches, rotation in degrees. */
@@ -33,7 +34,8 @@ type Props = {
   pictures?: BoardPicture[];
   terrain?: BoardTerrain[];
   showTerrain?: boolean;
-  deploymentDepth?: number | null;
+  /** Deployment Zones, lightly tinted in the players' colours (null = hidden). */
+  zones?: DeploymentZone[] | null;
   models?: BoardModel[];
   /** Extra drawing under the models (areas, paths) and over them (labels, handles). */
   under?: Painter;
@@ -138,17 +140,16 @@ export function Board(props: Props) {
 
     (props.pictures ?? []).forEach(picture);
 
-    if (props.deploymentDepth) {
-      const d = props.deploymentDepth;
-      ctx.fillStyle = "rgba(200,70,70,.08)";
-      ctx.fillRect(0, 0, px(widthIn), px(d));
-      ctx.fillStyle = "rgba(217,180,90,.08)";
-      ctx.fillRect(0, px(heightIn - d), px(widthIn), px(d));
-      ctx.setLineDash([px(0.25), px(0.25)]);
-      ctx.strokeStyle = "rgba(255,255,255,.25)";
+    for (const z of props.zones ?? []) {
+      const color = z.side === 0 ? "217,180,90" : "200,70,70";
       ctx.beginPath();
-      ctx.moveTo(0, px(d)); ctx.lineTo(px(widthIn), px(d));
-      ctx.moveTo(0, px(heightIn - d)); ctx.lineTo(px(widthIn), px(heightIn - d));
+      z.points.forEach((p, k) => (k ? ctx.lineTo(px(p.x), px(p.y)) : ctx.moveTo(px(p.x), px(p.y))));
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${color},.13)`;
+      ctx.fill();
+      ctx.setLineDash([px(0.25), px(0.25)]);
+      ctx.strokeStyle = `rgba(${color},.55)`;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.setLineDash([]);
     }

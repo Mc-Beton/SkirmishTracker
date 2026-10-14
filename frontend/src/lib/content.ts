@@ -15,6 +15,8 @@ export type Quest = {
   code: string;
   name: string;
   deployment: Localized;
+  /** STANDARD: belts along opposite edges; CORNER: quarter circles in opposite corners. */
+  deploymentType?: "STANDARD" | "CORNER";
   setup: Localized[];
   results: QuestResult[];
   endConditions: Localized[];

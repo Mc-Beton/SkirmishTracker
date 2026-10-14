@@ -38,7 +38,8 @@ public record GameContent(
     public record Rule(Localized title, Localized text) {
     }
 
-    public record Quest(String code, String name, Localized deployment, List<Localized> setup, List<Result> results,
+    /** {@code deploymentType}: STANDARD (8" belts on opposite edges) or CORNER (9" from opposite corners). */
+    public record Quest(String code, String name, Localized deployment, String deploymentType, List<Localized> setup, List<Result> results,
                         List<Localized> endConditions, List<Localized> important, List<Rule> rules,
                         Localized classBonus) {
     }

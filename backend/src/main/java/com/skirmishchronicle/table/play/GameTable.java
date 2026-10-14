@@ -63,6 +63,11 @@ public class GameTable extends AbstractEntity {
     @Column(name = "deployment_depth", nullable = false)
     private double deploymentDepth;
 
+    @Column(name = "deployment", nullable = false, length = 10)
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    private com.skirmishchronicle.table.engine.GameState.Deployment deployment =
+            com.skirmishchronicle.table.engine.GameState.Deployment.STANDARD;
+
     @Column(name = "list_a", columnDefinition = "text")
     private String listA;
 
@@ -105,6 +110,15 @@ public class GameTable extends AbstractEntity {
 
     public GameTable(UUID createdBy, String mapName, String questCode, String mapSnapshot, double widthIn, double heightIn,
                      double deploymentDepth, String listA, String inviteHash, MeasureMode measureMode) {
+        this(createdBy, mapName, questCode, mapSnapshot, widthIn, heightIn, deploymentDepth, null, listA, inviteHash, measureMode);
+    }
+
+    public GameTable(UUID createdBy, String mapName, String questCode, String mapSnapshot, double widthIn, double heightIn,
+                     double deploymentDepth, com.skirmishchronicle.table.engine.GameState.Deployment deployment,
+                     String listA, String inviteHash, MeasureMode measureMode) {
+        if (deployment != null) {
+            this.deployment = deployment;
+        }
         this.measureMode = measureMode == null ? MeasureMode.ASSISTED : measureMode;
         this.questCode = questCode;
         this.id = UUID.randomUUID();
@@ -260,6 +274,10 @@ public class GameTable extends AbstractEntity {
 
     public double getHeightIn() {
         return heightIn;
+    }
+
+    public com.skirmishchronicle.table.engine.GameState.Deployment getDeployment() {
+        return deployment;
     }
 
     public double getDeploymentDepth() {

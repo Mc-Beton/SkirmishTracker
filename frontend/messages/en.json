@@ -1767,7 +1767,7 @@
     "undo": "Undo",
     "undoHint": "You can only undo your own actions in this turn, before anybody rolled dice.",
     "setupTitle": "Deployment",
-    "setupHelp": "Pick a model and click inside your zone (bottom edge for player 1, top for player 2). Agree who goes first and press “Ready”.",
+    "setupHelp": "Pick a model and click inside your Deployment Zone (highlighted: player 1 gold, player 2 red; corner deployment uses 9″ quarter circles in opposite corners). Agree who goes first and press “Ready”.",
     "firstPlayer": "First player",
     "ready": "Ready",
     "readyWaiting": "Waiting for the opponent…",
@@ -2126,6 +2126,11 @@
     },
     "scale": "Scale %",
     "scaleUp": "Enlarge",
-    "scaleDown": "Shrink"
+    "scaleDown": "Shrink",
+    "deploymentZones": "Deployment zones",
+    "deploymentKind": {
+      "STANDARD": "Standard deployment",
+      "CORNER": "Corner deployment"
+    }
   }
 }

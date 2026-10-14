@@ -71,9 +71,19 @@ public final class GameState {
     public record Activation(String id, Geometry.MoveMode mode, double spent) {
     }
 
+    /**
+     * Deployment Zones (Core Rules 2025 and the quests): STANDARD – belts {@code deploymentDepth} deep along the
+     * bottom (player 1) and top (player 2) edge; CORNER – quarter circles of {@link #CORNER_RADIUS} in the
+     * bottom-left (player 1) and top-right (player 2) corner.
+     */
+    public enum Deployment { STANDARD, CORNER }
+
+    public static final double CORNER_RADIUS = 9;
+
     public final double width;
     public final double height;
     public final double deploymentDepth;
+    public final Deployment deployment;
     public final List<Terrain> terrain;
 
     public Status status = Status.SETUP;
@@ -124,9 +134,14 @@ public final class GameState {
     }
 
     public GameState(double width, double height, double deploymentDepth, List<Terrain> terrain) {
+        this(width, height, deploymentDepth, Deployment.STANDARD, terrain);
+    }
+
+    public GameState(double width, double height, double deploymentDepth, Deployment deployment, List<Terrain> terrain) {
         this.width = width;
         this.height = height;
         this.deploymentDepth = deploymentDepth;
+        this.deployment = deployment == null ? Deployment.STANDARD : deployment;
         this.terrain = List.copyOf(terrain);
     }
 
@@ -372,8 +387,13 @@ public final class GameState {
 
     public static GameState fold(double width, double height, double depth, List<Terrain> terrain,
                                  List<Recorded> log, Profiles profiles) {
+        return fold(width, height, depth, Deployment.STANDARD, terrain, log, profiles);
+    }
+
+    public static GameState fold(double width, double height, double depth, Deployment deployment, List<Terrain> terrain,
+                                 List<Recorded> log, Profiles profiles) {
         Set<Long> undone = undoneSeqs(log);
-        GameState s = new GameState(width, height, depth, terrain);
+        GameState s = new GameState(width, height, depth, deployment, terrain);
         for (Recorded r : log) {
             if (!undone.contains(r.seq())) {
                 s.apply(r, profiles);

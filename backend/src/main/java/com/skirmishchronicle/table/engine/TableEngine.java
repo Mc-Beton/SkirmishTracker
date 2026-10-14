@@ -462,10 +462,19 @@ public final class TableEngine {
         if (p.x() - b.r() < -1e-6 || p.x() + b.r() > s.width + 1e-6) {
             throw new RuleViolation("TABLE_OUTSIDE_DEPLOYMENT");
         }
-        // player 0 deploys along the bottom edge, player 1 along the top edge; the base must be fully inside
-        boolean inZone = m.side == 0
-                ? p.y() - b.r() >= s.height - s.deploymentDepth - 1e-6 && p.y() + b.r() <= s.height + 1e-6
-                : p.y() - b.r() >= -1e-6 && p.y() + b.r() <= s.deploymentDepth + 1e-6;
+        if (p.y() - b.r() < -1e-6 || p.y() + b.r() > s.height + 1e-6) {
+            throw new RuleViolation("TABLE_OUTSIDE_DEPLOYMENT");
+        }
+        // the base must be fully inside the zone
+        boolean inZone = switch (s.deployment) {
+            // player 0 along the bottom edge, player 1 along the top edge
+            case STANDARD -> m.side == 0
+                    ? p.y() - b.r() >= s.height - s.deploymentDepth - 1e-6
+                    : p.y() + b.r() <= s.deploymentDepth + 1e-6;
+            // player 0 in the bottom-left corner, player 1 in the top-right corner
+            case CORNER -> p.dist(m.side == 0 ? new Vec(0, s.height) : new Vec(s.width, 0)) + b.r()
+                    <= GameState.CORNER_RADIUS + 1e-6;
+        };
         if (!inZone) {
             throw new RuleViolation("TABLE_OUTSIDE_DEPLOYMENT");
         }

@@ -1767,7 +1767,7 @@
     "undo": "Cofnij",
     "undoHint": "Cofnąć można tylko własne działania z tej tury, zanim ktoś rzucił kośćmi.",
     "setupTitle": "Rozstawienie",
-    "setupHelp": "Wybierz model i kliknij w swojej strefie (dół planszy dla gracza 1, góra dla gracza 2). Ustalcie, kto zaczyna, i kliknijcie „Gotowe”.",
+    "setupHelp": "Wybierz model i kliknij w swojej strefie rozstawienia (podświetlona: gracz 1 – złota, gracz 2 – czerwona; w rozstawieniu narożnym to ćwiartki koła 9″ w przeciwległych narożnikach). Ustalcie, kto zaczyna, i kliknijcie „Gotowe”.",
     "firstPlayer": "Zaczyna",
     "ready": "Gotowe",
     "readyWaiting": "Czekam na przeciwnika…",
@@ -2126,6 +2126,11 @@
     },
     "scale": "Skala %",
     "scaleUp": "Powiększ",
-    "scaleDown": "Pomniejsz"
+    "scaleDown": "Pomniejsz",
+    "deploymentZones": "Strefy rozstawienia",
+    "deploymentKind": {
+      "STANDARD": "Rozstawienie standardowe",
+      "CORNER": "Rozstawienie narożne"
+    }
   }
 }

@@ -37,7 +37,8 @@ public record TableView(UUID id, String status, String mapName, String questCode
     public record VpRow(int side, int round, int scenario, int scheme) {
     }
 
-    public record Field(double widthIn, double heightIn, double deploymentDepth) {
+    /** Deployment: STANDARD belts {@code deploymentDepth} deep, or CORNER quarter circles of {@code cornerRadius}. */
+    public record Field(double widthIn, double heightIn, double deploymentDepth, String deployment, double cornerRadius) {
     }
 
     public record Background(UUID imageId, double widthIn, double heightIn) {

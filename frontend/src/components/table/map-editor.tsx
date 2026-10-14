@@ -16,6 +16,7 @@ import { api } from "@/lib/api";
 import { imageUrl, TERRAIN_CATEGORIES, type Background, type MapInput, type MapView, type TerrainPiece } from "@/lib/table/api";
 import { buildTerrain, MAX_SCALE, MIN_SCALE, rotate, scaleOf, type Placement } from "@/lib/table/terrain.ts";
 import type { Vec } from "@/lib/table/geometry.ts";
+import { deploymentZones } from "@/lib/table/deployment.ts";
 
 const MAX_PIECES = 80;
 
@@ -181,7 +182,7 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
                   rotation: p.rotation }))}
                 terrain={world}
                 showTerrain={showTerrain}
-                deploymentDepth={input.deploymentDepth}
+                zones={deploymentZones(bg.widthIn, bg.heightIn, "STANDARD", input.deploymentDepth)}
                 ariaLabel={t("boardLabel")}
                 cursor={dragging ? "grabbing" : "grab"}
                 over={(ctx, px) => {
