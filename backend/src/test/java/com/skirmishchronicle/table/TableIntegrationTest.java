@@ -158,6 +158,10 @@ class TableIntegrationTest {
                 status().isCreated());
         String table = created.get("id").asText();
         call(b, get("/api/tables/" + table), null, status().isNotFound());
+        // the creator sees the table while it waits for the opponent (one seat taken)
+        JsonNode waiting = call(a, get("/api/tables/" + table), null, status().isOk());
+        assertThat(waiting.get("status").asText()).isEqualTo("WAITING");
+        assertThat(waiting.get("players").size()).isEqualTo(1);
         call(b, post("/api/tables/join"), "{\"invite\":\"%s\",\"listId\":\"%s\"}".formatted(created.get("invite").asText(), listB),
                 status().isOk());
         call(admin, post("/api/tables/join"), "{\"invite\":\"%s\",\"listId\":\"%s\"}".formatted(created.get("invite").asText(), listB),

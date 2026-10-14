@@ -35,8 +35,22 @@ public final class TerrainShapes {
         }
     }
 
-    /** A piece put on a map: centre position and rotation in degrees (clockwise on screen). */
-    public record Placement(String assetId, double x, double y, double rotation) {
+    /** Smallest and largest uniform scale of a placed piece. */
+    public static final double MIN_SCALE = 0.25, MAX_SCALE = 4;
+
+    /**
+     * A piece put on a map: centre position, rotation in degrees (clockwise on screen) and a uniform scale of its
+     * footprint (x and y together; 1 = the library size, missing in older maps). Scaling grows the outline and the
+     * thickness of walls, never the height.
+     */
+    public record Placement(String assetId, double x, double y, double rotation, Double scale) {
+        public Placement {
+            scale = scale == null ? 1.0 : scale;
+        }
+
+        public Placement(String assetId, double x, double y, double rotation) {
+            this(assetId, x, y, rotation, 1.0);
+        }
     }
 
     /** Natural area drawn on a background picture, in absolute inches. */
@@ -81,14 +95,15 @@ public final class TerrainShapes {
                 throw new IllegalArgumentException("unknown terrain " + pl.assetId());
             }
             Vec at = new Vec(pl.x(), pl.y());
+            double sc = pl.scale();
             int s = 0;
             for (Shape shape : asset.shapes()) {
                 String id = "p" + k + "s" + s++;
-                List<Vec> world = shape.points().stream().map(p -> p.rotate(pl.rotation()).plus(at)).toList();
+                List<Vec> world = shape.points().stream().map(p -> p.times(sc).rotate(pl.rotation()).plus(at)).toList();
                 switch (shape.type()) {
                     case WALL -> {
                         int w = 0;
-                        for (List<Vec> rect : wallPolygons(world, shape.thickness())) {
+                        for (List<Vec> rect : wallPolygons(world, shape.thickness() * sc)) {
                             out.add(new Terrain(id + "w" + w++, Terrain.Kind.OBSTACLE, rect, shape.height(), shape.envs()));
                         }
                     }

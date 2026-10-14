@@ -43,7 +43,7 @@ public record TableView(UUID id, String status, String mapName, String questCode
     public record Background(UUID imageId, double widthIn, double heightIn) {
     }
 
-    /** A placed terrain picture: centre, rotation and real size of the art. */
+    /** A placed terrain picture: centre, rotation and real size of the art (already multiplied by the placement scale). */
     public record Placed(String assetId, UUID imageId, double widthIn, double heightIn, double x, double y, double rotation) {
     }
 

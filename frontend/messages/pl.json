@@ -1933,7 +1933,7 @@
     "rotation": "Obrót °",
     "duplicate": "Duplikuj",
     "remove": "Usuń",
-    "mapEditorHelp": "Kliknij element z biblioteki, przeciągnij go na planszy, obracaj Q/E albo kółkiem myszy, Delete usuwa. „Teren według zasad” pokazuje, co blokuje ruch i linię wzroku.",
+    "mapEditorHelp": "Kliknij element z biblioteki i przeciągnij go na planszy. Obracasz uchwytem nad elementem, klawiszami Q/E albo kółkiem myszy; skalujesz narożnikami, klawiszami +/− albo Shift + kółko (Shift przy przeciąganiu: skok 15° / 5 %). Skala zmienia długość, szerokość i grubość ścian, wysokość zostaje. Delete usuwa. „Teren według zasad” pokazuje, co blokuje ruch i linię wzroku.",
     "categoryName": {
       "RUIN": "Ruiny",
       "BUILDING": "Budynki",
@@ -2122,6 +2122,9 @@
       "PLAYER": "Dołącz",
       "JUDGE": "Zostań sędzią",
       "WATCH": "Oglądaj"
-    }
+    },
+    "scale": "Skala %",
+    "scaleUp": "Powiększ",
+    "scaleDown": "Pomniejsz"
   }
 }

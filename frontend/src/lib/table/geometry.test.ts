@@ -191,3 +191,16 @@ test("terrain library: a rotated ruin wall blocks movement and LoS", async () =>
   assert.equal(planMove(t, "a", [v(19, 18)], "WALK").stoppedBy?.kind, "TERRAIN");
   assert.equal(lineOfSight(t, "a", "e").visible, false);
 });
+
+test("terrain library: a scaled piece grows its outline and wall thickness, not its height", async () => {
+  const { buildTerrain } = await import("./terrain.ts");
+  const ruin = { id: "ruin", widthIn: 6, heightIn: 6, shapes: [
+    { type: "WALL" as const, points: [v(-3, -3), v(3, -3), v(3, 3)], thickness: 0.5, height: 3 },
+  ] };
+  const [wall] = buildTerrain([], [{ assetId: "ruin", x: 18, y: 18, rotation: 0, scale: 2 }], { ruin });
+  // wall along y = 12 (−3 × 2), 1″ thick (0.5 × 2), still 3″ high
+  const ys = wall.points.map((p) => p.y);
+  near(Math.min(...ys), 11.5); near(Math.max(...ys), 12.5);
+  near(Math.max(...wall.points.map((p) => p.x)), 24.5);
+  assert.equal(wall.height, 3);
+});

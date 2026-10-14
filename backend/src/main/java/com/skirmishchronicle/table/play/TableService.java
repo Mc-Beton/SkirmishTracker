@@ -486,8 +486,8 @@ public class TableService {
         MapSnapshot snap = snapshot(t);
         List<TableView.Placed> placed = snap.placements().stream().map(p -> {
             TableLibraryService.TerrainView a = snap.assets().get(p.assetId());
-            return new TableView.Placed(p.assetId(), a == null ? null : a.imageId(), a == null ? 0 : a.widthIn(),
-                    a == null ? 0 : a.heightIn(), p.x(), p.y(), p.rotation());
+            return new TableView.Placed(p.assetId(), a == null ? null : a.imageId(), a == null ? 0 : a.widthIn() * p.scale(),
+                    a == null ? 0 : a.heightIn() * p.scale(), p.x(), p.y(), p.rotation());
         }).toList();
         List<TableView.ModelView> models = s.models.values().stream().map(m -> {
             Map<Stat, Integer> eff = s.stats(m);
@@ -547,13 +547,22 @@ public class TableService {
         return new TableView(t.getId(), t.getStatus().name(), snap.name(), t.getQuestCode(),
                 new TableView.Field(snap.widthIn(), snap.heightIn(), snap.deploymentDepth()),
                 new TableView.Background(snap.background().imageId(), snap.background().widthIn(), snap.background().heightIn()),
-                placed, terrain, List.of(player(t.getPlayerA(), 0), t.getPlayerB() == null ? null : player(t.getPlayerB(), 1))
-                        .stream().filter(java.util.Objects::nonNull).toList(),
+                placed, terrain, players(t),
                 you, game, models, parties, tokens, templates, vp, new int[] {s.totalVp(0), s.totalVp(1)}, s.endProposedBy,
                 t.getReportedGameId(),
                 entries, canUndo, log.isEmpty() ? 0 : log.get(log.size() - 1).seq(), t.getMeasureMode().name(), role.name(),
                 t.isObserversAllowed(), t.getJudgeId() == null ? null : player(t.getJudgeId(), TableEngine.JUDGE),
                 t.isCreator(actor.id()));
+    }
+
+    /** Player A, and player B once they have joined (List.of rejects the missing seat). */
+    private List<TableView.Player> players(GameTable t) {
+        List<TableView.Player> out = new ArrayList<>(2);
+        out.add(player(t.getPlayerA(), 0));
+        if (t.getPlayerB() != null) {
+            out.add(player(t.getPlayerB(), 1));
+        }
+        return out;
     }
 
     private TableView.Player player(UUID id, int side) {

@@ -280,7 +280,8 @@ public class TableLibraryService {
             if (t == null || (!t.isActive() && id == null)) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_TERRAIN");
             }
-            if (!between(p.x(), 0, bg.getWidthIn()) || !between(p.y(), 0, bg.getHeightIn()) || !between(p.rotation(), -360, 720)) {
+            if (!between(p.x(), 0, bg.getWidthIn()) || !between(p.y(), 0, bg.getHeightIn()) || !between(p.rotation(), -360, 720)
+                    || !between(p.scale(), TerrainShapes.MIN_SCALE, TerrainShapes.MAX_SCALE)) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_BAD_PLACEMENT");
             }
         }

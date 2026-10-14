@@ -38,6 +38,24 @@ class TerrainShapesTest {
     }
 
     @Test
+    void scaledPieceGrowsOutlineAndWallThicknessButNotHeight() {
+        List<Terrain> t = TerrainShapes.build(List.of(), List.of(new TerrainShapes.Placement("ruin", 18, 18, 0, 2.0)),
+                Map.of("ruin", RUIN));
+        // the first wall now runs along y = 12 (−3 × 2) and is 1" thick (0.5 × 2)
+        assertTrue(Geometry.pointInPolygon(new Vec(18, 12.45), t.get(0).points()));
+        assertFalse(Geometry.pointInPolygon(new Vec(18, 12.55), t.get(0).points()));
+        assertTrue(Geometry.pointInPolygon(new Vec(23.5, 12), t.get(0).points()));
+        assertEquals(3, t.get(0).height(), 1e-9);
+        // the area covers 12″ × 12″
+        assertTrue(Geometry.pointInPolygon(new Vec(23.9, 23.9), t.get(2).points()));
+    }
+
+    @Test
+    void placementWithoutScaleKeepsLibrarySize() {
+        assertEquals(1.0, new TerrainShapes.Placement("ruin", 1, 1, 0, null).scale(), 1e-9);
+    }
+
+    @Test
     void backgroundAreasComeFirst() {
         List<Terrain> t = TerrainShapes.build(
                 List.of(new TerrainShapes.Area(List.of(new Vec(0, 0), new Vec(36, 0), new Vec(36, 4)), 0, Set.of(Env.AQUATIC_SHALLOW))),

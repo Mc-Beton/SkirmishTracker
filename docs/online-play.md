@@ -45,7 +45,10 @@ widoczny w dzienniku), Cover, szablony AoE na mapie, ukrywanie informacji (Shrou
   - **ściana** – łamana z grubością i wysokością (każdy odcinek to bryła),
   - **przeszkoda** – wielokąt z wysokością (skała, dom),
   - **obszar** – wielokąt ze środowiskami (las, woda…); wysokość tylko dla LoS (korony drzew).
-- **Mapa** (`/maps`): tło + dowolna liczba elementów z biblioteki ustawionych i obróconych przez gracza.
+- **Mapa** (`/maps`): tło + dowolna liczba elementów z biblioteki ustawionych, obróconych i przeskalowanych przez gracza.
+  Edytor: przeciąganie, obrót uchwytem nad elementem / Q, E / kółkiem, skala narożnikami / +, − / Shift + kółko
+  (Shift przy przeciąganiu: skok 15° / 5 %). Skala jest jednolita X/Y (`scale` w `Placement`, 0,25–4, brak = 1
+  dla starszych map): rośnie obrys i **grubość ścian**, **wysokość** kształtów zostaje bez zmian.
   Gracz zapisuje własne mapy (prywatne lub publiczne), admin publikuje oficjalne. Wyszukiwanie: zakładki
   Oficjalne / Graczy / Moje + szukanie po nazwie lub nicku autora. Cudzą mapę można zapisać jako kopię.
 - Gra kopiuje mapę w chwili utworzenia stołu (snapshot) – zmiany w bibliotece nie zmieniają rozgrywanych partii.

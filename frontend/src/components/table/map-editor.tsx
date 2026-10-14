@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Copy, Layers, RotateCcw, RotateCw, Save, Trash2 } from "lucide-react";
+import { Copy, Layers, Minus, Plus, RotateCcw, RotateCw, Save, Trash2 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,17 +14,44 @@ import { useErrorMessage } from "@/components/auth/use-error-message";
 import { Board, tracePath } from "@/components/table/board";
 import { api } from "@/lib/api";
 import { imageUrl, TERRAIN_CATEGORIES, type Background, type MapInput, type MapView, type TerrainPiece } from "@/lib/table/api";
-import { buildTerrain, rotate, type Placement } from "@/lib/table/terrain.ts";
+import { buildTerrain, MAX_SCALE, MIN_SCALE, rotate, scaleOf, type Placement } from "@/lib/table/terrain.ts";
 import type { Vec } from "@/lib/table/geometry.ts";
 
 const MAX_PIECES = 80;
 
-/** Point inside a placed picture (rotated rectangle)? */
+const fmtIn = (x: number) => (Math.round(x * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
+
+/** Point inside a placed picture (rotated, scaled rectangle)? */
 function hitPlacement(p: Vec, pl: Placement, piece: TerrainPiece | undefined) {
   if (!piece) return false;
   const local = rotate({ x: p.x - pl.x, y: p.y - pl.y }, -pl.rotation);
-  return Math.abs(local.x) <= piece.widthIn / 2 && Math.abs(local.y) <= piece.heightIn / 2;
+  const k = scaleOf(pl);
+  return Math.abs(local.x) <= (piece.widthIn * k) / 2 && Math.abs(local.y) <= (piece.heightIn * k) / 2;
 }
+
+/** Grab radius of the selection handles, in inches. */
+const HANDLE_R = 0.45;
+/** Gap between the top edge and the rotation handle, in inches. */
+const ROTATE_GAP = 1.2;
+
+const clampScale = (k: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.round(k * 100) / 100));
+const norm360 = (d: number) => ((d % 360) + 360) % 360;
+
+/** World positions of the selection handles: four corners (uniform scale) and the rotation knob above the top edge. */
+function handles(pl: Placement, piece: TerrainPiece) {
+  const k = scaleOf(pl), w = (piece.widthIn * k) / 2, h = (piece.heightIn * k) / 2;
+  const world = (c: Vec) => { const r = rotate(c, pl.rotation); return { x: r.x + pl.x, y: r.y + pl.y }; };
+  return {
+    corners: [{ x: -w, y: -h }, { x: w, y: -h }, { x: w, y: h }, { x: -w, y: h }].map(world),
+    topMid: world({ x: 0, y: -h }),
+    knob: world({ x: 0, y: -h - ROTATE_GAP }),
+  };
+}
+
+type Drag =
+  | { mode: "move"; index: number; dx: number; dy: number }
+  | { mode: "scale"; index: number; startScale: number; startDist: number }
+  | { mode: "rotate"; index: number };
 
 /** Build a map: background + terrain pieces placed by hand. New (`mapId` null) or an existing one. */
 export function MapEditor({ mapId }: { mapId: string | null }) {
@@ -43,7 +70,7 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
-  const drag = useRef<{ index: number; dx: number; dy: number } | null>(null);
+  const drag = useRef<Drag | null>(null);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
@@ -89,17 +116,22 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
   };
   const add = (piece: TerrainPiece) => {
     if (!bg || input.placements.length >= MAX_PIECES) return;
-    setPlacements((p) => [...p, { assetId: piece.id, x: bg.widthIn / 2, y: bg.heightIn / 2, rotation: 0 }]);
+    setPlacements((p) => [...p, { assetId: piece.id, x: bg.widthIn / 2, y: bg.heightIn / 2, rotation: 0, scale: 1 }]);
     setSelected(input.placements.length);
   };
   const turn = (d: number) => selected != null &&
-    setPlacements((p) => p.map((x, i) => (i === selected ? { ...x, rotation: (((x.rotation + d) % 360) + 360) % 360 } : x)));
+    setPlacements((p) => p.map((x, i) => (i === selected ? { ...x, rotation: norm360(x.rotation + d) } : x)));
+  const setScale = (index: number, k: number) =>
+    setPlacements((p) => p.map((x, i) => (i === index ? { ...x, scale: clampScale(k) } : x)));
+  const grow = (f: number) => selected != null && setScale(selected, scaleOf(input.placements[selected]) * f);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === "INPUT") return;
       if (e.key === "q" || e.key === "Q") turn(-15);
       if (e.key === "e" || e.key === "E") turn(15);
+      if (e.key === "+" || e.key === "=") grow(1.1);
+      if (e.key === "-" || e.key === "_") grow(1 / 1.1);
       if ((e.key === "Delete" || e.key === "Backspace") && selected != null) {
         setPlacements((p) => p.filter((_, i) => i !== selected));
         setSelected(null);
@@ -145,7 +177,8 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
                 heightIn={bg.heightIn}
                 background={{ imageId: bg.imageId, x: bg.widthIn / 2, y: bg.heightIn / 2, widthIn: bg.widthIn, heightIn: bg.heightIn, rotation: 0 }}
                 pictures={input.placements.map((p) => ({ imageId: pieces[p.assetId]?.imageId ?? null, x: p.x, y: p.y,
-                  widthIn: pieces[p.assetId]?.widthIn ?? 1, heightIn: pieces[p.assetId]?.heightIn ?? 1, rotation: p.rotation }))}
+                  widthIn: (pieces[p.assetId]?.widthIn ?? 1) * scaleOf(p), heightIn: (pieces[p.assetId]?.heightIn ?? 1) * scaleOf(p),
+                  rotation: p.rotation }))}
                 terrain={world}
                 showTerrain={showTerrain}
                 deploymentDepth={input.deploymentDepth}
@@ -155,23 +188,46 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
                   if (sel == null) return;
                   const piece = pieces[sel.assetId];
                   if (!piece) return;
-                  const w = piece.widthIn / 2, h = piece.heightIn / 2;
-                  const corners = [{ x: -w, y: -h }, { x: w, y: -h }, { x: w, y: h }, { x: -w, y: h }]
-                    .map((c) => { const r = rotate(c, sel.rotation); return { x: r.x + sel.x, y: r.y + sel.y }; });
+                  const { corners, topMid, knob } = handles(sel, piece);
                   ctx.strokeStyle = "#33d3e0";
                   ctx.lineWidth = 2;
                   ctx.setLineDash([6, 4]);
                   tracePath(ctx, px, corners, true);
                   ctx.stroke();
                   ctx.setLineDash([]);
+                  if (!owned) return;
+                  // rotation knob on a stalk above the top edge, square scale handles on the corners
+                  tracePath(ctx, px, [topMid, knob], false);
+                  ctx.stroke();
+                  const r = Math.max(6, px(0.22));
+                  ctx.fillStyle = "#0d1322";
+                  ctx.beginPath(); ctx.arc(px(knob.x), px(knob.y), r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                  for (const c of corners) {
+                    ctx.fillRect(px(c.x) - r, px(c.y) - r, 2 * r, 2 * r);
+                    ctx.strokeRect(px(c.x) - r, px(c.y) - r, 2 * r, 2 * r);
+                  }
                 }}
                 onPointerDown={(p, e) => {
                   if (!owned) return;
+                  const near = (a: Vec) => Math.hypot(a.x - p.x, a.y - p.y) <= HANDLE_R;
+                  const selPiece = sel ? pieces[sel.assetId] : undefined;
+                  if (sel && selPiece && selected != null) {
+                    const h = handles(sel, selPiece);
+                    const mode = near(h.knob) ? "rotate" : h.corners.some(near) ? "scale" : null;
+                    if (mode) {
+                      drag.current = mode === "rotate"
+                        ? { mode, index: selected }
+                        : { mode, index: selected, startScale: scaleOf(sel), startDist: Math.max(0.1, Math.hypot(p.x - sel.x, p.y - sel.y)) };
+                      setDragging(true);
+                      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                      return;
+                    }
+                  }
                   for (let i = input.placements.length - 1; i >= 0; i--) {
                     const pl = input.placements[i];
                     if (hitPlacement(p, pl, pieces[pl.assetId])) {
                       setSelected(i);
-                      drag.current = { index: i, dx: p.x - pl.x, dy: p.y - pl.y };
+                      drag.current = { mode: "move", index: i, dx: p.x - pl.x, dy: p.y - pl.y };
                       setDragging(true);
                       (e.target as HTMLElement).setPointerCapture(e.pointerId);
                       return;
@@ -179,17 +235,33 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
                   }
                   setSelected(null);
                 }}
-                onPointerMove={(p) => {
+                onPointerMove={(p, e) => {
                   const d = drag.current;
                   if (!d) return;
-                  const x = Math.max(0, Math.min(bg.widthIn, p.x - d.dx)), y = Math.max(0, Math.min(bg.heightIn, p.y - d.dy));
-                  setPlacements((ps) => ps.map((pl, i) => (i === d.index ? { ...pl, x: Math.round(x * 20) / 20, y: Math.round(y * 20) / 20 } : pl)));
+                  if (d.mode === "move") {
+                    const x = Math.max(0, Math.min(bg.widthIn, p.x - d.dx)), y = Math.max(0, Math.min(bg.heightIn, p.y - d.dy));
+                    setPlacements((ps) => ps.map((pl, i) => (i === d.index ? { ...pl, x: Math.round(x * 20) / 20, y: Math.round(y * 20) / 20 } : pl)));
+                  } else if (d.mode === "scale") {
+                    const pl = input.placements[d.index];
+                    if (!pl) return;
+                    const k = (d.startScale * Math.hypot(p.x - pl.x, p.y - pl.y)) / d.startDist;
+                    // Shift: steps of 5 %
+                    setScale(d.index, e.shiftKey ? Math.round(k * 20) / 20 : k);
+                  } else {
+                    const pl = input.placements[d.index];
+                    if (!pl) return;
+                    // the knob sits above the top edge (local −y), so the angle is measured from "up"
+                    const deg = (Math.atan2(p.y - pl.y, p.x - pl.x) * 180) / Math.PI + 90;
+                    const snapped = e.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg);
+                    setPlacements((ps) => ps.map((x, i) => (i === d.index ? { ...x, rotation: norm360(snapped) } : x)));
+                  }
                 }}
                 onPointerUp={() => { drag.current = null; setDragging(false); }}
                 onWheel={(p, e) => {
                   if (sel == null || !hitPlacement(p, sel, pieces[sel.assetId])) return;
                   e.preventDefault();
-                  turn(e.deltaY > 0 ? 15 : -15);
+                  if (e.shiftKey) grow(e.deltaY > 0 ? 1 / 1.1 : 1.1);
+                  else turn(e.deltaY > 0 ? 15 : -15);
                 }}
               />
               <div className="flex flex-wrap items-center gap-2 p-2 text-sm">
@@ -201,8 +273,19 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
                     <Button size="icon" variant="outline" className="size-8" aria-label={t("rotateRight")} onClick={() => turn(15)}><RotateCw aria-hidden /></Button>
                     <label className="flex items-center gap-1">{t("rotation")}
                       <Input type="number" className="h-8 w-20" value={Math.round(sel.rotation)} min={0} max={359}
-                        onChange={(e) => setPlacements((p) => p.map((x, i) => (i === selected ? { ...x, rotation: ((Number(e.target.value) % 360) + 360) % 360 } : x)))} />
+                        onChange={(e) => setPlacements((p) => p.map((x, i) => (i === selected ? { ...x, rotation: norm360(Number(e.target.value)) } : x)))} />
                     </label>
+                    <Button size="icon" variant="outline" className="size-8" aria-label={t("scaleDown")} onClick={() => grow(1 / 1.1)}><Minus aria-hidden /></Button>
+                    <Button size="icon" variant="outline" className="size-8" aria-label={t("scaleUp")} onClick={() => grow(1.1)}><Plus aria-hidden /></Button>
+                    <label className="flex items-center gap-1">{t("scale")}
+                      <Input type="number" className="h-8 w-20" value={Math.round(scaleOf(sel) * 100)} min={MIN_SCALE * 100} max={MAX_SCALE * 100} step={5}
+                        onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && n > 0 && selected != null) setScale(selected, n / 100); }} />
+                    </label>
+                    {pieces[sel.assetId] && (
+                      <span className="text-xs text-muted-foreground">
+                        {fmtIn(pieces[sel.assetId].widthIn * scaleOf(sel))}″×{fmtIn(pieces[sel.assetId].heightIn * scaleOf(sel))}″
+                      </span>
+                    )}
                     <Button size="icon" variant="outline" className="size-8" aria-label={t("duplicate")}
                       onClick={() => setPlacements((p) => [...p, { ...sel, x: Math.min(bg.widthIn, sel.x + 1), y: Math.min(bg.heightIn, sel.y + 1) }])}><Copy aria-hidden /></Button>
                     <Button size="icon" variant="outline" className="size-8" aria-label={t("remove")}

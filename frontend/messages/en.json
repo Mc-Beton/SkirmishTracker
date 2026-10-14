@@ -1933,7 +1933,7 @@
     "rotation": "Rotation °",
     "duplicate": "Duplicate",
     "remove": "Remove",
-    "mapEditorHelp": "Click a library piece, drag it on the board, rotate with Q/E or the mouse wheel, Delete removes it. “Terrain as the rules see it” shows what blocks movement and line of sight.",
+    "mapEditorHelp": "Click a library piece and drag it on the board. Rotate with the knob above the piece, Q/E or the mouse wheel; scale with the corners, +/− or Shift + wheel (Shift while dragging: 15° / 5 % steps). Scaling changes length, width and wall thickness, never height. Delete removes it. “Terrain as the rules see it” shows what blocks movement and line of sight.",
     "categoryName": {
       "RUIN": "Ruins",
       "BUILDING": "Buildings",
@@ -2122,6 +2122,9 @@
       "PLAYER": "Join",
       "JUDGE": "Become the judge",
       "WATCH": "Watch"
-    }
+    },
+    "scale": "Scale %",
+    "scaleUp": "Enlarge",
+    "scaleDown": "Shrink"
   }
 }

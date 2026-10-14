@@ -13,8 +13,16 @@ export type Shape = { type: ShapeType; points: Vec[]; thickness?: number; height
 
 export type TerrainAsset = { id: string; widthIn: number; heightIn: number; shapes: Shape[] };
 
-/** A piece on a map: centre position (inches) and rotation in degrees, clockwise on screen. */
-export type Placement = { assetId: string; x: number; y: number; rotation: number };
+/** A piece on a map: centre position (inches), rotation in degrees (clockwise on screen) and a uniform scale of
+ *  its footprint (1 = library size, missing in older maps). Scaling grows the outline and the wall thickness,
+ *  never the height. */
+export type Placement = { assetId: string; x: number; y: number; rotation: number; scale?: number };
+
+/** Allowed uniform scale of a placed piece (same limits as the backend). */
+export const MIN_SCALE = 0.25;
+export const MAX_SCALE = 4;
+
+export const scaleOf = (pl: Placement) => pl.scale ?? 1;
 
 /** Natural area on a background picture, in absolute inches. */
 export type Area = { points: Vec[]; height: number; envs: Env[] };
@@ -45,10 +53,11 @@ export function buildTerrain(background: Area[], placements: Placement[], assets
     if (!asset) throw new Error("unknown terrain " + pl.assetId);
     asset.shapes.forEach((shape, s) => {
       const id = `p${k}s${s}`;
-      const world = shape.points.map((p) => add(rotate(p, pl.rotation), { x: pl.x, y: pl.y }));
+      const sc = scaleOf(pl);
+      const world = shape.points.map((p) => add(rotate(mul(p, sc), pl.rotation), { x: pl.x, y: pl.y }));
       const envs = shape.envs ?? [];
       if (shape.type === "WALL") {
-        wallPolygons(world, shape.thickness ?? 0.25).forEach((rect, w) =>
+        wallPolygons(world, (shape.thickness ?? 0.25) * sc).forEach((rect, w) =>
           out.push({ id: `${id}w${w}`, kind: "OBSTACLE", points: rect, height: shape.height, envs }));
       } else {
         out.push({ id, kind: shape.type, points: world, height: shape.height, envs });

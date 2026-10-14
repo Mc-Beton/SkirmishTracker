@@ -53,5 +53,8 @@ class EventJsonTest {
         assertTrue(shapes.get(1).envs().contains(Env.FOREST));
         TerrainShapes.Placement p = json.readValue("{\"assetId\":\"x\",\"x\":10,\"y\":12,\"rotation\":45}", TerrainShapes.Placement.class);
         assertEquals(45, p.rotation(), 1e-9);
+        assertEquals(1.0, p.scale(), 1e-9); // maps saved before scaling existed
+        TerrainShapes.Placement scaled = json.readValue("{\"assetId\":\"x\",\"x\":10,\"y\":12,\"rotation\":45,\"scale\":1.5}", TerrainShapes.Placement.class);
+        assertEquals(1.5, scaled.scale(), 1e-9);
     }
 }
