@@ -1950,7 +1950,7 @@
     "rotation": "Obrót °",
     "duplicate": "Duplikuj",
     "remove": "Usuń",
-    "mapEditorHelp": "Kliknij element z biblioteki i przeciągnij go na planszy. Obracasz uchwytem nad elementem, klawiszami Q/E albo kółkiem myszy; skalujesz narożnikami, klawiszami +/− albo Shift + kółko (Shift przy przeciąganiu: skok 15° / 5 %). Skala zmienia długość, szerokość i grubość ścian, wysokość zostaje. Delete usuwa. „Teren według zasad” pokazuje, co blokuje ruch i linię wzroku.",
+    "mapEditorHelp": "Przeciągnij element z biblioteki na planszę (na telefonie: przytrzymaj i przeciągnij). Na planszy: przeciągaj, kółko myszy obraca, Shift + kółko skaluje; narożniki ramki skalują, kółko nad ramką obraca. „Zablokuj teren” chroni przed przypadkowym przesunięciem. Najedź na teren, by zobaczyć jego wysokość.",
     "categoryName": {
       "RUIN": "Ruiny",
       "BUILDING": "Budynki",
@@ -2191,10 +2191,10 @@
     "matHelp": "Mata wyznacza rozmiar stołu i naturalne obszary (woda, las). Możesz ją zmienić w każdej chwili.",
     "terrainPiece": "Element terenu",
     "movePiece": "Przesuń",
-    "pickPieceHelp": "Kliknij element na planszy, aby go obrócić, przeskalować, przesunąć lub usunąć. Albo wybierz nowy z biblioteki poniżej.",
+    "pickPieceHelp": "Złap element na planszy i przeciągnij. Kółko myszy obraca, Shift + kółko skaluje; narożniki ramki skalują, kółko nad ramką obraca (działa też palcem). Nowe elementy przeciągnij z biblioteki poniżej.",
     "side": "Strona",
     "profileSearch": "Szukaj postaci lub frakcji…",
-    "modelsHelp": "Wybierz postać i klikaj na planszy – każde kliknięcie stawia kolejny model. Usuwasz w karcie modelu.",
+    "modelsHelp": "Przeciągnij postać na planszę (na telefonie: przytrzymaj i przeciągnij) albo kliknij ją i klikaj na planszy. Usuwasz w karcie modelu.",
     "pickScheme": "Wybierz scheme…",
     "endGameSolo": "Zakończ grę",
     "gameMode": "Rodzaj gry",
@@ -2208,6 +2208,12 @@
     },
     "createSandbox": "Otwórz stół swobodny",
     "noListFreeGame": "Bez rozpiski (tylko gra swobodna)",
-    "noListHelp": "Bez rozpiski możesz dołączyć tylko do gry swobodnej – postacie dołożysz na stole."
+    "noListHelp": "Bez rozpiski możesz dołączyć tylko do gry swobodnej – postacie dołożysz na stole.",
+    "terrainInfoObstacle": "Przeszkoda · wys. {h}″",
+    "terrainInfoArea": "Obszar · wys. {h}″",
+    "lockTerrain": "Zablokuj teren",
+    "terrainLocked": "Teren zablokowany",
+    "dragToBoard": "Przeciągnij na planszę albo kliknij i kliknij na planszy",
+    "moveHelp": "Kliknij cel – model idzie tak daleko, jak pozwalają zasady (klik na wroga = do kontaktu). Shift + klik dodaje punkt trasy. Kółko myszy lub uchwyt przed modelem obraca."
   }
 }

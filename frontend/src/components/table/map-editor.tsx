@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Copy, Layers, Minus, Plus, RotateCcw, RotateCw, Save, Trash2 } from "lucide-react";
+import { Copy, Layers, Lock, LockOpen, Minus, Plus, RotateCcw, RotateCw, Save, Trash2 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,12 +11,16 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
-import { Board, tracePath } from "@/components/table/board";
+import { Board, type BoardApi } from "@/components/table/board";
+import { useBoardDrag } from "@/components/table/use-board-drag";
 import { api } from "@/lib/api";
 import { imageUrl, TERRAIN_CATEGORIES, type Background, type MapInput, type MapView, type TerrainPiece } from "@/lib/table/api";
 import { buildTerrain, MAX_SCALE, MIN_SCALE, rotate, scaleOf, type Placement } from "@/lib/table/terrain.ts";
 import type { Vec } from "@/lib/table/geometry.ts";
 import { deploymentZones } from "@/lib/table/deployment.ts";
+import {
+  drawFrame, drawTooltip, grabRadius, hitHandle, rotationToward, scaleToward, terrainInfoAt, type Frame,
+} from "@/lib/table/handles.ts";
 
 const MAX_PIECES = 80;
 
@@ -30,28 +34,16 @@ function hitPlacement(p: Vec, pl: Placement, piece: TerrainPiece | undefined) {
   return Math.abs(local.x) <= (piece.widthIn * k) / 2 && Math.abs(local.y) <= (piece.heightIn * k) / 2;
 }
 
-/** Grab radius of the selection handles, in inches. */
-const HANDLE_R = 0.45;
-/** Gap between the top edge and the rotation handle, in inches. */
-const ROTATE_GAP = 1.2;
-
 const clampScale = (k: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.round(k * 100) / 100));
 const norm360 = (d: number) => ((d % 360) + 360) % 360;
 
-/** World positions of the selection handles: four corners (uniform scale) and the rotation knob above the top edge. */
-function handles(pl: Placement, piece: TerrainPiece) {
-  const k = scaleOf(pl), w = (piece.widthIn * k) / 2, h = (piece.heightIn * k) / 2;
-  const world = (c: Vec) => { const r = rotate(c, pl.rotation); return { x: r.x + pl.x, y: r.y + pl.y }; };
-  return {
-    corners: [{ x: -w, y: -h }, { x: w, y: -h }, { x: w, y: h }, { x: -w, y: h }].map(world),
-    topMid: world({ x: 0, y: -h }),
-    knob: world({ x: 0, y: -h - ROTATE_GAP }),
-  };
-}
+/** The selection frame of a placed piece (size × scale). */
+const frameOf = (pl: Placement, piece: TerrainPiece): Frame =>
+  ({ x: pl.x, y: pl.y, widthIn: piece.widthIn * scaleOf(pl), heightIn: piece.heightIn * scaleOf(pl), rotation: pl.rotation });
 
 type Drag =
   | { mode: "move"; index: number; dx: number; dy: number }
-  | { mode: "scale"; index: number; startScale: number; startDist: number }
+  | { mode: "scale"; index: number; startScale: number; start: Vec }
   | { mode: "rotate"; index: number };
 
 /** Build a map: background + terrain pieces placed by hand. New (`mapId` null) or an existing one. */
@@ -73,6 +65,11 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
   const [busy, setBusy] = useState(false);
   const drag = useRef<Drag | null>(null);
   const [dragging, setDragging] = useState(false);
+  /** Locked: pieces can no longer be grabbed, turned or scaled on the board (avoids moving them by accident). */
+  const [locked, setLocked] = useState(false);
+  const [hover, setHover] = useState<Vec | null>(null);
+  const boardApi = useRef<BoardApi | null>(null);
+  const setBoardApi = useCallback((a: BoardApi) => { boardApi.current = a; }, []);
 
   useEffect(() => {
     if (!loading && !me) router.replace("/login");
@@ -115,11 +112,14 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
     setSaved(false);
     setInput((i) => ({ ...i, placements: f(i.placements) }));
   };
-  const add = (piece: TerrainPiece) => {
+  const add = (piece: TerrainPiece, at?: Vec) => {
     if (!bg || input.placements.length >= MAX_PIECES) return;
-    setPlacements((p) => [...p, { assetId: piece.id, x: bg.widthIn / 2, y: bg.heightIn / 2, rotation: 0, scale: 1 }]);
+    setPlacements((p) => [...p, { assetId: piece.id, x: Math.round((at?.x ?? bg.widthIn / 2) * 20) / 20,
+      y: Math.round((at?.y ?? bg.heightIn / 2) * 20) / 20, rotation: 0, scale: 1 }]);
     setSelected(input.placements.length);
+    setLocked(false);
   };
+  const libraryDrag = useBoardDrag<TerrainPiece>(boardApi, (piece, at) => add(piece, at));
   const turn = (d: number) => selected != null &&
     setPlacements((p) => p.map((x, i) => (i === selected ? { ...x, rotation: norm360(x.rotation + d) } : x)));
   const setScale = (index: number, k: number) =>
@@ -161,9 +161,13 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
 
   const shown = library.filter((p) => p.active && (!category || p.category === category));
   const sel = selected != null ? input.placements[selected] : null;
+  const terrainLabel = (info: NonNullable<ReturnType<typeof terrainInfoAt>>) =>
+    t(info.obstacle ? "terrainInfoObstacle" : "terrainInfoArea", { h: fmtIn(info.height) })
+    + (info.envs.length ? " · " + info.envs.map((e) => t(`env.${e}`)).join(", ") : "");
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      {libraryDrag.ghost}
       <div className="grid min-w-0 content-start gap-3">
         <h1 className="font-display text-2xl">{mapId ? input.name || t("map") : t("newMap")}</h1>
         {error && <Alert variant="destructive">{error}</Alert>}
@@ -184,41 +188,24 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
                 showTerrain={showTerrain}
                 zones={deploymentZones(bg.widthIn, bg.heightIn, "STANDARD", input.deploymentDepth)}
                 ariaLabel={t("boardLabel")}
-                cursor={dragging ? "grabbing" : "grab"}
+                onApi={setBoardApi}
+                cursor={locked || !owned ? "default" : dragging ? "grabbing" : "grab"}
+                onPointerLeave={() => setHover(null)}
                 over={(ctx, px) => {
-                  if (sel == null) return;
-                  const piece = pieces[sel.assetId];
-                  if (!piece) return;
-                  const { corners, topMid, knob } = handles(sel, piece);
-                  ctx.strokeStyle = "#33d3e0";
-                  ctx.lineWidth = 2;
-                  ctx.setLineDash([6, 4]);
-                  tracePath(ctx, px, corners, true);
-                  ctx.stroke();
-                  ctx.setLineDash([]);
-                  if (!owned) return;
-                  // rotation knob on a stalk above the top edge, square scale handles on the corners
-                  tracePath(ctx, px, [topMid, knob], false);
-                  ctx.stroke();
-                  const r = Math.max(6, px(0.22));
-                  ctx.fillStyle = "#0d1322";
-                  ctx.beginPath(); ctx.arc(px(knob.x), px(knob.y), r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                  for (const c of corners) {
-                    ctx.fillRect(px(c.x) - r, px(c.y) - r, 2 * r, 2 * r);
-                    ctx.strokeRect(px(c.x) - r, px(c.y) - r, 2 * r, 2 * r);
-                  }
+                  const piece = sel ? pieces[sel.assetId] : undefined;
+                  if (sel && piece) drawFrame(ctx, px, frameOf(sel, piece), owned && !locked, Math.max(7, px(0.2)));
+                  const info = hover && !dragging ? terrainInfoAt(hover, world) : null;
+                  if (hover && info) drawTooltip(ctx, px, hover, terrainLabel(info));
                 }}
                 onPointerDown={(p, e) => {
-                  if (!owned) return;
-                  const near = (a: Vec) => Math.hypot(a.x - p.x, a.y - p.y) <= HANDLE_R;
+                  if (!owned || locked) return;
                   const selPiece = sel ? pieces[sel.assetId] : undefined;
                   if (sel && selPiece && selected != null) {
-                    const h = handles(sel, selPiece);
-                    const mode = near(h.knob) ? "rotate" : h.corners.some(near) ? "scale" : null;
+                    const mode = hitHandle(p, frameOf(sel, selPiece), grabRadius(boardApi.current?.pxPerInch() ?? 20));
                     if (mode) {
                       drag.current = mode === "rotate"
                         ? { mode, index: selected }
-                        : { mode, index: selected, startScale: scaleOf(sel), startDist: Math.max(0.1, Math.hypot(p.x - sel.x, p.y - sel.y)) };
+                        : { mode, index: selected, startScale: scaleOf(sel), start: p };
                       setDragging(true);
                       (e.target as HTMLElement).setPointerCapture(e.pointerId);
                       return;
@@ -237,6 +224,7 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
                   setSelected(null);
                 }}
                 onPointerMove={(p, e) => {
+                  setHover(p);
                   const d = drag.current;
                   if (!d) return;
                   if (d.mode === "move") {
@@ -244,30 +232,44 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
                     setPlacements((ps) => ps.map((pl, i) => (i === d.index ? { ...pl, x: Math.round(x * 20) / 20, y: Math.round(y * 20) / 20 } : pl)));
                   } else if (d.mode === "scale") {
                     const pl = input.placements[d.index];
-                    if (!pl) return;
-                    const k = (d.startScale * Math.hypot(p.x - pl.x, p.y - pl.y)) / d.startDist;
+                    const piece = pl ? pieces[pl.assetId] : undefined;
+                    if (!pl || !piece) return;
+                    const k = scaleToward(frameOf(pl, piece), d.startScale, d.start, p);
                     // Shift: steps of 5 %
                     setScale(d.index, e.shiftKey ? Math.round(k * 20) / 20 : k);
                   } else {
                     const pl = input.placements[d.index];
-                    if (!pl) return;
-                    // the knob sits above the top edge (local −y), so the angle is measured from "up"
-                    const deg = (Math.atan2(p.y - pl.y, p.x - pl.x) * 180) / Math.PI + 90;
-                    const snapped = e.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg);
-                    setPlacements((ps) => ps.map((x, i) => (i === d.index ? { ...x, rotation: norm360(snapped) } : x)));
+                    const piece = pl ? pieces[pl.assetId] : undefined;
+                    if (!pl || !piece) return;
+                    const rotation = rotationToward(frameOf(pl, piece), p, e.shiftKey ? 15 : 1);
+                    setPlacements((ps) => ps.map((x, i) => (i === d.index ? { ...x, rotation } : x)));
                   }
                 }}
                 onPointerUp={() => { drag.current = null; setDragging(false); }}
                 onWheel={(p, e) => {
-                  if (sel == null || !hitPlacement(p, sel, pieces[sel.assetId])) return;
+                  if (!owned || locked) return;
+                  // the piece under the pointer (the selected one first): wheel turns, Shift + wheel scales
+                  let index = selected != null && sel && hitPlacement(p, sel, pieces[sel.assetId]) ? selected : -1;
+                  for (let i = input.placements.length - 1; index < 0 && i >= 0; i--) {
+                    if (hitPlacement(p, input.placements[i], pieces[input.placements[i].assetId])) index = i;
+                  }
+                  if (index < 0) return;
                   e.preventDefault();
-                  if (e.shiftKey) grow(e.deltaY > 0 ? 1 / 1.1 : 1.1);
-                  else turn(e.deltaY > 0 ? 15 : -15);
+                  setSelected(index);
+                  const up = e.deltaY < 0;
+                  setPlacements((ps) => ps.map((x, i) => (i !== index ? x : e.shiftKey
+                    ? { ...x, scale: clampScale(scaleOf(x) * (up ? 1.1 : 1 / 1.1)) }
+                    : { ...x, rotation: norm360(x.rotation + (up ? -15 : 15)) })));
                 }}
               />
               <div className="flex flex-wrap items-center gap-2 p-2 text-sm">
                 <Button size="sm" variant={showTerrain ? "default" : "outline"} onClick={() => setShowTerrain((s) => !s)}><Layers aria-hidden /> {t("terrainOverlay")}</Button>
-                {sel && owned && (
+                {owned && (
+                  <Button size="sm" variant={locked ? "default" : "outline"} aria-pressed={locked} onClick={() => setLocked((l) => !l)}>
+                    {locked ? <Lock aria-hidden /> : <LockOpen aria-hidden />} {locked ? t("terrainLocked") : t("lockTerrain")}
+                  </Button>
+                )}
+                {sel && owned && !locked && (
                   <>
                     <span className="text-muted-foreground">{pieces[sel.assetId]?.name}</span>
                     <Button size="icon" variant="outline" className="size-8" aria-label={t("rotateLeft")} onClick={() => turn(-15)}><RotateCcw aria-hidden /></Button>
@@ -351,7 +353,9 @@ export function MapEditor({ mapId }: { mapId: string | null }) {
               <ul className="grid max-h-[28rem] grid-cols-2 gap-2 overflow-auto">
                 {shown.map((p) => (
                   <li key={p.id}>
-                    <button type="button" onClick={() => add(p)} className="grid w-full gap-1 rounded-md border p-1 text-left text-xs hover:border-primary">
+                    <button type="button" onClick={() => { if (!libraryDrag.wasDragging()) add(p); }}
+                      onPointerDown={(e) => libraryDrag.start(e, p, p.imageId, p.name)} title={t("dragToBoard")}
+                      className="grid w-full cursor-grab touch-pan-y select-none gap-1 rounded-md border p-1 text-left text-xs hover:border-primary">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={imageUrl(p.imageId)} alt="" className="aspect-square w-full rounded object-contain bg-muted" />
                       <span className="truncate">{p.name}</span>

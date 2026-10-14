@@ -27,6 +27,14 @@ export type BoardModel = {
 
 export type Painter = (ctx: CanvasRenderingContext2D, px: (inches: number) => number) => void;
 
+/** Imperative helpers for drag & drop from outside the board and for touch-sized handles. */
+export type BoardApi = {
+  /** Board coordinates (inches) of a point on the screen, or null outside the board. */
+  clientToInches: (clientX: number, clientY: number) => Vec | null;
+  /** CSS pixels per inch at the current size. */
+  pxPerInch: () => number;
+};
+
 type Props = {
   widthIn: number;
   heightIn: number;
@@ -44,6 +52,9 @@ type Props = {
   onPointerMove?: (p: Vec, e: React.PointerEvent) => void;
   onPointerUp?: (p: Vec, e: React.PointerEvent) => void;
   onWheel?: (p: Vec, e: WheelEvent) => void;
+  onPointerLeave?: () => void;
+  /** Receives the board helpers (drag & drop from outside, handle sizes) whenever they change. */
+  onApi?: (api: BoardApi) => void;
   cursor?: string;
   ariaLabel: string;
 };
@@ -218,6 +229,21 @@ export function Board(props: Props) {
     draw();
   }, [draw]);
 
+  const onApi = props.onApi;
+  useEffect(() => {
+    if (!onApi) return;
+    onApi({
+      clientToInches: (x, y) => {
+        const c = canvas.current;
+        if (!c) return null;
+        const r = c.getBoundingClientRect();
+        if (x < r.left || x > r.right || y < r.top || y > r.bottom) return null;
+        return { x: ((x - r.left) / r.width) * widthIn, y: ((y - r.top) / r.height) * heightIn };
+      },
+      pxPerInch: () => cssWidth / widthIn,
+    });
+  }, [onApi, widthIn, heightIn, cssWidth]);
+
   const toInches = (e: { clientX: number; clientY: number }): Vec => {
     const r = canvas.current!.getBoundingClientRect();
     return { x: ((e.clientX - r.left) / r.width) * widthIn, y: ((e.clientY - r.top) / r.height) * heightIn };
@@ -244,6 +270,7 @@ export function Board(props: Props) {
         onPointerDown={(e) => props.onPointerDown?.(toInches(e), e)}
         onPointerMove={(e) => props.onPointerMove?.(toInches(e), e)}
         onPointerUp={(e) => props.onPointerUp?.(toInches(e), e)}
+        onPointerLeave={() => props.onPointerLeave?.()}
       />
     </div>
   );

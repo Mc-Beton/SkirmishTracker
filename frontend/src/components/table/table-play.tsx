@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Dices, Eye, Flag, Footprints, Gavel, History, Layers, MapPin, Minus, Plus, RotateCcw, RotateCw, Ruler, SquareDashed, Target, Trash2, Undo2, Zap } from "lucide-react";
+import { Dices, Eye, Flag, Footprints, Gavel, History, Layers, Lock, LockOpen, MapPin, Minus, Plus, RotateCcw, RotateCw, Ruler, SquareDashed, Target, Trash2, Undo2, Zap } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,11 @@ import { QuestCard, SchemesCard, VpCard } from "@/components/table/quest-panel";
 import { TableSharing } from "@/components/table/table-sharing";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
-import { Board, tracePath, type BoardModel } from "@/components/table/board";
+import { Board, tracePath, type BoardApi, type BoardModel } from "@/components/table/board";
+import { useBoardDrag } from "@/components/table/use-board-drag";
+import {
+  drawFrame, drawTooltip, grabRadius, hitHandle, insideFrame, rotationToward, scaleToward, terrainInfoAt, type Frame,
+} from "@/lib/table/handles.ts";
 import { api } from "@/lib/api";
 import {
   ATTRIBUTES, CARD_STATS, JUDGE_SIDE, MODEL_STATES, TOKEN_KINDS, sendCommand, type LogEntry, type ModelState, type TableCommand,
@@ -29,8 +33,8 @@ import {
 } from "@/lib/table/geometry.ts";
 import { useTableLive } from "@/lib/table/live";
 import { deploymentZones } from "@/lib/table/deployment.ts";
-import { rotate as rotateVec } from "@/lib/table/terrain.ts";
-import { SandboxPanel, type Placing, type SandboxTab } from "@/components/table/sandbox-panel";
+import { MAX_SCALE, MIN_SCALE } from "@/lib/table/terrain.ts";
+import { SandboxPanel, type PanelDrop, type Placing, type SandboxTab } from "@/components/table/sandbox-panel";
 import { canMeasure, rulerAllowed, showsAwareness, showsRouteLength } from "@/lib/table/measuring.ts";
 
 const SIDE = ["A", "B"] as const;
@@ -59,6 +63,14 @@ const TOKEN_COLORS: Record<TokenKind, string> = {
 };
 
 const fmt = (x: number) => (Math.round(x * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
+const norm360 = (d: number) => ((d % 360) + 360) % 360;
+const clampScale = (k: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.round(k * 100) / 100));
+/** Length of the facing handle beyond the base, in inches. */
+const FACING_STALK = 0.9;
+
+type Piece2 = { x: number; y: number; rotation: number; scale: number };
+/** A terrain piece being changed on the board (free game): shown at once, sent when the gesture ends. */
+type PieceEdit = { id: string; mode: "move" | "scale" | "rotate"; dx: number; dy: number; startScale: number; start: Vec; preview: Piece2 };
 
 /** The online table for its two players, the judge and observers (read-only). */
 export function TablePlay({ tableId }: { tableId: string }) {
@@ -89,6 +101,16 @@ export function TablePlay({ tableId }: { tableId: string }) {
   const [placing, setPlacing] = useState<Placing | null>(null);
   const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
   const [sandboxTab, setSandboxTab] = useState<SandboxTab>("MAT");
+  const boardApi = useRef<BoardApi | null>(null);
+  const setBoardApi = useCallback((a: BoardApi) => { boardApi.current = a; }, []);
+  const [hover, setHover] = useState<Vec | null>(null);
+  /** Free game: terrain locked against grabbing (null = automatic: unlocked only before the game starts). */
+  const [terrainLock, setTerrainLock] = useState<boolean | null>(null);
+  const [pieceEdit, setPieceEdit] = useState<PieceEdit | null>(null);
+  /** Wheel on a piece or a model: previewed, sent after a short pause. */
+  const [wheelPiece, setWheelPiece] = useState<{ id: string } & Piece2 | null>(null);
+  const [facingPreview, setFacingPreview] = useState<{ id: string; facing: number; drag: boolean } | null>(null);
+  const wheelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [undoTo, setUndoTo] = useState<number | null>(null);
 
   useEffect(() => {
@@ -178,15 +200,18 @@ export function TablePlay({ tableId }: { tableId: string }) {
   const names = useMemo(() => new Map(view?.models.map((m) => [m.id, m.name]) ?? []), [view]);
 
   // --- movement preview with the same engine the server uses
+  // the route so far plus the point under the pointer: the model goes as far as the rules allow
+  const route = useMemo(() => (activatedHere && myTurn && hover && !freeMove && tool === "NONE" ? [...waypoints, hover] : waypoints),
+    [activatedHere, myTurn, hover, freeMove, tool, waypoints]);
   const plan: MovePlan | null = useMemo(() => {
-    if (!table || !model || !activatedHere || !myTurn || waypoints.length === 0 || freeMove || !routeLength) return null;
+    if (!table || !model || !activatedHere || !myTurn || route.length === 0 || freeMove || !routeLength) return null;
     const m = activation?.mode ?? mode;
     try {
-      return planMove(table, model.id, waypoints, m, activation?.spent ?? 0);
+      return planMove(table, model.id, route, m, activation?.spent ?? 0);
     } catch {
       return null;
     }
-  }, [table, model, activatedHere, myTurn, waypoints, freeMove, activation, mode, routeLength]);
+  }, [table, model, activatedHere, myTurn, route, freeMove, activation, mode, routeLength]);
   const moving = activatedHere && waypoints.length > 0;
   const myPieces = useMemo(() => table?.pieces.filter((p) => solo || p.side === SIDE[you as 0 | 1]) ?? [], [table, you, solo]);
   const measurable = (a: Piece | Vec, b: Piece | Vec) => canMeasure(measureMode, role, myPieces, a, b, moving);
@@ -217,7 +242,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
   const boardModels: BoardModel[] = (view?.models ?? []).filter((m) => m.deployed && m.x != null).map((m) => {
     const r = los?.res.get(m.id);
     return {
-      id: m.id, side: m.side, x: m.x!, y: m.y!, facing: m.facing, radiusIn: hitbox(m.size).r,
+      id: m.id, side: m.side, x: m.x!, y: m.y!, facing: facingPreview?.id === m.id ? facingPreview.facing : m.facing, radiusIn: hitbox(m.size).r,
       label: m.name.split(/[ ,]/)[0], selected: m.id === selected, states: m.states,
       ring: r?.visible ? (model && m.side === model.side ? "#4fd98a" : "#f26d6d")
         : affected.has(m.id) ? "#ff8a3d" : activation?.id === m.id ? "#33d3e0" : null,
@@ -228,18 +253,157 @@ export function TablePlay({ tableId }: { tableId: string }) {
   const pickModelAt = (p: Vec) =>
     view?.models.find((m) => m.deployed && m.x != null && Math.hypot(m.x - p.x, m.y! - p.y) <= hitbox(m.size).r + 0.1);
 
-  /** Free game: the placed terrain piece under the point (rotated rectangle of its art). */
+  // ---- free game: terrain on the board (drag, handles, wheel), with a live preview
+  const terrainLocked = terrainLock ?? !setup;
+  const canShapeTerrain = sandbox && role === "PLAYER" && view?.status !== "FINISHED" && !terrainLocked;
+  /** A piece as drawn now: the server state, or the preview of a gesture in progress. */
+  const pieceNow = (pl: TableView["placements"][number]): Piece2 =>
+    pieceEdit?.id === pl.id ? pieceEdit.preview : wheelPiece?.id === pl.id ? wheelPiece : pl;
+  const frameOf = (pl: TableView["placements"][number]): Frame => {
+    const n = pieceNow(pl), k = n.scale / (pl.scale || 1);
+    return { x: n.x, y: n.y, rotation: n.rotation, widthIn: pl.widthIn * k, heightIn: pl.heightIn * k };
+  };
   const pickPieceAt = (p: Vec) => {
     if (!view) return undefined;
     for (let i = view.placements.length - 1; i >= 0; i--) {
-      const pl = view.placements[i];
-      const local = rotateVec({ x: p.x - pl.x, y: p.y - pl.y }, -pl.rotation);
-      if (Math.abs(local.x) <= pl.widthIn / 2 && Math.abs(local.y) <= pl.heightIn / 2) return pl;
+      if (insideFrame(p, frameOf(view.placements[i]))) return view.placements[i];
     }
     return undefined;
   };
+  const grab = () => grabRadius(boardApi.current?.pxPerInch() ?? 20);
+  const sendPiece = (id: string, n: Piece2) =>
+    run({ type: "MOVE_TERRAIN", id, x: n.x, y: n.y, facing: norm360(n.rotation), scale: clampScale(n.scale) });
 
-  const onBoardClick = async (p: Vec) => {
+  // ---- models: the facing handle of the selected model and the wheel
+  const facingEditable = !!model && canEdit && !readOnly && !!model.deployed && view?.status !== "FINISHED";
+  const facingKnob = (m: TableModel, facing: number) => {
+    const r = hitbox(m.size).r + FACING_STALK, a = (facing * Math.PI) / 180;
+    return { x: m.x! + Math.cos(a) * r, y: m.y! + Math.sin(a) * r };
+  };
+  /** Shows the new facing at once and sends ROTATE after a short pause (several wheel steps = one command). */
+  const queueFacing = (m: TableModel, facing: number) => {
+    setFacingPreview({ id: m.id, facing, drag: false });
+    if (wheelTimer.current) clearTimeout(wheelTimer.current);
+    wheelTimer.current = setTimeout(async () => {
+      await run({ type: "ROTATE", id: m.id, facing: norm360(facing) });
+      setFacingPreview(null);
+    }, 450);
+  };
+  const queuePiece = (id: string, n: Piece2) => {
+    setWheelPiece({ id, ...n });
+    if (wheelTimer.current) clearTimeout(wheelTimer.current);
+    wheelTimer.current = setTimeout(async () => {
+      await sendPiece(id, n);
+      setWheelPiece(null);
+    }, 450);
+  };
+
+  const onBoardDown = (p: Vec, e: React.PointerEvent) => {
+    if (!view || busy) return;
+    // the facing knob of the selected model: drag to turn it only
+    if (facingEditable && model && Math.hypot(p.x - facingKnob(model, model.facing).x, p.y - facingKnob(model, model.facing).y) <= grab()) {
+      setFacingPreview({ id: model.id, facing: model.facing, drag: true });
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      return;
+    }
+    if (!canShapeTerrain || placing || tool !== "NONE" || freeMove || activatedHere) return;
+    const sel = view.placements.find((x) => x.id === selectedPiece);
+    if (sel) {
+      const f = frameOf(sel), mode = hitHandle(p, f, grab());
+      if (mode) {
+        setPieceEdit({ id: sel.id, mode, dx: 0, dy: 0, startScale: pieceNow(sel).scale, start: p, preview: pieceNow(sel) });
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        return;
+      }
+    }
+    if (pickModelAt(p)) return;
+    const piece = pickPieceAt(p);
+    setSelectedPiece(piece?.id ?? null);
+    if (piece) {
+      const n = pieceNow(piece);
+      setPieceEdit({ id: piece.id, mode: "move", dx: p.x - n.x, dy: p.y - n.y, startScale: n.scale, start: p, preview: n });
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    }
+  };
+
+  const onBoardMove = (p: Vec, e: React.PointerEvent) => {
+    setHover(p);
+    if (facingPreview?.drag && model) {
+      const deg = (Math.atan2(p.y - model.y!, p.x - model.x!) * 180) / Math.PI;
+      setFacingPreview({ id: model.id, facing: norm360(e.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg)), drag: true });
+      return;
+    }
+    if (!pieceEdit || !view) return;
+    const pl = view.placements.find((x) => x.id === pieceEdit.id);
+    if (!pl) return;
+    const f = frameOf(pl), w = view.field.widthIn, h = view.field.heightIn;
+    const preview = pieceEdit.mode === "move"
+      ? { ...pieceEdit.preview, x: Math.round(Math.max(0, Math.min(w, p.x - pieceEdit.dx)) * 20) / 20,
+        y: Math.round(Math.max(0, Math.min(h, p.y - pieceEdit.dy)) * 20) / 20 }
+      : pieceEdit.mode === "rotate"
+        ? { ...pieceEdit.preview, rotation: rotationToward(f, p, e.shiftKey ? 15 : 1) }
+        : { ...pieceEdit.preview, scale: clampScale(scaleToward(f, pieceEdit.startScale, pieceEdit.start, p)) };
+    setPieceEdit({ ...pieceEdit, preview });
+  };
+
+  const onBoardUp = async (p: Vec, e: React.PointerEvent) => {
+    if (facingPreview?.drag && model) {
+      const facing = facingPreview.facing;
+      if (Math.abs(facing - model.facing) > 0.5) await run({ type: "ROTATE", id: model.id, facing });
+      setFacingPreview(null);
+      return;
+    }
+    if (pieceEdit && view) {
+      const pl = view.placements.find((x) => x.id === pieceEdit.id);
+      const n = pieceEdit.preview;
+      const changed = pl && (Math.abs(n.x - pl.x) > 0.02 || Math.abs(n.y - pl.y) > 0.02 || Math.abs(n.rotation - pl.rotation) > 0.2
+        || Math.abs(n.scale - pl.scale) > 0.005);
+      setPieceEdit(null);
+      if (changed) {
+        await sendPiece(pieceEdit.id, n);
+        return;
+      }
+      // a plain click on a piece: select it – but still deploy the chosen model there during setup
+      if (!(setup && model && mine)) return;
+    }
+    await onBoardClick(p, e.shiftKey);
+  };
+
+  const onBoardWheel = (p: Vec, e: WheelEvent) => {
+    if (!view) return;
+    const up = e.deltaY < 0;
+    const hitModel = pickModelAt(p);
+    // terrain of a free game (when not locked and no model under the pointer): wheel turns, Shift + wheel scales
+    if (canShapeTerrain && !hitModel) {
+      const piece = view.placements.find((x) => x.id === selectedPiece && insideFrame(p, frameOf(x))) ?? pickPieceAt(p);
+      if (piece) {
+        e.preventDefault();
+        setSelectedPiece(piece.id);
+        const n = pieceNow(piece);
+        queuePiece(piece.id, e.shiftKey ? { ...n, scale: clampScale(n.scale * (up ? 1.1 : 1 / 1.1)) }
+          : { ...n, rotation: norm360(n.rotation + (up ? -15 : 15)) });
+        return;
+      }
+    }
+    // a model you may turn: the one under the pointer, or the selected one when the pointer is at it (the page
+    // keeps scrolling elsewhere)
+    const nearSelected = facingEditable && model
+      && Math.hypot(p.x - model.x!, p.y - model.y!) <= hitbox(model.size).r + FACING_STALK + 0.3;
+    const m = (hitModel && view.models.find((x) => x.id === hitModel.id)) || (nearSelected ? model : null);
+    if (!m || !m.deployed || readOnly || !(solo || judge || m.side === you)) return;
+    e.preventDefault();
+    if (m.id !== selected) setSelected(m.id);
+    const current = facingPreview?.id === m.id ? facingPreview.facing : m.facing;
+    queueFacing(m, norm360(current + (up ? -15 : 15)));
+  };
+
+  // ---- drag from the free game panel onto the board
+  const panelDrag = useBoardDrag<PanelDrop>(boardApi, (d, at) => {
+    if (d.kind === "TERRAIN") void run({ type: "PLACE_TERRAIN", ref: d.ref, x: at.x, y: at.y, facing: 0, scale: 1 });
+    else void run({ type: "ADD_MODEL", ref: d.ref, side: d.side, x: at.x, y: at.y, facing: d.side === 0 ? 270 : 90 }, d.side);
+  });
+
+  const onBoardClick = async (p: Vec, shift = false) => {
     if (!view || busy) return;
     if (sandbox && placing) {
       if (placing.kind === "TERRAIN") {
@@ -250,10 +414,6 @@ export function TablePlay({ tableId }: { tableId: string }) {
         const piece = view.placements.find((x) => x.id === placing.id);
         if (piece && await run({ type: "MOVE_TERRAIN", id: piece.id, x: p.x, y: p.y, facing: piece.rotation, scale: piece.scale })) setPlacing(null);
       }
-      return;
-    }
-    if (sandbox && sandboxTab === "TERRAIN" && tool === "NONE" && !pickModelAt(p)) {
-      setSelectedPiece(pickPieceAt(p)?.id ?? null);
       return;
     }
     if (tool === "TOKEN") {
@@ -299,12 +459,25 @@ export function TablePlay({ tableId }: { tableId: string }) {
       if (await run({ type: "FREE_MOVE", id: model.id, x: p.x, y: p.y, facing: model.facing })) setFreeMove(false);
       return;
     }
-    if (hit && !(activatedHere && waypoints.length > 0)) {
+    // the activated model: a click moves it toward the point (an enemy: into base contact) as far as the rules
+    // allow; Shift + click only adds a waypoint (then "Move" or a plain click)
+    const moveNow = activatedHere && myTurn && model && !freeMove;
+    const target = hit && moveNow && hit.side !== model.side ? { x: hit.x!, y: hit.y! } : null;
+    if (hit && !target && !(activatedHere && waypoints.length > 0)) {
       if (hit.id !== selected) setWaypoints([]);
       setSelected(hit.id);
       return;
     }
-    if (activatedHere && myTurn && model) setWaypoints((w) => [...w, p]);
+    if (moveNow) {
+      const point = target ?? p;
+      if (shift) {
+        setWaypoints((w) => [...w, point]);
+        return;
+      }
+      if (await run({ type: "MOVE", id: model.id, mode: activation?.mode ?? mode, waypoints: [...waypoints, point] })) setWaypoints([]);
+      return;
+    }
+    if (!hit && !setup && !freeMove) setSelectedPiece(null);
   };
 
   const rotate = (d: number) => model && canEdit && model.deployed && run({ type: "ROTATE", id: model.id, facing: (model.facing + d + 360) % 360 });
@@ -329,6 +502,9 @@ export function TablePlay({ tableId }: { tableId: string }) {
     : solo && side === 1 ? t("sideB")
     : side === JUDGE_SIDE ? t("judgeWho", { name: view.judge?.name ?? "?" })
     : view.players.find((p) => p.side === side)?.name ?? "?";
+  const terrainLabel = (info: NonNullable<ReturnType<typeof terrainInfoAt>>) =>
+    t(info.obstacle ? "terrainInfoObstacle" : "terrainInfoArea", { h: fmt(info.height) })
+    + (info.envs.length ? " · " + info.envs.map((e) => t(`env.${e}`)).join(", ") : "");
   const lastRolls = view.log.filter((e) => e.type === "ROLLED" && !e.undone).slice(-3).reverse();
   const myUndeployed = view.models.filter((m) => (solo || m.side === you) && !m.deployed);
   const meReady = solo ? view.game.ready[0] && view.game.ready[1] : you >= 0 && view.game.ready[you as 0 | 1];
@@ -342,6 +518,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+      {panelDrag.ghost}
         <div className="flex flex-wrap items-center gap-2 lg:col-span-2">
           <h1 className="font-display text-xl">{sandbox ? t("freeGame") : view.mapName}</h1>
           {solo && <Badge variant="secondary">{t("soloBadge")}</Badge>}
@@ -381,7 +558,8 @@ export function TablePlay({ tableId }: { tableId: string }) {
               heightIn={view.field.heightIn}
               background={{ imageId: view.background.imageId, x: view.field.widthIn / 2, y: view.field.heightIn / 2,
                 widthIn: view.background.widthIn, heightIn: view.background.heightIn, rotation: 0 }}
-              pictures={view.placements.map((p) => ({ imageId: p.imageId, x: p.x, y: p.y, widthIn: p.widthIn, heightIn: p.heightIn, rotation: p.rotation }))}
+              pictures={view.placements.map((p) => ({ imageId: p.imageId, ...frameOf(p) }))}
+              onApi={setBoardApi}
               terrain={view.terrain}
               showTerrain={showTerrain}
               zones={showZones ? zones : null}
@@ -445,16 +623,22 @@ export function TablePlay({ tableId }: { tableId: string }) {
               }}
               over={(ctx, px) => {
                 const sel = sandbox ? view.placements.find((x) => x.id === selectedPiece) : undefined;
-                if (sel) {
-                  const w = sel.widthIn / 2, h = sel.heightIn / 2;
-                  const corners = [{ x: -w, y: -h }, { x: w, y: -h }, { x: w, y: h }, { x: -w, y: h }]
-                    .map((c) => { const r = rotateVec(c, sel.rotation); return { x: r.x + sel.x, y: r.y + sel.y }; });
+                if (sel) drawFrame(ctx, px, frameOf(sel), canShapeTerrain, Math.max(7, px(0.2)));
+                // facing handle of the selected model: a vector from its front with a knob to drag
+                if (facingEditable && model) {
+                  const f = facingPreview?.id === model.id ? facingPreview.facing : model.facing;
+                  const a = (f * Math.PI) / 180, r = hitbox(model.size).r;
+                  const knob = facingKnob(model, f);
+                  ctx.save();
                   ctx.strokeStyle = "#33d3e0";
+                  ctx.fillStyle = "#0d1322";
                   ctx.lineWidth = 2;
-                  ctx.setLineDash([6, 4]);
-                  tracePath(ctx, px, corners, true);
+                  ctx.beginPath();
+                  ctx.moveTo(px(model.x! + Math.cos(a) * r), px(model.y! + Math.sin(a) * r));
+                  ctx.lineTo(px(knob.x), px(knob.y));
                   ctx.stroke();
-                  ctx.setLineDash([]);
+                  ctx.beginPath(); ctx.arc(px(knob.x), px(knob.y), Math.max(7, px(0.18)), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                  ctx.restore();
                 }
                 if (ruler.length) {
                   ctx.strokeStyle = "#f2d36b";
@@ -475,6 +659,9 @@ export function TablePlay({ tableId }: { tableId: string }) {
                     ctx.textAlign = "start";
                   }
                 }
+                // what the rules see under the pointer: the highest terrain there
+                const info = hover && !pieceEdit && !facingPreview?.drag ? terrainInfoAt(hover, view.terrain) : null;
+                if (hover && info && !plan) drawTooltip(ctx, px, hover, terrainLabel(info));
                 if (!plan) return;
                 const end = plan.path[plan.path.length - 1];
                 const total = (activation?.mode ?? mode) === "RUN" ? activation?.run ?? 0 : activation?.walk ?? 0;
@@ -486,8 +673,12 @@ export function TablePlay({ tableId }: { tableId: string }) {
                 ctx.fillStyle = "#061320";
                 ctx.fillText(label, px(end.x) + 17, px(end.y) - px(0.33));
               }}
-              onPointerUp={(p) => void onBoardClick(p)}
-              cursor={freeMove || setup || tool !== "NONE" || placing ? "copy" : "crosshair"}
+              onPointerDown={onBoardDown}
+              onPointerMove={onBoardMove}
+              onPointerUp={(p, e) => void onBoardUp(p, e)}
+              onPointerLeave={() => setHover(null)}
+              onWheel={onBoardWheel}
+              cursor={pieceEdit ? "grabbing" : freeMove || setup || tool !== "NONE" || placing ? "copy" : "crosshair"}
             />
             <div className="flex flex-wrap gap-2 p-2">
               <Button size="sm" variant={showLos ? "default" : "outline"} onClick={() => setShowLos((s) => !s)} disabled={!model?.deployed}>
@@ -496,6 +687,12 @@ export function TablePlay({ tableId }: { tableId: string }) {
               <Button size="sm" variant={showTerrain ? "default" : "outline"} onClick={() => setShowTerrain((s) => !s)}>
                 <Layers aria-hidden /> {t("terrainOverlay")}
               </Button>
+              {sandbox && role === "PLAYER" && view.status !== "FINISHED" && (
+                <Button size="sm" variant={terrainLocked ? "default" : "outline"} aria-pressed={terrainLocked}
+                  onClick={() => { setTerrainLock(!terrainLocked); setPieceEdit(null); }}>
+                  {terrainLocked ? <Lock aria-hidden /> : <LockOpen aria-hidden />} {terrainLocked ? t("terrainLocked") : t("lockTerrain")}
+                </Button>
+              )}
               <Button size="sm" variant={showZones ? "default" : "outline"} onClick={() => setShowZones((s) => !s)}
                 title={t(`deploymentKind.${view.field.deployment ?? "STANDARD"}`)}>
                 <SquareDashed aria-hidden /> {t("deploymentZones")}
@@ -542,7 +739,8 @@ export function TablePlay({ tableId }: { tableId: string }) {
       <div className="grid min-w-0 content-start gap-3">
         {sandbox && role === "PLAYER" && view.status !== "FINISHED" && (
           <SandboxPanel view={view} busy={busy} run={run} tab={sandboxTab} setTab={setSandboxTab} placing={placing}
-            setPlacing={setPlacing} selectedPiece={selectedPiece} setSelectedPiece={setSelectedPiece} />
+            setPlacing={setPlacing} selectedPiece={selectedPiece} setSelectedPiece={setSelectedPiece}
+            dragStart={panelDrag.start} wasDragging={panelDrag.wasDragging} />
         )}
         {setup && role === "PLAYER" && (
           <Card>
@@ -624,6 +822,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
                       total: fmt((activation.mode ?? mode) === "RUN" ? activation.run : activation.walk),
                     })}
                   </p>
+                  <p className="text-xs text-muted-foreground">{t("moveHelp")}</p>
                   {!routeLength && <p className="text-xs text-muted-foreground">{t("realismMove")}</p>}
                   {plan?.stoppedBy && <p className="text-amber-400">{t(`stopped.${plan.stoppedBy.kind}`)}</p>}
                   {plan?.endsOnAlly && <p className="text-amber-400">{t("endsOnAlly")}</p>}

@@ -15,6 +15,9 @@ import { MAX_SCALE, MIN_SCALE } from "@/lib/table/terrain.ts";
 
 export type SandboxTab = "MAT" | "TERRAIN" | "MODELS";
 
+/** What can be dragged from the panel onto the board. */
+export type PanelDrop = { kind: "TERRAIN"; ref: string; name: string } | { kind: "MODEL"; ref: string; name: string; side: 0 | 1 };
+
 /** What the next click on the board does in a free game. */
 export type Placing =
   | { kind: "TERRAIN"; ref: string; name: string; scale: number; rotation: number }
@@ -28,7 +31,7 @@ const norm = (d: number) => ((d % 360) + 360) % 360;
  * Free game: pick the mat, drop terrain pieces from the library and models from the profiles onto the table
  * (as many as you like), turn, scale, move or remove the pieces.
  */
-export function SandboxPanel({ view, busy, run, tab, setTab, placing, setPlacing, selectedPiece, setSelectedPiece }: {
+export function SandboxPanel({ view, busy, run, tab, setTab, placing, setPlacing, selectedPiece, setSelectedPiece, dragStart, wasDragging }: {
   view: TableView;
   busy: boolean;
   run: (cmd: TableCommand, asSide?: 0 | 1) => Promise<boolean>;
@@ -38,6 +41,10 @@ export function SandboxPanel({ view, busy, run, tab, setTab, placing, setPlacing
   setPlacing: (p: Placing | null) => void;
   selectedPiece: string | null;
   setSelectedPiece: (id: string | null) => void;
+  /** Starts dragging an item onto the board (mouse at once, touch after a short hold). */
+  dragStart: (e: React.PointerEvent, payload: PanelDrop, imageId: string | null, label: string) => void;
+  /** True right after a drop – the click that ends a drag is ignored. */
+  wasDragging: () => boolean;
 }) {
   const t = useTranslations("table");
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
@@ -125,9 +132,14 @@ export function SandboxPanel({ view, busy, run, tab, setTab, placing, setPlacing
           <ul className="grid max-h-72 grid-cols-3 gap-2 overflow-auto">
             {shownTerrain.map((p) => (
               <li key={p.id}>
-                <button type="button" title={p.name}
-                  onClick={() => { setSelectedPiece(null); setPlacing({ kind: "TERRAIN", ref: p.id, name: p.name, scale: 1, rotation: 0 }); }}
-                  className={`grid w-full gap-1 rounded-md border p-1 text-left text-[11px] hover:border-primary ${placing?.kind === "TERRAIN" && placing.ref === p.id ? "border-primary" : ""}`}>
+                <button type="button" title={`${p.name} – ${t("dragToBoard")}`}
+                  onPointerDown={(e) => dragStart(e, { kind: "TERRAIN", ref: p.id, name: p.name }, p.imageId, p.name)}
+                  onClick={() => {
+                    if (wasDragging()) return;
+                    setSelectedPiece(null);
+                    setPlacing({ kind: "TERRAIN", ref: p.id, name: p.name, scale: 1, rotation: 0 });
+                  }}
+                  className={`grid w-full cursor-grab touch-pan-y select-none gap-1 rounded-md border p-1 text-left text-[11px] hover:border-primary ${placing?.kind === "TERRAIN" && placing.ref === p.id ? "border-primary" : ""}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={imageUrl(p.imageId)} alt="" className="aspect-square w-full rounded bg-muted object-contain" />
                   <span className="truncate">{p.name}</span>
@@ -156,9 +168,10 @@ export function SandboxPanel({ view, busy, run, tab, setTab, placing, setPlacing
               const active = placing?.kind === "MODEL" && placing.ref === p.code && placing.side === s;
               return (
                 <li key={p.code}>
-                  <button type="button" disabled={s == null}
-                    onClick={() => s != null && setPlacing({ kind: "MODEL", ref: p.code, name: p.name, side: s })}
-                    className={`flex w-full items-center gap-2 rounded-md border px-2 py-1 text-left text-xs hover:border-primary ${active ? "border-primary bg-primary/10" : ""}`}>
+                  <button type="button" disabled={s == null} title={t("dragToBoard")}
+                    onPointerDown={(e) => s != null && dragStart(e, { kind: "MODEL", ref: p.code, name: p.name, side: s }, null, p.name)}
+                    onClick={() => s != null && !wasDragging() && setPlacing({ kind: "MODEL", ref: p.code, name: p.name, side: s })}
+                    className={`flex w-full cursor-grab touch-pan-y select-none items-center gap-2 rounded-md border px-2 py-1 text-left text-xs hover:border-primary ${active ? "border-primary bg-primary/10" : ""}`}>
                     <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
                     <span className="shrink-0 text-muted-foreground">{t(`size.${p.size}`)}</span>
                   </button>

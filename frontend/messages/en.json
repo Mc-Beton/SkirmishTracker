@@ -1950,7 +1950,7 @@
     "rotation": "Rotation °",
     "duplicate": "Duplicate",
     "remove": "Remove",
-    "mapEditorHelp": "Click a library piece and drag it on the board. Rotate with the knob above the piece, Q/E or the mouse wheel; scale with the corners, +/− or Shift + wheel (Shift while dragging: 15° / 5 % steps). Scaling changes length, width and wall thickness, never height. Delete removes it. “Terrain as the rules see it” shows what blocks movement and line of sight.",
+    "mapEditorHelp": "Drag a piece from the library onto the board (on a phone: hold, then drag). On the board: drag, the mouse wheel turns, Shift + wheel scales; frame corners scale, the knob above the frame turns. “Lock terrain” prevents accidental moves. Hover over terrain to see its height.",
     "categoryName": {
       "RUIN": "Ruins",
       "BUILDING": "Buildings",
@@ -2191,10 +2191,10 @@
     "matHelp": "The mat sets the size of the table and its natural areas (water, forest). You can change it at any time.",
     "terrainPiece": "Terrain piece",
     "movePiece": "Move",
-    "pickPieceHelp": "Click a piece on the board to turn, scale, move or remove it. Or pick a new one from the library below.",
+    "pickPieceHelp": "Grab a piece on the board and drag it. The mouse wheel turns it, Shift + wheel scales; frame corners scale, the knob above the frame turns (works with a finger too). Drag new pieces from the library below.",
     "side": "Side",
     "profileSearch": "Search models or factions…",
-    "modelsHelp": "Pick a model and click on the board – every click places another one. Remove it in the model card.",
+    "modelsHelp": "Drag a model onto the board (on a phone: hold, then drag) or click it and click on the board. Remove it in the model card.",
     "pickScheme": "Pick a Scheme…",
     "endGameSolo": "End the game",
     "gameMode": "Kind of game",
@@ -2208,6 +2208,12 @@
     },
     "createSandbox": "Open a free table",
     "noListFreeGame": "No list (free game only)",
-    "noListHelp": "Without a list you can join only a free game – add your models on the table."
+    "noListHelp": "Without a list you can join only a free game – add your models on the table.",
+    "terrainInfoObstacle": "Obstacle · height {h}″",
+    "terrainInfoArea": "Area · height {h}″",
+    "lockTerrain": "Lock terrain",
+    "terrainLocked": "Terrain locked",
+    "dragToBoard": "Drag onto the board, or click it and click on the board",
+    "moveHelp": "Click the target – the model goes as far as the rules allow (click an enemy: into base contact). Shift + click adds a waypoint. The mouse wheel or the handle in front of the model turns it."
   }
 }

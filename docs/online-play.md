@@ -170,6 +170,20 @@ Komendy (`type`): `FIRST_PLAYER`, `DEPLOY`, `READY`, `ACTIVATE`, `MOVE`, `FREE_M
 - `/maps`, `/maps/new`, `/maps/{id}` – przeglądanie i edytor map.
 - `/admin/table` – biblioteka terenu i teł (wgrywanie grafiki, rysowanie kształtów).
 
+### Sterowanie na planszy
+
+- **Teren (edytor map i gra swobodna):** element przeciąga się z biblioteki na planszę (mysz od razu, dotyk po
+  przytrzymaniu ~0,3 s; klik + klik na planszy dalej działa). Na planszy: przeciąganie przesuwa, kółko obraca o 15°,
+  Shift + kółko skaluje; ramka zaznaczenia ma narożniki do skalowania i wystający uchwyt do obrotu (Shift: skok 15° / 5 %),
+  uchwyty mają co najmniej 16 px (palec). „Zablokuj teren” wyłącza chwytanie (w grze swobodnej domyślnie po starcie gry).
+  W grze swobodnej zmiana jest widoczna od razu, a do serwera idzie jedna komenda po puszczeniu (kółko: po 0,45 s przerwy).
+  Wspólny kod: `lib/table/handles.ts`, `components/table/use-board-drag.tsx`.
+- **Najechanie na teren** pokazuje, co widzą zasady: przeszkoda / obszar, największa wysokość w tym miejscu i środowiska.
+- **Ruch modelu:** po aktywacji klik w cel od razu wykonuje ruch – serwer skraca trasę do zasięgu (Walk/Run, teren, wrogowie);
+  klik na wrogi model = ruch do kontaktu podstawek; Shift + klik dodaje punkt trasy; podgląd trasy i licznik cali idą za kursorem.
+- **Obrót modelu:** kółko myszy nad modelem (lub tuż przy zaznaczonym) albo przeciągnięcie uchwytu na wektorze przodu;
+  sam obrót, bez ruchu (komenda `ROTATE`).
+
 ## 6. Bezpieczeństwo
 
 - Każdy endpoint sprawdza uczestnictwo / własność (stół widzi tylko gracz A, gracz B i admin; obcy dostaje 404).
