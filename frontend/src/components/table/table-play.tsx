@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { QuestPanel } from "@/components/table/quest-panel";
+import { QuestCard, SchemesCard, VpCard } from "@/components/table/quest-panel";
 import { TableSharing } from "@/components/table/table-sharing";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
@@ -284,8 +284,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="grid min-w-0 gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:col-span-2">
           <h1 className="font-display text-xl">{view.mapName}</h1>
           <Badge variant="outline">{t(`status.${view.status}`)}</Badge>
           {playing && <Badge>{t("round", { round: view.game.round })}</Badge>}
@@ -302,8 +301,11 @@ export function TablePlay({ tableId }: { tableId: string }) {
           {role !== "PLAYER" && <Badge variant="secondary">{t(`role.${role}`)}</Badge>}
         </div>
 
+      <div className="grid min-w-0 content-start gap-3">
         {error && <Alert variant="destructive">{error}</Alert>}
         {view.status === "WAITING" && <Alert>{t("waitingForOpponent")}</Alert>}
+
+        {view.status !== "WAITING" && <VpCard view={view} busy={busy} run={run} onReport={report} />}
 
         <Card>
           <CardContent className="p-2">
@@ -423,12 +425,6 @@ export function TablePlay({ tableId }: { tableId: string }) {
                 onClick={() => { setTool((x) => (x === "RULER" ? "NONE" : "RULER")); setRuler([]); }}>
                 <Ruler aria-hidden /> {t("ruler")}
               </Button>
-              {!readOnly && (
-                <Button size="sm" variant="outline" disabled={!view.canUndo || busy} onClick={() => { setWaypoints([]); void run({ type: "UNDO" }); }}>
-                  <Undo2 aria-hidden /> {judge ? t("judgeUndo") : t("undo")}
-                </Button>
-              )}
-              {!view.canUndo && playing && myTurn && <span className="self-center text-xs text-muted-foreground">{t("undoHint")}</span>}
               {measureMode !== "ASSISTED" && role === "PLAYER" && tool === "RULER" && (
                 <span className="self-center text-xs text-muted-foreground">{t(`measureHelp.${measureMode}`)}</span>
               )}
@@ -504,12 +500,16 @@ export function TablePlay({ tableId }: { tableId: string }) {
           <Card><CardContent className="p-4 text-sm text-muted-foreground">{t("pickModel")}</CardContent></Card>
         )}
 
-        {view.creator && view.status !== "FINISHED" && <TableSharing view={view} onChanged={() => void load()} />}
-
-        {playing && !readOnly && (
+        {!readOnly && (playing || setup || (judge && view.canUndo)) && (
           <Card>
-            <CardHeader><CardTitle className="text-base">{t("actions")}</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-base">{t("actions")}</CardTitle></CardHeader>
             <CardContent className="grid gap-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" disabled={!view.canUndo || busy} onClick={() => { setWaypoints([]); void run({ type: "UNDO" }); }}>
+                  <Undo2 aria-hidden /> {judge ? t("judgeUndo") : t("undo")}
+                </Button>
+                {!view.canUndo && playing && myTurn && <span className="text-xs text-muted-foreground">{t("undoHint")}</span>}
+              </div>
               {myTurn && model && mine && !activatedHere && (
                 <Button disabled={busy || model.ap < 1} onClick={async () => { setWaypoints([]); await run({ type: "ACTIVATE", id: model.id }); }}>
                   <Zap aria-hidden /> {t("activate", { ap: model.ap })}
@@ -553,7 +553,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
                   <Zap aria-hidden /> {t("react", { name: names.get(activation.id) ?? "" })}
                 </Button>
               )}
-              {model && canEdit && model.deployed && (
+              {playing && model && canEdit && model.deployed && (
                 <Button size="sm" variant={freeMove ? "default" : "outline"} onClick={() => setFreeMove((f) => !f)}>
                   {freeMove ? t("freeMoveOn") : t("freeMove")}
                 </Button>
@@ -568,7 +568,41 @@ export function TablePlay({ tableId }: { tableId: string }) {
           </Card>
         )}
 
-        {view.status !== "WAITING" && <QuestPanel view={view} busy={busy} run={run} onReport={report} />}
+        <Card>
+          <CardHeader><CardTitle className="text-base">{t("dice")}</CardTitle></CardHeader>
+          <CardContent className="grid gap-2 text-sm">
+            <div className="grid grid-cols-3 gap-2">
+              <label className="grid gap-1">{t("diceCount")}
+                <Input type="number" min={1} max={20} value={dice.count}
+                  onChange={(e) => setDice((d) => ({ ...d, count: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))} />
+              </label>
+              <label className="grid gap-1">{t("diceTarget")}
+                <Input type="number" min={0} max={40} value={dice.target} placeholder="—"
+                  onChange={(e) => setDice((d) => ({ ...d, target: e.target.value }))} />
+              </label>
+              <label className="grid gap-1">{t("diceLabel")}
+                <Input value={dice.label} maxLength={60} onChange={(e) => setDice((d) => ({ ...d, label: e.target.value }))} />
+              </label>
+            </div>
+            {model && (
+              <div className="flex flex-wrap gap-1">
+                {ATTRIBUTES.map((s) => (
+                  <Button key={s} size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                    onClick={() => setDice((d) => ({ ...d, target: String(model.stats[s]), label: `${model.name.split(/[ ,]/)[0]} ${s}` }))}>
+                    {s} {model.stats[s]}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <Button disabled={busy || readOnly} onClick={() => void run({
+              type: "ROLL", count: dice.count, target: dice.target === "" ? undefined : Number(dice.target),
+              label: dice.label || undefined, id: model?.id,
+            })}>
+              <Dices aria-hidden /> {t("roll")}
+            </Button>
+            {lastRolls.map((e) => <RollLine key={e.seq} entry={e} who={playerName(e.side)} />)}
+          </CardContent>
+        </Card>
 
         {!readOnly && view.status !== "WAITING" && view.status !== "FINISHED" && (
           <Card>
@@ -629,41 +663,9 @@ export function TablePlay({ tableId }: { tableId: string }) {
           </Card>
         )}
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">{t("dice")}</CardTitle></CardHeader>
-          <CardContent className="grid gap-2 text-sm">
-            <div className="grid grid-cols-3 gap-2">
-              <label className="grid gap-1">{t("diceCount")}
-                <Input type="number" min={1} max={20} value={dice.count}
-                  onChange={(e) => setDice((d) => ({ ...d, count: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))} />
-              </label>
-              <label className="grid gap-1">{t("diceTarget")}
-                <Input type="number" min={0} max={40} value={dice.target} placeholder="—"
-                  onChange={(e) => setDice((d) => ({ ...d, target: e.target.value }))} />
-              </label>
-              <label className="grid gap-1">{t("diceLabel")}
-                <Input value={dice.label} maxLength={60} onChange={(e) => setDice((d) => ({ ...d, label: e.target.value }))} />
-              </label>
-            </div>
-            {model && (
-              <div className="flex flex-wrap gap-1">
-                {ATTRIBUTES.map((s) => (
-                  <Button key={s} size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                    onClick={() => setDice((d) => ({ ...d, target: String(model.stats[s]), label: `${model.name.split(/[ ,]/)[0]} ${s}` }))}>
-                    {s} {model.stats[s]}
-                  </Button>
-                ))}
-              </div>
-            )}
-            <Button disabled={busy || readOnly} onClick={() => void run({
-              type: "ROLL", count: dice.count, target: dice.target === "" ? undefined : Number(dice.target),
-              label: dice.label || undefined, id: model?.id,
-            })}>
-              <Dices aria-hidden /> {t("roll")}
-            </Button>
-            {lastRolls.map((e) => <RollLine key={e.seq} entry={e} who={playerName(e.side)} />)}
-          </CardContent>
-        </Card>
+        {view.status !== "WAITING" && <QuestCard view={view} />}
+        {view.status !== "WAITING" && <SchemesCard view={view} busy={busy} run={run} />}
+        {view.creator && view.status !== "FINISHED" && <TableSharing view={view} onChanged={() => void load()} />}
 
         <Card>
           <CardHeader><CardTitle className="text-base">{t("log")}</CardTitle></CardHeader>

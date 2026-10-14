@@ -207,6 +207,10 @@ class TableIntegrationTest {
         cmd(b, table, "{\"type\":\"DEPLOY\",\"id\":\"b2\",\"x\":20,\"y\":3,\"facing\":90}");
         cmd(a, table, "{\"type\":\"FIRST_PLAYER\",\"side\":0}");
         cmd(a, table, "{\"type\":\"READY\"}");
+        // "Ready" needs a kept Scheme (Oni draw from the Monster Factions table)
+        assertThat(error(b, table, "{\"type\":\"READY\"}")).isEqualTo("TABLE_SCHEME_FIRST");
+        JsonNode drawnB = cmd(b, table, "{\"type\":\"DRAW_SCHEMES\"}").get("parties").get(1).get("drawn");
+        cmd(b, table, "{\"type\":\"KEEP_SCHEME\",\"scheme\":\"%s\"}".formatted(drawnB.get(0).get("scheme").asText()));
         view = cmd(b, table, "{\"type\":\"READY\"}");
         assertThat(view.get("status").asText()).isEqualTo("PLAYING");
         assertThat(view.get("game").get("active").asInt()).isZero();

@@ -249,6 +249,7 @@
     "TABLE_GAME_FINISHED": "Gra jest już zakończona.",
     "TABLE_BAD_SIDE": "Nieprawidłowy gracz.",
     "TABLE_SETUP_OVER": "Rozstawienie już się zakończyło.",
+    "TABLE_SCHEME_FIRST": "Najpierw wylosuj i wybierz scheme (karta „Scheme”).",
     "TABLE_NOT_STARTED": "Gra jeszcze się nie zaczęła.",
     "TABLE_NOT_YOUR_TURN": "To nie jest Twoja tura.",
     "TABLE_NOT_YOUR_MODEL": "To nie jest Twój model.",

@@ -249,6 +249,7 @@
     "TABLE_GAME_FINISHED": "The game is already over.",
     "TABLE_BAD_SIDE": "Invalid player.",
     "TABLE_SETUP_OVER": "Deployment is already over.",
+    "TABLE_SCHEME_FIRST": "Draw and keep your Scheme first (the “Schemes” card).",
     "TABLE_NOT_STARTED": "The game has not started yet.",
     "TABLE_NOT_YOUR_TURN": "It is not your turn.",
     "TABLE_NOT_YOUR_MODEL": "That is not your model.",

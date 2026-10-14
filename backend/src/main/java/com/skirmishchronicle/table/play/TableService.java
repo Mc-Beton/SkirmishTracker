@@ -306,6 +306,9 @@ public class TableService {
         if (cmd instanceof Command.DrawSchemes) {
             cmd = new Command.DrawSchemes(drawSchemes(s, side));
         }
+        if (cmd instanceof Command.Ready && side >= 0 && side <= 1 && needsScheme(s, side)) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_SCHEME_FIRST");
+        }
         List<GameEvent> out;
         try {
             out = engine.decide(s, log, side, cmd);
@@ -389,6 +392,13 @@ public class TableService {
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /** A player whose faction has a Scheme table keeps a Scheme before "Ready". */
+    private boolean needsScheme(GameState s, int side) {
+        GameState.Party party = s.parties[side];
+        return party != null && party.leaderInt() >= 1 && content.hasSchemeTable(party.faction())
+                && !s.schemeKept.containsKey(side);
+    }
 
     /** d20 on the faction's Scheme table, as many cards as the Leader's INT allows (shared with tournaments). */
     private List<GameEvent.SchemeCard> drawSchemes(GameState s, int side) {

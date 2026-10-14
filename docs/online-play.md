@@ -99,6 +99,8 @@ Komendy (`type`): `FIRST_PLAYER`, `DEPLOY`, `READY`, `ACTIVATE`, `MOVE`, `FREE_M
 - **Scenariusz** wybierany przy zakładaniu stołu (opcjonalny); karta scenariusza w panelu gry.
 - **Scheme:** każdy gracz losuje karty kośćmi serwera (liczba kart z INT lidera, jak w zwykłej grze), jedną
   zatrzymuje. Zgodnie z zasadami scheme są jawne – widzą je obaj gracze.
+  „Gotowy” wymaga zatrzymanego scheme (`TABLE_SCHEME_FIRST`, gdy frakcja ma tabelę); gracz, który go pominął
+  w starszych stołach, może jeszcze losować w 1. rundzie.
 - **Żetony** (Intrigue, Cache, Sigil, Cel, Skarb, własny znacznik z opisem): kładzenie, przesuwanie, zdejmowanie –
   może każdy z graczy (jak przy prawdziwym stole), max 60.
 - **Punkty zwycięstwa:** tabela runda × gracz (scenariusz + scheme, 0–30 na rundę); wpisuje każdy z graczy.

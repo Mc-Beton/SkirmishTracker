@@ -315,7 +315,10 @@ class TableEngineTest {
         assertEquals("PEACEKEEPING_PARAGON", s.schemeKept.get(0));
         assertEquals("a1", s.parties[0].leaderId());
         deployAndStart();
-        assertEquals("TABLE_SETUP_OVER", code(1, new Command.DrawSchemes(cards)));
+        // a player who missed it may still draw in the first round
+        run(1, new Command.DrawSchemes(cards));
+        run(1, new Command.KeepScheme("VIRTUOUS_COMMANDER"));
+        assertEquals("VIRTUOUS_COMMANDER", state().schemeKept.get(1));
     }
 
     @Test

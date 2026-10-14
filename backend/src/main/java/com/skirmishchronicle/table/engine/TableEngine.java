@@ -214,7 +214,10 @@ public final class TableEngine {
             case Command.Undo u -> List.of(undo(s, log, side));
             case Command.Concede c -> List.of(new GameEvent.GameEnded("CONCEDED", 1 - side));
             case Command.DrawSchemes d -> {
-                setup(s);
+                // before the game; a player who missed it may still draw during the first round
+                if (s.status != GameState.Status.SETUP && !(s.status == GameState.Status.PLAYING && s.round <= 1)) {
+                    throw new RuleViolation("TABLE_SETUP_OVER");
+                }
                 if (s.schemesDrawn.containsKey(side)) {
                     throw new RuleViolation("TABLE_SCHEMES_ALREADY_DRAWN");
                 }

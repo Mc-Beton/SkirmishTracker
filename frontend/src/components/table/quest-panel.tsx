@@ -14,39 +14,44 @@ import { SchemeCard } from "@/components/game/scheme-card";
 import { cardsFor, useGameContent } from "@/lib/content";
 import type { TableCommand, TableView } from "@/lib/table/api";
 
-/**
- * Quest of the table: rules card, Scheme cards (drawn with server dice, one kept – public as in the rules),
- * Victory Points per round for both players, ending the game together and reporting the result.
- */
-export function QuestPanel({ view, busy, run, onReport }: {
+type Props = {
   view: TableView;
   busy: boolean;
   run: (cmd: TableCommand) => Promise<boolean>;
-  onReport: () => Promise<void>;
-}) {
+};
+
+const nameOf = (view: TableView, side: number) => view.players.find((p) => p.side === side)?.name ?? "?";
+
+/** The quest's rules card (folded). */
+export function QuestCard({ view }: { view: TableView }) {
   const t = useTranslations("table");
   const content = useGameContent();
   const quest = content?.quests.find((q) => q.code === view.questCode) ?? null;
+  if (!quest) return null;
+  return (
+    <CollapsibleCard title={t("questTitle", { name: quest.name })} defaultOpen={false}>
+      <QuestView quest={quest} compact />
+    </CollapsibleCard>
+  );
+}
+
+/**
+ * Scheme cards (drawn with server dice, one kept – public as in the rules). Folded once the player has kept one;
+ * open while they still have to draw or choose.
+ */
+export function SchemesCard({ view, busy, run }: Props) {
+  const t = useTranslations("table");
+  const content = useGameContent();
   const you = view.you;
-  const judge = view.role === "JUDGE";
-  /** Players and the judge enter Victory Points. */
-  const canEdit = you >= 0 || judge;
-  const name = (side: number) => view.players.find((p) => p.side === side)?.name ?? "?";
+  const name = (side: number) => nameOf(view, side);
   const schemeOf = (code: string) => content?.schemes.find((s) => s.code === code);
-  const rounds = Math.max(1, view.game.round || 1);
-  const playing = view.game.status === "PLAYING";
+  const myParty = view.parties.find((p) => p.side === you);
+  const canDraw = view.game.status === "SETUP" || (view.game.status === "PLAYING" && view.game.round <= 1);
+  const summary = view.parties.map((p) => `${name(p.side)}: ${p.kept ? schemeOf(p.kept)?.name ?? p.kept : "—"}`).join(" · ");
 
   return (
-    <>
-      {quest && (
-        <CollapsibleCard title={t("questTitle", { name: quest.name })} defaultOpen={false}>
-          <QuestView quest={quest} compact />
-        </CollapsibleCard>
-      )}
-
-      <Card>
-        <CardHeader><CardTitle className="text-base">{t("schemes")}</CardTitle></CardHeader>
-        <CardContent className="grid gap-3 text-sm">
+    <CollapsibleCard title={t("schemes")} meta={summary} defaultOpen={!!myParty && !myParty.kept}
+      contentClassName="grid gap-3 text-sm">
           {[0, 1].map((side) => {
             const party = view.parties.find((p) => p.side === side);
             if (!party) return null;
@@ -72,7 +77,7 @@ export function QuestPanel({ view, busy, run, onReport }: {
                       ) : <span key={c.scheme}>{c.scheme}</span>;
                     })}
                   </div>
-                ) : mine && view.game.status === "SETUP" ? (
+                ) : mine && canDraw ? (
                   <Button size="sm" disabled={busy} onClick={() => void run({ type: "DRAW_SCHEMES" })}><Dices aria-hidden /> {t("drawSchemes")}</Button>
                 ) : (
                   <span className="text-xs text-muted-foreground">{t("noSchemeYet")}</span>
@@ -80,12 +85,25 @@ export function QuestPanel({ view, busy, run, onReport }: {
               </div>
             );
           })}
-        </CardContent>
-      </Card>
+    </CollapsibleCard>
+  );
+}
 
-      {view.game.status !== "SETUP" && (
+/** Victory Points per round for both players, ending the game together and reporting the result. */
+export function VpCard({ view, busy, run, onReport }: Props & { onReport: () => Promise<void> }) {
+  const t = useTranslations("table");
+  const you = view.you;
+  const judge = view.role === "JUDGE";
+  /** Players and the judge enter Victory Points. */
+  const canEdit = you >= 0 || judge;
+  const name = (side: number) => nameOf(view, side);
+  const rounds = Math.max(1, view.game.round || 1);
+  const playing = view.game.status === "PLAYING";
+  if (view.game.status === "SETUP") return null;
+
+  return (
         <Card>
-          <CardHeader><CardTitle className="text-base">{t("victoryPoints")}</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base">{t("victoryPoints")}</CardTitle></CardHeader>
           <CardContent className="grid gap-2 text-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-center text-xs tabular-nums">
@@ -151,8 +169,6 @@ export function QuestPanel({ view, busy, run, onReport }: {
             )}
           </CardContent>
         </Card>
-      )}
-    </>
   );
 }
 
