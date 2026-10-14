@@ -13,6 +13,8 @@ import com.skirmishchronicle.friendly.GameList;
 import com.skirmishchronicle.identity.domain.User;
 import com.skirmishchronicle.identity.repo.UserRepository;
 import com.skirmishchronicle.live.LiveEventService;
+import com.skirmishchronicle.notification.NotificationService;
+import com.skirmishchronicle.notification.NotificationType;
 import com.skirmishchronicle.table.engine.Command;
 import com.skirmishchronicle.table.engine.GameEvent;
 import com.skirmishchronicle.table.engine.GameState;
@@ -65,7 +67,18 @@ public class TableService {
     }
 
     public record Summary(UUID id, String status, String mapName, TableView.Player playerA, TableView.Player playerB,
-                          int yourSide, String role, Instant updatedAt) {
+                          int yourSide, String role, Instant updatedAt, String mode) {
+    }
+
+    /** A model profile for the free game's model list. */
+    public record ProfileView(String code, String name, String size, List<String> factions, List<String> classes) {
+    }
+
+    public static final String SANDBOX_NAME = "Free game";
+
+    /** What an invited player sees before accepting: who invites, the map, the quest and the rules of the table. */
+    public record Invitation(UUID id, String mapName, String questCode, String measureMode, String deployment,
+                             TableView.Player from, Instant invitedAt, String mode) {
     }
 
     private final GameTableRepository tables;
@@ -81,11 +94,13 @@ public class TableService {
     private final SecureRandom random = new SecureRandom();
     private final TableEngine engine;
     private final TableWatcherRepository watchers;
+    private final NotificationService notifications;
 
     public TableService(GameTableRepository tables, TableEventStore events, TableLibraryService library,
                         ArmyListRepository lists, WarbandService warbands, UserRepository users, LiveEventService live,
                         ObjectMapper json, ContentService content, FriendlyGameService friendly,
-                        TableWatcherRepository watchers) {
+                        TableWatcherRepository watchers, NotificationService notifications) {
+        this.notifications = notifications;
         this.watchers = watchers;
         this.content = content;
         this.friendly = friendly;
@@ -105,6 +120,13 @@ public class TableService {
     @Transactional
     public Created create(CurrentUser actor, UUID mapId, UUID listId, String questCode, GameTable.MeasureMode measureMode,
                           boolean judge, boolean observers) {
+        return create(actor, mapId, listId, questCode, measureMode, judge, observers, null);
+    }
+
+    /** As above; {@code opponentId} (optional) is invited by name and notified, the link works as well. */
+    @Transactional
+    public Created create(CurrentUser actor, UUID mapId, UUID listId, String questCode, GameTable.MeasureMode measureMode,
+                          boolean judge, boolean observers, UUID opponentId) {
         String quest = questCode == null || questCode.isBlank() ? null : questCode;
         if (quest != null && content.quest(quest).isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_QUEST");
@@ -134,7 +156,53 @@ public class TableService {
         t.observers(observers, watchInvite == null ? null : Tokens.sha256(watchInvite));
         tables.saveAndFlush(t); // the event log (plain JDBC) references the row
         appendSystem(t, models(0, list));
+        if (opponentId != null) {
+            inviteUser(actor, t, opponentId);
+        }
         return new Created(t.getId(), invite, judgeInvite, watchInvite);
+    }
+
+    /**
+     * A free game: no map and no lists – the mat, terrain and models are put on the table during the game. The creator
+     * plays both sides until somebody joins (link or invitation by name; the opponent may join without a list).
+     */
+    @Transactional
+    public Created createSandbox(CurrentUser actor, String questCode, GameTable.MeasureMode measureMode, boolean judge,
+                                 boolean observers, UUID opponentId) {
+        String quest = questCode == null || questCode.isBlank() ? null : questCode;
+        if (quest != null && content.quest(quest).isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_QUEST");
+        }
+        users.findByIdForUpdate(actor.id());
+        if (tables.countOpen(actor.id()) >= MAX_OPEN_TABLES) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_TOO_MANY_OPEN");
+        }
+        MapSnapshot snap = new MapSnapshot(SANDBOX_NAME, 36, 36, 8, null, List.of(), Map.of());
+        String invite = Tokens.newToken();
+        GameTable t = new GameTable(actor.id(), SANDBOX_NAME, null, write(snap), 36, 36, 8, null, null, Tokens.sha256(invite),
+                measureMode);
+        t.makeSandbox();
+        String judgeInvite = judge ? Tokens.newToken() : null;
+        if (judgeInvite != null) {
+            t.newJudgeInvite(Tokens.sha256(judgeInvite));
+        }
+        String watchInvite = observers ? Tokens.newToken() : null;
+        t.observers(observers, watchInvite == null ? null : Tokens.sha256(watchInvite));
+        tables.saveAndFlush(t);
+        if (quest != null) {
+            appendSystem(t, List.of(new GameEvent.QuestSet(quest)));
+        }
+        if (opponentId != null) {
+            inviteUser(actor, t, opponentId);
+        }
+        return new Created(t.getId(), invite, judgeInvite, watchInvite);
+    }
+
+    /** Model profiles for the free game (riders and creatures; mounts go with a rider from a list). */
+    public List<ProfileView> profiles() {
+        return engine.profiles().all().stream()
+                .map(p -> new ProfileView(p.code(), p.name(), p.size().name(), p.factions(), p.classes()))
+                .sorted(java.util.Comparator.comparing(ProfileView::name)).toList();
     }
 
     /** The judge's seat, taken with the one-time judge link. Players of the table cannot judge it. */
@@ -214,6 +282,130 @@ public class TableService {
         return token;
     }
 
+    // ------------------------------------------------------------------ invitation by name
+
+    /** Creator: invite a registered player by name while the seat is free (replaces an earlier invited player). */
+    @Transactional
+    public TableView.Player inviteUser(CurrentUser actor, UUID id, UUID userId) {
+        GameTable t = created(actor, id);
+        return inviteUser(actor, t, userId);
+    }
+
+    private TableView.Player inviteUser(CurrentUser actor, GameTable t, UUID userId) {
+        if (t.getPlayerB() != null) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_INVITE_USED");
+        }
+        if (userId == null || userId.equals(actor.id())) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_CANNOT_PLAY_YOURSELF");
+        }
+        User invited = users.findById(userId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TABLE_PLAYER_NOT_FOUND"));
+        if (userId.equals(t.getJudgeId())) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_PLAYER_CANNOT_JUDGE");
+        }
+        boolean again = userId.equals(t.getInvitedUserId());
+        t.inviteUser(userId);
+        if (!again) {
+            notifications.notify(userId, NotificationType.TABLE_INVITATION,
+                    Map.of("player", player(actor.id(), 0).name(), "map", t.getMapName()), "/tables/join?table=" + t.getId());
+        }
+        live.tableChangedAfterCommit(t.getId(), 0);
+        return new TableView.Player(1, invited.getId(), invited.getDisplayName());
+    }
+
+    /** Creator: withdraw the invitation by name (the link keeps working). */
+    @Transactional
+    public void cancelUserInvite(CurrentUser actor, UUID id) {
+        GameTable t = created(actor, id);
+        t.inviteUser(null);
+        live.tableChangedAfterCommit(t.getId(), 0);
+    }
+
+    /** Open invitations of the user (seat still free). */
+    @Transactional(readOnly = true)
+    public List<Invitation> invitations(CurrentUser actor) {
+        return tables.findInvitationsOf(actor.id()).stream().map(this::invitation).toList();
+    }
+
+    /** One invitation – only for the invited player, while the seat is free. */
+    @Transactional(readOnly = true)
+    public Invitation invitation(CurrentUser actor, UUID id) {
+        return invitation(invited(actor, tables.findById(id)));
+    }
+
+    /** The invited player takes the seat with one of their lists. */
+    @Transactional
+    public UUID acceptInvitation(CurrentUser actor, UUID id, UUID listId) {
+        GameTable t = invited(actor, tables.findByIdForUpdate(id));
+        seat(actor, t, listId);
+        return t.getId();
+    }
+
+    /** The invited player says no; the creator can invite somebody else or share the link. */
+    @Transactional
+    public void declineInvitation(CurrentUser actor, UUID id) {
+        GameTable t = invited(actor, tables.findByIdForUpdate(id));
+        t.inviteUser(null);
+        live.tableChangedAfterCommit(t.getId(), 0);
+    }
+
+    private GameTable invited(CurrentUser actor, java.util.Optional<GameTable> found) {
+        GameTable t = found.filter(x -> actor.id().equals(x.getInvitedUserId()))
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TABLE_INVITE_INVALID"));
+        if (t.getPlayerB() != null) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_INVITE_USED");
+        }
+        return t;
+    }
+
+    /** Player B sits down: with a list (its models join), or – in a free game – without one. */
+    private void seat(CurrentUser actor, GameTable t, UUID listId) {
+        if (t.getStatus() == GameTable.Status.FINISHED) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_GAME_FINISHED");
+        }
+        if (listId == null && !t.isSandbox()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_LIST_REQUIRED");
+        }
+        if (listId == null) {
+            t.join(actor.id(), null);
+        } else {
+            ArmyList list = ownList(actor, listId);
+            t.join(actor.id(), list.getUnits());
+            if (t.isSandbox()) {
+                // models of the list join a free game numbered after the ones already on the table
+                List<Recorded> log = events.load(t.getId());
+                appendSystem(t, renumber(models(1, list), state(t, log)));
+            } else {
+                appendSystem(t, models(1, list));
+            }
+        }
+        live.tableChangedAfterCommit(t.getId(), 0);
+    }
+
+    /** Model ids of a list for side B of a free game, after the highest id used so far. */
+    private static List<GameEvent> renumber(List<GameEvent> evs, GameState s) {
+        int n = s.modelCounter[1];
+        Map<String, String> ids = new LinkedHashMap<>();
+        List<GameEvent> out = new ArrayList<>();
+        for (GameEvent e : evs) {
+            if (e instanceof GameEvent.ModelAdded m) {
+                String id = "b" + (++n);
+                ids.put(m.id(), id);
+                out.add(new GameEvent.ModelAdded(id, m.side(), m.code(), m.mount()));
+            } else if (e instanceof GameEvent.PartyInfo p) {
+                out.add(new GameEvent.PartyInfo(p.side(), p.faction(), p.alliedFaction(), p.leaderInt(),
+                        p.leaderId() == null ? null : ids.get(p.leaderId())));
+            } else {
+                out.add(e);
+            }
+        }
+        return out;
+    }
+
+    private Invitation invitation(GameTable t) {
+        return new Invitation(t.getId(), t.getMapName(), t.getQuestCode(), t.getMeasureMode().name(), t.getDeployment().name(),
+                player(t.getPlayerA(), 0), t.getUpdatedAt(), t.getMode().name());
+    }
+
     private GameTable created(CurrentUser actor, UUID id) {
         GameTable t = tables.findByIdForUpdate(id).filter(x -> x.sideOf(actor.id()) >= 0)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TABLE_NOT_FOUND"));
@@ -261,10 +453,7 @@ public class TableService {
         if (t.getPlayerA().equals(actor.id())) {
             throw new ApiException(HttpStatus.CONFLICT, "TABLE_CANNOT_PLAY_YOURSELF");
         }
-        ArmyList list = ownList(actor, listId);
-        t.join(actor.id(), list.getUnits());
-        appendSystem(t, models(1, list));
-        live.tableChangedAfterCommit(t.getId(), 0);
+        seat(actor, t, listId);
         return t.getId();
     }
 
@@ -275,7 +464,7 @@ public class TableService {
         all.sort(java.util.Comparator.comparing(GameTable::getUpdatedAt).reversed());
         return all.stream().map(t -> new Summary(t.getId(), t.getStatus().name(), t.getMapName(),
                 player(t.getPlayerA(), 0), t.getPlayerB() == null ? null : player(t.getPlayerB(), 1),
-                t.sideOf(actor.id()), role(actor, t).name(), t.getUpdatedAt())).toList();
+                t.sideOf(actor.id()), role(actor, t).name(), t.getUpdatedAt(), t.getMode().name())).toList();
     }
 
     // ------------------------------------------------------------------ play
@@ -289,6 +478,15 @@ public class TableService {
 
     @Transactional
     public TableView command(CurrentUser actor, UUID id, Command cmd) {
+        return command(actor, id, cmd, null);
+    }
+
+    /**
+     * {@code asSide}: in a free game played alone (no player B yet) the creator acts for side 0 or 1 – the engine
+     * still checks turns and AP for that side; undo then works like the judge's (any step).
+     */
+    @Transactional
+    public TableView command(CurrentUser actor, UUID id, Command cmd, Integer asSide) {
         GameTable t = tables.findByIdForUpdate(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TABLE_NOT_FOUND"));
         GameTable.Role role = role(actor, t);
         if (role == GameTable.Role.NONE) {
@@ -298,6 +496,14 @@ public class TableService {
             throw new ApiException(HttpStatus.FORBIDDEN, "TABLE_READ_ONLY");
         }
         int side = role == GameTable.Role.JUDGE ? TableEngine.JUDGE : t.sideOf(actor.id());
+        if (solo(t, role)) {
+            if (cmd instanceof Command.Undo) {
+                side = TableEngine.JUDGE;
+            } else if (asSide != null && (asSide == 0 || asSide == 1)) {
+                side = asSide;
+            }
+        }
+        cmd = resolveLibrary(cmd);
         if (role == GameTable.Role.JUDGE && cmd instanceof Command.DrawSchemes) {
             throw new ApiException(HttpStatus.CONFLICT, "TABLE_JUDGE_CANNOT");
         }
@@ -358,6 +564,9 @@ public class TableService {
         if (t.getReportedGameId() != null) {
             throw new ApiException(HttpStatus.CONFLICT, "TABLE_ALREADY_REPORTED");
         }
+        if (t.isSandbox()) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_SANDBOX_NO_REPORT");
+        }
         List<Recorded> log = events.load(t.getId());
         GameState s = state(t, log);
         if (s.status != GameState.Status.FINISHED || !"FINISHED".equals(s.endReason)) {
@@ -395,6 +604,43 @@ public class TableService {
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /** The creator of a free game with no opponent yet plays both sides. */
+    static boolean solo(GameTable t, GameTable.Role role) {
+        return role == GameTable.Role.PLAYER && t.isSandbox() && t.getPlayerB() == null;
+    }
+
+    /** Free game: the mat and terrain pieces are copied from the library; quest and Scheme codes are checked. */
+    private Command resolveLibrary(Command cmd) {
+        return switch (cmd) {
+            case Command.SetBackground sb -> {
+                String bid = sb.background() == null ? null : sb.background().backgroundId();
+                TableLibraryService.BackgroundView b = library.backgrounds().stream().filter(x -> x.id().toString().equals(bid))
+                        .findFirst().orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TABLE_BACKGROUND_NOT_FOUND"));
+                yield new Command.SetBackground(new GameEvent.BackgroundSet(bid, b.imageId().toString(), b.widthIn(), b.heightIn(),
+                        b.areas() == null ? List.of() : b.areas()));
+            }
+            case Command.PlaceTerrain pt -> {
+                TableLibraryService.TerrainView a = library.terrain().stream().filter(x -> x.id().toString().equals(pt.assetId()))
+                        .findFirst().orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TABLE_UNKNOWN_TERRAIN"));
+                yield new Command.PlaceTerrain(pt.assetId(), a.name(), a.imageId().toString(), a.widthIn(), a.heightIn(),
+                        a.shapes() == null ? List.of() : a.shapes(), pt.pos(), pt.rotation(), pt.scale());
+            }
+            case Command.SetQuest q -> {
+                if (q.code() != null && content.quest(q.code()).isEmpty()) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_QUEST");
+                }
+                yield q;
+            }
+            case Command.PickScheme ps -> {
+                if (content.content().schemes().stream().noneMatch(x -> x.code().equals(ps.scheme()))) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_SCHEME");
+                }
+                yield ps;
+            }
+            default -> cmd;
+        };
+    }
 
     /** A player whose faction has a Scheme table keeps a Scheme before "Ready". */
     private boolean needsScheme(GameState s, int side) {
@@ -484,6 +730,9 @@ public class TableService {
     }
 
     List<Terrain> terrain(MapSnapshot snap) {
+        if (snap.background() == null) {
+            return List.of(); // a free game: the field comes from the events
+        }
         Map<String, TerrainShapes.Asset> assets = new LinkedHashMap<>();
         snap.assets().forEach((id, a) -> assets.put(id, new TerrainShapes.Asset(id, a.widthIn(), a.heightIn(), a.shapes())));
         return TerrainShapes.build(snap.background().areas(), snap.placements(), assets);
@@ -491,18 +740,29 @@ public class TableService {
 
     private GameState state(GameTable t, List<Recorded> log) {
         return GameState.fold(t.getWidthIn(), t.getHeightIn(), t.getDeploymentDepth(), t.getDeployment(), terrain(snapshot(t)), log,
-                engine.profiles());
+                engine.profiles(), t.isSandbox());
     }
 
     private TableView view(CurrentUser actor, GameTable t, List<Recorded> log, GameState s) {
         int you = t.sideOf(actor.id());
         GameTable.Role role = role(actor, t);
         MapSnapshot snap = snapshot(t);
-        List<TableView.Placed> placed = snap.placements().stream().map(p -> {
-            TableLibraryService.TerrainView a = snap.assets().get(p.assetId());
-            return new TableView.Placed(p.assetId(), a == null ? null : a.imageId(), a == null ? 0 : a.widthIn() * p.scale(),
-                    a == null ? 0 : a.heightIn() * p.scale(), p.x(), p.y(), p.rotation());
-        }).toList();
+        boolean sandbox = t.isSandbox();
+        boolean solo = solo(t, role);
+        List<TableView.Placed> placed;
+        if (sandbox) {
+            placed = s.pieces.values().stream().map(p -> new TableView.Placed(p.assetId(), uuid(p.imageId()),
+                    p.widthIn() * p.scale(), p.heightIn() * p.scale(), p.x(), p.y(), p.rotation(), p.id(), p.scale(), p.name())).toList();
+        } else {
+            List<TableView.Placed> fromMap = new ArrayList<>();
+            for (int i = 0; i < snap.placements().size(); i++) {
+                TerrainShapes.Placement p = snap.placements().get(i);
+                TableLibraryService.TerrainView a = snap.assets().get(p.assetId());
+                fromMap.add(new TableView.Placed(p.assetId(), a == null ? null : a.imageId(), a == null ? 0 : a.widthIn() * p.scale(),
+                        a == null ? 0 : a.heightIn() * p.scale(), p.x(), p.y(), p.rotation(), "m" + i, p.scale(), a == null ? null : a.name()));
+            }
+            placed = fromMap;
+        }
         List<TableView.ModelView> models = s.models.values().stream().map(m -> {
             Map<Stat, Integer> eff = s.stats(m);
             return new TableView.ModelView(m.id, m.side, m.profile.code(), m.profile.name(), m.size().name(),
@@ -526,7 +786,7 @@ public class TableService {
         List<TableView.LogEntry> entries = tail.stream().map(r -> new TableView.LogEntry(r.seq(), r.side(),
                 TableEventStore.typeName(r.event()), json.valueToTree(r.event()), r.at(), undone.contains(r.seq()))).toList();
         boolean canUndo = false;
-        int undoSide = role == GameTable.Role.JUDGE ? TableEngine.JUDGE : you;
+        int undoSide = role == GameTable.Role.JUDGE || solo ? TableEngine.JUDGE : you;
         if (undoSide >= 0 && (s.status != GameState.Status.FINISHED || role == GameTable.Role.JUDGE)) {
             try {
                 engine.decide(s, log, undoSide, new Command.Undo());
@@ -540,12 +800,13 @@ public class TableService {
         List<TableView.PartyView> parties = new ArrayList<>();
         for (int side = 0; side < 2; side++) {
             GameState.Party p = s.parties[side];
-            if (p == null) {
-                continue;
+            if (p == null && !s.schemeKept.containsKey(side)) {
+                continue; // a free game: a side without a list shows only its picked Scheme
             }
             List<TableView.SchemeCard> drawn = s.schemesDrawn.getOrDefault(side, List.of()).stream()
                     .map(c -> new TableView.SchemeCard(c.scheme(), c.roll())).toList();
-            parties.add(new TableView.PartyView(side, p.faction(), p.leaderInt(), p.leaderId(), drawn, s.schemeKept.get(side)));
+            parties.add(new TableView.PartyView(side, p == null ? null : p.faction(), p == null ? 0 : p.leaderInt(),
+                    p == null ? null : p.leaderId(), drawn, s.schemeKept.get(side)));
         }
         List<TableView.VpRow> vp = new ArrayList<>();
         for (int side = 0; side < 2; side++) {
@@ -558,16 +819,33 @@ public class TableService {
         List<TableView.Template> templates = s.templates.values().stream()
                 .map(x -> new TableView.Template(x.id(), x.kind(), x.pos().x(), x.pos().y(), x.rotation(), x.modelId(), x.label(), x.side()))
                 .toList();
-        return new TableView(t.getId(), t.getStatus().name(), snap.name(), t.getQuestCode(),
-                new TableView.Field(snap.widthIn(), snap.heightIn(), snap.deploymentDepth(), t.getDeployment().name(),
-                        GameState.CORNER_RADIUS),
-                new TableView.Background(snap.background().imageId(), snap.background().widthIn(), snap.background().heightIn()),
+        String questCode = sandbox ? s.questCode : t.getQuestCode();
+        String deployment = !sandbox ? t.getDeployment().name()
+                : questCode != null && content.quest(questCode).map(q -> "CORNER".equals(q.deploymentType())).orElse(false)
+                ? GameState.Deployment.CORNER.name() : GameState.Deployment.STANDARD.name();
+        TableView.Background background = !sandbox
+                ? new TableView.Background(snap.background().imageId(), snap.background().widthIn(), snap.background().heightIn())
+                : s.background == null ? new TableView.Background(null, s.width, s.height)
+                : new TableView.Background(uuid(s.background.imageId()), s.background.widthIn(), s.background.heightIn());
+        return new TableView(t.getId(), t.getStatus().name(), snap.name(), questCode,
+                new TableView.Field(s.width, s.height, snap.deploymentDepth(), deployment, GameState.CORNER_RADIUS),
+                background,
                 placed, terrain, players(t),
                 you, game, models, parties, tokens, templates, vp, new int[] {s.totalVp(0), s.totalVp(1)}, s.endProposedBy,
                 t.getReportedGameId(),
                 entries, canUndo, log.isEmpty() ? 0 : log.get(log.size() - 1).seq(), t.getMeasureMode().name(), role.name(),
                 t.isObserversAllowed(), t.getJudgeId() == null ? null : player(t.getJudgeId(), TableEngine.JUDGE),
-                t.isCreator(actor.id()));
+                t.isCreator(actor.id()),
+                t.isCreator(actor.id()) && t.getInvitedUserId() != null ? player(t.getInvitedUserId(), 1) : null,
+                t.getMode().name(), solo, sandbox && s.background != null ? s.background.backgroundId() : null);
+    }
+
+    private static UUID uuid(String s) {
+        try {
+            return s == null ? null : UUID.fromString(s);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /** Player A, and player B once they have joined (List.of rejects the missing seat). */

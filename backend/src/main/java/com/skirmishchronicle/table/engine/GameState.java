@@ -7,6 +7,7 @@ import com.skirmishchronicle.table.geo.Piece;
 import com.skirmishchronicle.table.geo.Size;
 import com.skirmishchronicle.table.geo.Table;
 import com.skirmishchronicle.table.geo.Terrain;
+import com.skirmishchronicle.table.geo.TerrainShapes;
 import com.skirmishchronicle.table.geo.Vec;
 import com.skirmishchronicle.table.rules.ModelState;
 import com.skirmishchronicle.table.rules.Profiles;
@@ -80,11 +81,26 @@ public final class GameState {
 
     public static final double CORNER_RADIUS = 9;
 
-    public final double width;
-    public final double height;
+    /** Field size; a free game takes it from the chosen mat. */
+    public double width;
+    public double height;
     public final double deploymentDepth;
     public final Deployment deployment;
-    public final List<Terrain> terrain;
+    /** World terrain; in a free game rebuilt from the mat and the placed pieces after every change. */
+    public List<Terrain> terrain;
+
+    // ---------- free game (sandbox) ----------
+
+    /** Free game: models, the mat and terrain are added during the game; no Deployment Zones are enforced. */
+    public boolean sandbox;
+    public GameEvent.BackgroundSet background;
+    /** Placed terrain pieces of a free game, by id. */
+    public final Map<String, GameEvent.TerrainPlaced> pieces = new LinkedHashMap<>();
+    public int pieceCounter;
+    /** Highest model number used per side (a1, a2… / b1, b2…), also for removed models. */
+    public final int[] modelCounter = new int[2];
+    /** Quest chosen during a free game (null = the table's quest or none). */
+    public String questCode;
 
     public Status status = Status.SETUP;
     public int round;
@@ -145,6 +161,21 @@ public final class GameState {
         this.terrain = List.copyOf(terrain);
     }
 
+    public static final int MAX_SANDBOX_MODELS = 40;
+    public static final int MAX_SANDBOX_PIECES = 80;
+
+    /** Free game: terrain = mat areas + placed pieces (scaled and turned like on a map). */
+    private void rebuildTerrain() {
+        List<TerrainShapes.Placement> placements = new ArrayList<>();
+        Map<String, TerrainShapes.Asset> assets = new LinkedHashMap<>();
+        for (GameEvent.TerrainPlaced p : pieces.values()) {
+            placements.add(new TerrainShapes.Placement(p.id(), p.x(), p.y(), p.rotation(), p.scale()));
+            assets.put(p.id(), new TerrainShapes.Asset(p.id(), p.widthIn(), p.heightIn(), p.shapes() == null ? List.of() : p.shapes()));
+        }
+        terrain = List.copyOf(TerrainShapes.build(background == null || background.areas() == null ? List.of() : background.areas(),
+                placements, assets));
+    }
+
     public Model model(String id) {
         Model m = models.get(id);
         if (m == null) {
@@ -201,6 +232,13 @@ public final class GameState {
         switch (e) {
             case GameEvent.ModelAdded a -> {
                 Profiles.Profile p = profiles.profile(a.code()).orElseThrow(() -> new IllegalStateException("profile " + a.code()));
+                if (a.side() == 0 || a.side() == 1) {
+                    try {
+                        modelCounter[a.side()] = Math.max(modelCounter[a.side()], Integer.parseInt(a.id().substring(1)));
+                    } catch (RuntimeException ignored) {
+                        // ids from the lists are a1, b2…; anything else does not count
+                    }
+                }
                 Profiles.Mount mount = a.mount() == null ? null : profiles.mount(a.mount()).orElse(null);
                 Model m = new Model(a.id(), a.side(), p, mount);
                 models.put(m.id, m);
@@ -293,6 +331,37 @@ public final class GameState {
             }
             case GameEvent.TemplateRemoved tr -> templates.remove(tr.id());
             case GameEvent.EndProposed ep -> endProposedBy = ep.side() < 0 ? null : ep.side();
+            case GameEvent.ModelRemoved mr -> {
+                models.remove(mr.id());
+                if (activation != null && activation.id().equals(mr.id())) {
+                    activation = null;
+                }
+            }
+            case GameEvent.BackgroundSet b -> {
+                background = b;
+                width = b.widthIn();
+                height = b.heightIn();
+                rebuildTerrain();
+            }
+            case GameEvent.TerrainPlaced tp -> {
+                pieceCounter++;
+                pieces.put(tp.id(), tp);
+                rebuildTerrain();
+            }
+            case GameEvent.TerrainMoved tm -> {
+                GameEvent.TerrainPlaced p = pieces.get(tm.id());
+                if (p != null) {
+                    pieces.put(p.id(), new GameEvent.TerrainPlaced(p.id(), p.assetId(), p.name(), p.imageId(), p.widthIn(),
+                            p.heightIn(), p.shapes(), tm.x(), tm.y(), tm.rotation(), tm.scale()));
+                    rebuildTerrain();
+                }
+            }
+            case GameEvent.TerrainRemoved tr -> {
+                pieces.remove(tr.id());
+                rebuildTerrain();
+            }
+            case GameEvent.RoundSet rs -> round = rs.round();
+            case GameEvent.QuestSet q -> questCode = q.code();
         }
     }
 
@@ -392,8 +461,15 @@ public final class GameState {
 
     public static GameState fold(double width, double height, double depth, Deployment deployment, List<Terrain> terrain,
                                  List<Recorded> log, Profiles profiles) {
+        return fold(width, height, depth, deployment, terrain, log, profiles, false);
+    }
+
+    /** {@code sandbox}: a free game (the field is built from the events). */
+    public static GameState fold(double width, double height, double depth, Deployment deployment, List<Terrain> terrain,
+                                 List<Recorded> log, Profiles profiles, boolean sandbox) {
         Set<Long> undone = undoneSeqs(log);
         GameState s = new GameState(width, height, depth, deployment, terrain);
+        s.sandbox = sandbox;
         for (Recorded r : log) {
             if (!undone.contains(r.seq())) {
                 s.apply(r, profiles);

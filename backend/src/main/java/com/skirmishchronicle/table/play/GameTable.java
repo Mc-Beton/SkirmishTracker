@@ -19,6 +19,9 @@ public class GameTable extends AbstractEntity {
 
     public enum Status { WAITING, SETUP, PLAYING, FINISHED }
 
+    /** STANDARD: a map and lists chosen up front. SANDBOX: a free game built during play, solo possible. */
+    public enum Mode { STANDARD, SANDBOX }
+
     /** Core Rules p.18: how much the players may pre-measure (enforced by the browser preview). */
     public enum MeasureMode { ASSISTED, STANDARD, REALISM }
 
@@ -63,10 +66,18 @@ public class GameTable extends AbstractEntity {
     @Column(name = "deployment_depth", nullable = false)
     private double deploymentDepth;
 
+    @Column(nullable = false, length = 10)
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    private Mode mode = Mode.STANDARD;
+
     @Column(name = "deployment", nullable = false, length = 10)
     @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
     private com.skirmishchronicle.table.engine.GameState.Deployment deployment =
             com.skirmishchronicle.table.engine.GameState.Deployment.STANDARD;
+
+    /** A registered player invited by name (besides the link); cleared when someone takes the seat. */
+    @Column(name = "invited_user_id")
+    private UUID invitedUserId;
 
     @Column(name = "list_a", columnDefinition = "text")
     private String listA;
@@ -141,7 +152,10 @@ public class GameTable extends AbstractEntity {
         this.playerB = playerB;
         this.listB = listB;
         this.inviteHash = null;
-        this.status = Status.SETUP;
+        this.invitedUserId = null;
+        if (this.status == Status.WAITING) {
+            this.status = Status.SETUP; // a free game may already be under way
+        }
         touch();
     }
 
@@ -274,6 +288,30 @@ public class GameTable extends AbstractEntity {
 
     public double getHeightIn() {
         return heightIn;
+    }
+
+    public Mode getMode() {
+        return mode;
+    }
+
+    public boolean isSandbox() {
+        return mode == Mode.SANDBOX;
+    }
+
+    /** Turns a new table into a free game: it can start at once (the creator may play both sides). */
+    public void makeSandbox() {
+        this.mode = Mode.SANDBOX;
+        this.status = Status.SETUP;
+    }
+
+    public UUID getInvitedUserId() {
+        return invitedUserId;
+    }
+
+    /** Invites a registered player by name (null withdraws the invitation). */
+    public void inviteUser(UUID userId) {
+        this.invitedUserId = userId;
+        touch();
     }
 
     public com.skirmishchronicle.table.engine.GameState.Deployment getDeployment() {

@@ -330,7 +330,14 @@
     "TABLE_HAS_JUDGE": "Ta gra ma już sędziego.",
     "TABLE_OBSERVERS_OFF": "Obserwatorzy są wyłączeni.",
     "TABLE_CREATOR_ONLY": "Tylko założyciel stołu może to zmienić.",
-    "TABLE_READ_ONLY": "Jako obserwator możesz tylko oglądać."
+    "TABLE_READ_ONLY": "Jako obserwator możesz tylko oglądać.",
+    "TABLE_PLAYER_NOT_FOUND": "Nie znaleziono gracza.",
+    "TABLE_SANDBOX_ONLY": "To działa tylko w grze swobodnej.",
+    "TABLE_SANDBOX_NO_REPORT": "Gry swobodnej nie zgłasza się jako gry własnej.",
+    "TABLE_TOO_MANY_MODELS": "Za dużo modeli na stole (max 40).",
+    "TABLE_BAD_BACKGROUND": "Nieprawidłowa mata.",
+    "TABLE_UNKNOWN_SCHEME": "Nieznany scheme.",
+    "TABLE_LIST_REQUIRED": "Wybierz rozpiskę – bez niej można dołączyć tylko do gry swobodnej."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -1234,7 +1241,8 @@
       "WARBAND_SUBMITTED": "{tournament}: {player} przesłał(a) rozpiskę do sprawdzenia.",
       "JUDGE_CALL": "{tournament}: runda {round}, stół {table} ({players}) wzywa sędziego.",
       "RESULT_RECORDED": "{tournament}: {opponent} wpisał(a) wynik Waszej gry – {score}.",
-      "GAME_STARTED": "{player} rozpoczął(-ęła) z Tobą grę – możesz wpisywać punkty."
+      "GAME_STARTED": "{player} rozpoczął(-ęła) z Tobą grę – możesz wpisywać punkty.",
+      "TABLE_INVITATION": "{player} zaprasza Cię do gry online na mapie {map}."
     }
   },
   "offline": {
@@ -1896,7 +1904,15 @@
       "TEMPLATE_PLACED": "{who} kładzie szablon: {template}",
       "TEMPLATE_REMOVED": "{who} zdejmuje szablon",
       "END_PROPOSED": "{who} proponuje koniec gry",
-      "END_WITHDRAWN": "{who} wycofuje propozycję końca gry"
+      "END_WITHDRAWN": "{who} wycofuje propozycję końca gry",
+      "MODEL_ADDED": "{who}: stawia {model}",
+      "MODEL_REMOVED": "{who}: zdejmuje model {model}",
+      "BACKGROUND_SET": "{who}: zmienia matę",
+      "TERRAIN_PLACED": "{who}: stawia teren {name}",
+      "TERRAIN_MOVED": "{who}: przestawia teren",
+      "TERRAIN_REMOVED": "{who}: usuwa teren",
+      "ROUND_SET": "{who}: ustawia rundę {round}",
+      "QUEST_SET": "{who}: zmienia scenariusz"
     },
     "mapsTitle": "Mapy",
     "mapsIntro": "Mapy oficjalne, udostępnione przez graczy i Twoje. Ułóż własną z tła i elementów terenu z biblioteki.",
@@ -1998,7 +2014,7 @@
       "PROFANE_MIASMA": "Plugawe miazmaty",
       "MANAGMATIC": "Managmatyczny"
     },
-    "step3Quest": "3. Scenariusz (opcjonalnie)",
+    "step3Quest": "4. Scenariusz (opcjonalnie)",
     "noQuest": "— bez scenariusza —",
     "questTitle": "Scenariusz: {name}",
     "schemes": "Scheme",
@@ -2109,7 +2125,7 @@
     "withJudge": "Zaproś sędziego",
     "judgeHelp": "Sędzia może przestawiać, obracać i oznaczać wszystkie figurki, wpisywać punkty, zakończyć grę i cofnąć dowolną liczbę kroków – także po rzutach kośćmi.",
     "linksOnce": "Skopiuj linki teraz – później można wygenerować nowe w panelu stołu.",
-    "step4Options": "4. Zasady stołu",
+    "step4Options": "5. Zasady stołu",
     "joinAs": {
       "PLAYER": "Dołącz do gry online",
       "JUDGE": "Sędziowanie gry online",
@@ -2131,6 +2147,67 @@
     "deploymentKind": {
       "STANDARD": "Rozstawienie standardowe",
       "CORNER": "Rozstawienie narożne"
-    }
+    },
+    "quest": "Scenariusz",
+    "changePlayer": "Zmień gracza",
+    "playerSearchPlaceholder": "Wpisz co najmniej 2 litery nazwy gracza…",
+    "noPlayersFound": "Nie znaleziono graczy.",
+    "invitationsTitle": "Zaproszenia do gry",
+    "invitedBy": "zaprasza {name}",
+    "answerInvitation": "Odpowiedz",
+    "invitationSent": "Wysłano zaproszenie do: {name}. Dostanie powiadomienie z linkiem do stołu.",
+    "stepOpponent": "3. Przeciwnik (opcjonalnie)",
+    "opponentHelp": "Wybrany gracz dostanie powiadomienie i dołączy jednym kliknięciem. Link z zaproszeniem i tak powstanie – możesz go wysłać komuś innemu.",
+    "invitationTitle": "Zaproszenie do gry online",
+    "invitationDeclined": "Odrzucono zaproszenie.",
+    "invitationFrom": "{name} zaprasza Cię do gry online. Wybierz rozpiskę i dołącz do stołu.",
+    "acceptInvitation": "Dołącz do gry",
+    "declineInvitation": "Odrzuć",
+    "inviteByName": "Zaproś gracza z listy",
+    "invitedPlayer": "Zaproszono: {name}",
+    "cancelInvitation": "Wycofaj",
+    "sendInvitation": "Wyślij zaproszenie",
+    "freeGame": "Gra swobodna",
+    "soloBadge": "Solo – grasz za obie strony",
+    "soloShort": "solo",
+    "setRound": "Zmień rundę",
+    "roundDown": "Poprzednia runda",
+    "roundUp": "Następna runda",
+    "startSolo": "Rozpocznij grę (obie strony)",
+    "sideB": "Strona B",
+    "removeModel": "Zdejmij ze stołu",
+    "sandboxTitle": "Stół swobodny",
+    "sandboxTab": {
+      "MAT": "Mata",
+      "TERRAIN": "Teren",
+      "MODELS": "Postacie"
+    },
+    "placingHelp": {
+      "TERRAIN": "Klikaj na planszy, aby postawić: {name}. Esc kończy.",
+      "MODEL": "Klikaj na planszy, aby postawić: {name}. Esc kończy.",
+      "MOVE_TERRAIN": "Kliknij na planszy nowe miejsce dla: {name}."
+    },
+    "chooseBackground": "Wybierz matę…",
+    "matHelp": "Mata wyznacza rozmiar stołu i naturalne obszary (woda, las). Możesz ją zmienić w każdej chwili.",
+    "terrainPiece": "Element terenu",
+    "movePiece": "Przesuń",
+    "pickPieceHelp": "Kliknij element na planszy, aby go obrócić, przeskalować, przesunąć lub usunąć. Albo wybierz nowy z biblioteki poniżej.",
+    "side": "Strona",
+    "profileSearch": "Szukaj postaci lub frakcji…",
+    "modelsHelp": "Wybierz postać i klikaj na planszy – każde kliknięcie stawia kolejny model. Usuwasz w karcie modelu.",
+    "pickScheme": "Wybierz scheme…",
+    "endGameSolo": "Zakończ grę",
+    "gameMode": "Rodzaj gry",
+    "modeName": {
+      "STANDARD": "Gra z mapą i rozpiskami",
+      "SANDBOX": "Gra swobodna"
+    },
+    "modeHelp": {
+      "STANDARD": "Gotowa mapa, rozpiski obu graczy, rozstawienie według scenariusza.",
+      "SANDBOX": "Pusty stół: matę, teren i dowolne postacie dokładasz w trakcie. Możesz grać sam za obie strony albo zaprosić kogoś."
+    },
+    "createSandbox": "Otwórz stół swobodny",
+    "noListFreeGame": "Bez rozpiski (tylko gra swobodna)",
+    "noListHelp": "Bez rozpiski możesz dołączyć tylko do gry swobodnej – postacie dołożysz na stole."
   }
 }

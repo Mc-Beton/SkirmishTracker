@@ -152,6 +152,24 @@ class TableIntegrationTest {
         call(a, post("/api/tables"), "{\"mapId\":\"%s\",\"listId\":\"%s\"}".formatted(privateMap, listB), status().isNotFound());
         call(a, post("/api/tables"), "{\"mapId\":\"%s\",\"listId\":\"%s\",\"questCode\":\"NOPE\"}".formatted(privateMap, listA),
                 status().isBadRequest());
+        // ---- invitation by name: listed for the invited player only, decline, invite again, accept with own list
+        String invitedTable = call(a, post("/api/tables"), "{\"mapId\":\"%s\",\"listId\":\"%s\",\"opponentId\":\"%s\"}"
+                .formatted(privateMap, listA, b), status().isCreated()).get("id").asText();
+        assertThat(call(b, get("/api/tables/invitations"), null, status().isOk()).get(0).get("id").asText()).isEqualTo(invitedTable);
+        call(fan, get("/api/tables/" + invitedTable + "/invitation"), null, status().isNotFound());
+        assertThat(call(a, get("/api/tables/" + invitedTable), null, status().isOk()).get("invited").get("userId").asText())
+                .isEqualTo(b.toString());
+        call(b, post("/api/tables/" + invitedTable + "/decline"), null, status().isNoContent());
+        assertThat(call(b, get("/api/tables/invitations"), null, status().isOk()).size()).isZero();
+        call(a, post("/api/tables/" + invitedTable + "/invite-user"), "{\"userId\":\"%s\"}".formatted(a), status().isConflict());
+        call(b, post("/api/tables/" + invitedTable + "/invite-user"), "{\"userId\":\"%s\"}".formatted(b), status().isNotFound());
+        call(a, post("/api/tables/" + invitedTable + "/invite-user"), "{\"userId\":\"%s\"}".formatted(b), status().isOk());
+        call(b, post("/api/tables/" + invitedTable + "/accept"), "{\"listId\":\"%s\"}".formatted(listA), status().isNotFound());
+        assertThat(call(b, post("/api/tables/" + invitedTable + "/accept"), "{\"listId\":\"%s\"}".formatted(listB), status().isOk())
+                .get("id").asText()).isEqualTo(invitedTable);
+        assertThat(call(b, get("/api/tables/" + invitedTable), null, status().isOk()).get("status").asText()).isEqualTo("SETUP");
+        call(b, post("/api/tables/" + invitedTable + "/accept"), "{\"listId\":\"%s\"}".formatted(listB), status().isNotFound());
+
         JsonNode created = call(a, post("/api/tables"),
                 "{\"mapId\":\"%s\",\"listId\":\"%s\",\"questCode\":\"TREASURE_HUNT\",\"measureMode\":\"STANDARD\",\"judge\":true,\"observers\":true}"
                         .formatted(privateMap, listA),
@@ -260,5 +278,65 @@ class TableIntegrationTest {
         assertThat(error(judge, table, "{\"type\":\"UNDO\"}")).isEqualTo("TABLE_ALREADY_REPORTED");
         call(b, post("/api/tables/" + table + "/commands"), "{\"type\":\"NOPE\"}", status().isBadRequest());
         assertThat(call(a, get("/api/tables/mine"), null, status().isOk()).get(0).get("status").asText()).isEqualTo("FINISHED");
+    }
+
+    @Test
+    void freeGameAloneThenAnOpponentJoinsWithoutAList() throws Exception {
+        UUID admin = user("Admin", Role.ADMIN);
+        UUID a = user("Solo", null);
+        UUID b = user("Guest", null);
+        String imageId = json.readTree(mvc.perform(as(admin, post("/api/admin/table/images")).content(png()))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+        String bg = call(admin, post("/api/admin/table/backgrounds"), """
+                {"name":"Step","imageId":"%s","widthIn":48,"heightIn":48,"areas":[]}""".formatted(imageId),
+                status().isCreated()).get("id").asText();
+        String rock = call(admin, post("/api/admin/table/terrain"), """
+                {"name":"Skała","category":"ROCK","imageId":"%s","widthIn":4,"heightIn":4,
+                 "shapes":[{"type":"OBSTACLE","points":[{"x":-2,"y":-2},{"x":2,"y":-2},{"x":2,"y":2},{"x":-2,"y":2}],"height":4}]}
+                """.formatted(imageId), status().isCreated()).get("id").asText();
+
+        JsonNode created = call(a, post("/api/tables/sandbox"), "{\"questCode\":\"MAGIC_STONES\"}", status().isCreated());
+        String table = created.get("id").asText();
+        JsonNode view = call(a, get("/api/tables/" + table), null, status().isOk());
+        assertThat(view.get("mode").asText()).isEqualTo("SANDBOX");
+        assertThat(view.get("solo").asBoolean()).isTrue();
+        assertThat(view.get("questCode").asText()).isEqualTo("MAGIC_STONES");
+        assertThat(call(a, get("/api/tables/profiles"), null, status().isOk()).size()).isGreaterThan(10);
+
+        // the field: a mat and a rock, during the game
+        view = cmd(a, table, "{\"type\":\"SET_BACKGROUND\",\"ref\":\"%s\"}".formatted(bg));
+        assertThat(view.get("field").get("widthIn").asDouble()).isEqualTo(48);
+        view = cmd(a, table, "{\"type\":\"PLACE_TERRAIN\",\"ref\":\"%s\",\"x\":24,\"y\":24,\"facing\":0,\"scale\":1.5}".formatted(rock));
+        assertThat(view.get("placements").get(0).get("widthIn").asDouble()).isEqualTo(6);
+        assertThat(view.get("terrain").size()).isEqualTo(1);
+
+        // alone: both sides, the engine still runs turns and AP
+        cmd(a, table, "{\"type\":\"ADD_MODEL\",\"ref\":\"CITADEL_GUARD\",\"side\":0,\"x\":10,\"y\":44,\"facing\":270,\"asSide\":0}");
+        view = cmd(a, table, "{\"type\":\"ADD_MODEL\",\"ref\":\"RED_RASETSU\",\"side\":1,\"x\":10,\"y\":4,\"facing\":90,\"asSide\":1}");
+        assertThat(view.get("models").size()).isEqualTo(2);
+        cmd(a, table, "{\"type\":\"FIRST_PLAYER\",\"side\":0}");
+        cmd(a, table, "{\"type\":\"READY\",\"asSide\":0}");
+        view = cmd(a, table, "{\"type\":\"READY\",\"asSide\":1}");
+        assertThat(view.get("game").get("status").asText()).isEqualTo("PLAYING");
+        cmd(a, table, "{\"type\":\"ACTIVATE\",\"id\":\"a1\",\"asSide\":0}");
+        view = cmd(a, table, "{\"type\":\"END_TURN\",\"asSide\":0}");
+        assertThat(view.get("game").get("active").asInt()).isEqualTo(1);
+        cmd(a, table, "{\"type\":\"ACTIVATE\",\"id\":\"b1\",\"asSide\":1}");
+        view = cmd(a, table, "{\"type\":\"SET_ROUND\",\"round\":3,\"asSide\":1}");
+        assertThat(view.get("game").get("round").asInt()).isEqualTo(3);
+        view = cmd(a, table, "{\"type\":\"PICK_SCHEME\",\"side\":0,\"scheme\":\"ASSASSINATION_CONTRACT\",\"asSide\":0}");
+        assertThat(view.get("canUndo").asBoolean()).isTrue();
+        view = cmd(a, table, "{\"type\":\"UNDO\"}");
+        assertThat(call(a, post("/api/tables/" + table + "/commands"), "{\"type\":\"PICK_SCHEME\",\"side\":0,\"scheme\":\"NOPE\"}",
+                status().isBadRequest()).get("code").asText()).isEqualTo("TABLE_UNKNOWN_SCHEME");
+        call(a, post("/api/tables/" + table + "/report"), null, status().isConflict());
+
+        // an opponent joins the running game without a list and takes side B
+        call(b, post("/api/tables/join"), "{\"invite\":\"%s\"}".formatted(created.get("invite").asText()), status().isOk());
+        view = call(a, get("/api/tables/" + table), null, status().isOk());
+        assertThat(view.get("solo").asBoolean()).isFalse();
+        assertThat(view.get("game").get("status").asText()).isEqualTo("PLAYING");
+        assertThat(error(a, table, "{\"type\":\"END_TURN\",\"asSide\":1}")).isEqualTo("TABLE_NOT_YOUR_TURN");
+        cmd(b, table, "{\"type\":\"END_TURN\"}");
     }
 }

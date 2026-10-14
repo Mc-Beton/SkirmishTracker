@@ -91,4 +91,40 @@ public sealed interface Command {
     /** Proposes the end of the game, or accepts the opponent's proposal (winner by Victory Points). */
     record EndGame() implements Command {
     }
+
+    // ---------- free game (sandbox) ----------
+
+    /** A model from the profiles, placed at once (free game). */
+    record AddModel(String code, int side, Vec pos, double facing) implements Command {
+    }
+
+    record RemoveModel(String id) implements Command {
+    }
+
+    /** The mat, resolved from the library by the caller. */
+    record SetBackground(GameEvent.BackgroundSet background) implements Command {
+    }
+
+    /** A terrain piece, resolved from the library by the caller; the engine gives it an id. */
+    record PlaceTerrain(String assetId, String name, String imageId, double widthIn, double heightIn,
+                        List<com.skirmishchronicle.table.geo.TerrainShapes.Shape> shapes, Vec pos, double rotation, double scale)
+            implements Command {
+    }
+
+    record MoveTerrain(String id, Vec pos, double rotation, double scale) implements Command {
+    }
+
+    record RemoveTerrain(String id) implements Command {
+    }
+
+    record SetRound(int round) implements Command {
+    }
+
+    /** The quest (code checked by the caller; null clears it). */
+    record SetQuest(String code) implements Command {
+    }
+
+    /** A Scheme picked from the list (code checked by the caller). */
+    record PickScheme(int side, String scheme) implements Command {
+    }
 }

@@ -42,7 +42,11 @@ public final class TableEngine {
             GameEvent.Moved.class, GameEvent.FreeMoved.class, GameEvent.Rotated.class, GameEvent.Reacted.class,
             GameEvent.HpChanged.class, GameEvent.StateSet.class, GameEvent.ApSet.class, GameEvent.ActivationEnded.class,
             GameEvent.TokenPlaced.class, GameEvent.TokenMoved.class, GameEvent.TokenRemoved.class, GameEvent.VpSet.class,
-            GameEvent.TemplatePlaced.class, GameEvent.TemplateRemoved.class, GameEvent.EndProposed.class);
+            GameEvent.TemplatePlaced.class, GameEvent.TemplateRemoved.class, GameEvent.EndProposed.class,
+            // free game
+            GameEvent.ModelAdded.class, GameEvent.ModelRemoved.class, GameEvent.BackgroundSet.class,
+            GameEvent.TerrainPlaced.class, GameEvent.TerrainMoved.class, GameEvent.TerrainRemoved.class,
+            GameEvent.RoundSet.class, GameEvent.QuestSet.class, GameEvent.SchemeKept.class);
 
     public static final Set<String> TOKEN_KINDS = Set.of("INTRIGUE", "CACHE", "SIGIL", "OBJECTIVE", "TREASURE", "MARKER");
     public static final Set<String> TEMPLATE_KINDS = Set.of("CIRCLE_S", "CIRCLE_L", "SPRAY_S", "SPRAY_L");
@@ -72,6 +76,10 @@ public final class TableEngine {
         }
         if (s.status == GameState.Status.FINISHED && !(cmd instanceof Command.Roll)) {
             throw new RuleViolation("TABLE_GAME_FINISHED");
+        }
+        List<GameEvent> free = sandbox(s, side, cmd);
+        if (free != null) {
+            return free;
         }
         return switch (cmd) {
             case Command.SetFirstPlayer f -> {
@@ -292,6 +300,15 @@ public final class TableEngine {
                 }
                 yield List.of(new GameEvent.TemplateRemoved(tr.id()));
             }
+            case Command.AddModel ignored -> throw new IllegalStateException();
+            case Command.RemoveModel ignored -> throw new IllegalStateException();
+            case Command.SetBackground ignored -> throw new IllegalStateException();
+            case Command.PlaceTerrain ignored -> throw new IllegalStateException();
+            case Command.MoveTerrain ignored -> throw new IllegalStateException();
+            case Command.RemoveTerrain ignored -> throw new IllegalStateException();
+            case Command.SetRound ignored -> throw new IllegalStateException();
+            case Command.SetQuest ignored -> throw new IllegalStateException();
+            case Command.PickScheme ignored -> throw new IllegalStateException();
             case Command.EndGame e -> {
                 playing(s);
                 if (s.endProposedBy == null) {
@@ -304,6 +321,97 @@ public final class TableEngine {
                 yield List.of(new GameEvent.GameEnded("FINISHED", a == b ? null : a > b ? 0 : 1));
             }
         };
+    }
+
+    /**
+     * Free game (sandbox) commands: the field, the models, the round, the quest and Schemes are set by the players
+     * during the game. Returns null for any other command. Outside a free game these are refused.
+     */
+    private List<GameEvent> sandbox(GameState s, int side, Command cmd) {
+        boolean freeCommand = cmd instanceof Command.AddModel || cmd instanceof Command.RemoveModel
+                || cmd instanceof Command.SetBackground || cmd instanceof Command.PlaceTerrain || cmd instanceof Command.MoveTerrain
+                || cmd instanceof Command.RemoveTerrain || cmd instanceof Command.SetRound || cmd instanceof Command.SetQuest
+                || cmd instanceof Command.PickScheme;
+        if (!freeCommand) {
+            return null;
+        }
+        if (!s.sandbox) {
+            throw new RuleViolation("TABLE_SANDBOX_ONLY");
+        }
+        return switch (cmd) {
+            case Command.AddModel a -> {
+                if (a.side() != side) {
+                    throw new RuleViolation("TABLE_NOT_YOUR_MODEL");
+                }
+                Profiles.Profile p = profiles.profile(a.code()).orElseThrow(() -> new RuleViolation("TABLE_UNKNOWN_PROFILE"));
+                if (s.models.size() >= GameState.MAX_SANDBOX_MODELS) {
+                    throw new RuleViolation("TABLE_TOO_MANY_MODELS");
+                }
+                Hitbox b = Hitbox.of(p.size(), false);
+                Vec at = a.pos();
+                if (at.x() - b.r() < -1e-6 || at.y() - b.r() < -1e-6 || at.x() + b.r() > s.width + 1e-6 || at.y() + b.r() > s.height + 1e-6) {
+                    throw new RuleViolation("TABLE_OFF_THE_TABLE");
+                }
+                String id = (side == 0 ? "a" : "b") + (s.modelCounter[side] + 1);
+                yield List.of(new GameEvent.ModelAdded(id, side, p.code(), null),
+                        new GameEvent.Deployed(id, at.x(), at.y(), norm(a.facing())));
+            }
+            case Command.RemoveModel r -> {
+                GameState.Model m = own(s, side, r.id());
+                yield List.of(new GameEvent.ModelRemoved(m.id));
+            }
+            case Command.SetBackground bg -> {
+                GameEvent.BackgroundSet b = bg.background();
+                if (b == null || !(b.widthIn() >= 12 && b.widthIn() <= 96 && b.heightIn() >= 12 && b.heightIn() <= 96)) {
+                    throw new RuleViolation("TABLE_BAD_BACKGROUND");
+                }
+                yield List.of(b);
+            }
+            case Command.PlaceTerrain pt -> {
+                if (s.pieces.size() >= GameState.MAX_SANDBOX_PIECES) {
+                    throw new RuleViolation("TABLE_TOO_MANY_PIECES");
+                }
+                inField(s, pt.pos());
+                scale(pt.scale());
+                yield List.of(new GameEvent.TerrainPlaced("p" + (s.pieceCounter + 1), pt.assetId(), pt.name(), pt.imageId(),
+                        pt.widthIn(), pt.heightIn(), pt.shapes(), pt.pos().x(), pt.pos().y(), norm(pt.rotation()), pt.scale()));
+            }
+            case Command.MoveTerrain mt -> {
+                if (!s.pieces.containsKey(mt.id())) {
+                    throw new RuleViolation("TABLE_TERRAIN_NOT_FOUND");
+                }
+                inField(s, mt.pos());
+                scale(mt.scale());
+                yield List.of(new GameEvent.TerrainMoved(mt.id(), mt.pos().x(), mt.pos().y(), norm(mt.rotation()), mt.scale()));
+            }
+            case Command.RemoveTerrain rt -> {
+                if (!s.pieces.containsKey(rt.id())) {
+                    throw new RuleViolation("TABLE_TERRAIN_NOT_FOUND");
+                }
+                yield List.of(new GameEvent.TerrainRemoved(rt.id()));
+            }
+            case Command.SetRound sr -> {
+                playing(s);
+                if (sr.round() < 1 || sr.round() > GameState.MAX_ROUNDS) {
+                    throw new RuleViolation("TABLE_BAD_ROUND");
+                }
+                yield List.of(new GameEvent.RoundSet(sr.round()));
+            }
+            case Command.SetQuest q -> List.of(new GameEvent.QuestSet(q.code()));
+            case Command.PickScheme ps -> {
+                if (ps.side() != side) {
+                    throw new RuleViolation("TABLE_BAD_SIDE");
+                }
+                yield List.of(new GameEvent.SchemeKept(side, ps.scheme()));
+            }
+            default -> null;
+        };
+    }
+
+    private static void scale(double k) {
+        if (!(k >= com.skirmishchronicle.table.geo.TerrainShapes.MIN_SCALE && k <= com.skirmishchronicle.table.geo.TerrainShapes.MAX_SCALE)) {
+            throw new RuleViolation("TABLE_BAD_PLACEMENT");
+        }
     }
 
     /** The judge: anything on any model, the end of the game and unlimited undo; not the players' sequence. */
@@ -464,6 +572,9 @@ public final class TableEngine {
         }
         if (p.y() - b.r() < -1e-6 || p.y() + b.r() > s.height + 1e-6) {
             throw new RuleViolation("TABLE_OUTSIDE_DEPLOYMENT");
+        }
+        if (s.sandbox) {
+            return; // a free game: anywhere on the field
         }
         // the base must be fully inside the zone
         boolean inZone = switch (s.deployment) {

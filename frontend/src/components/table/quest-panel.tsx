@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { QuestView } from "@/components/game/quest-view";
 import { SchemeCard } from "@/components/game/scheme-card";
@@ -17,20 +18,64 @@ import type { TableCommand, TableView } from "@/lib/table/api";
 type Props = {
   view: TableView;
   busy: boolean;
-  run: (cmd: TableCommand) => Promise<boolean>;
+  run: (cmd: TableCommand, asSide?: 0 | 1) => Promise<boolean>;
 };
+
+/** Players (not the judge or observers) set the quest and Schemes of a free game. */
+const canSet = (view: TableView) => view.role === "PLAYER";
 
 const nameOf = (view: TableView, side: number) => view.players.find((p) => p.side === side)?.name ?? "?";
 
-/** The quest's rules card (folded). */
-export function QuestCard({ view }: { view: TableView }) {
+/** The quest's rules card (folded). In a free game the players pick or change the quest here. */
+export function QuestCard({ view, busy, run }: { view: TableView; busy?: boolean; run?: Props["run"] }) {
   const t = useTranslations("table");
   const content = useGameContent();
   const quest = content?.quests.find((q) => q.code === view.questCode) ?? null;
-  if (!quest) return null;
+  const editable = view.mode === "SANDBOX" && canSet(view) && view.status !== "FINISHED" && !!run;
+  if (!quest && !editable) return null;
   return (
-    <CollapsibleCard title={t("questTitle", { name: quest.name })} defaultOpen={false}>
-      <QuestView quest={quest} compact />
+    <CollapsibleCard title={quest ? t("questTitle", { name: quest.name }) : t("quest")} defaultOpen={editable && !quest}
+      contentClassName="grid gap-3">
+      {editable && (
+        <NativeSelect value={view.questCode ?? ""} disabled={busy} aria-label={t("quest")}
+          onChange={(e) => void run!({ type: "SET_QUEST", ref: e.target.value || undefined })}>
+          <option value="">{t("noQuest")}</option>
+          {(content?.quests ?? []).map((q) => <option key={q.code} value={q.code}>{q.name}</option>)}
+        </NativeSelect>
+      )}
+      {quest && <QuestView quest={quest} compact />}
+    </CollapsibleCard>
+  );
+}
+
+/** Free game: each side picks its Scheme from the list (alone you pick both). */
+function SandboxSchemes({ view, busy, run }: Props) {
+  const t = useTranslations("table");
+  const content = useGameContent();
+  const schemeOf = (code: string) => content?.schemes.find((s) => s.code === code);
+  const name = (side: number) => view.players.find((p) => p.side === side)?.name ?? t("sideB");
+  const keptOf = (side: number) => view.parties.find((p) => p.side === side)?.kept ?? null;
+  const summary = [0, 1].map((s) => `${name(s)}: ${keptOf(s) ? schemeOf(keptOf(s)!)?.name ?? keptOf(s) : "—"}`).join(" · ");
+  return (
+    <CollapsibleCard title={t("schemes")} meta={summary} defaultOpen={false} contentClassName="grid gap-3 text-sm">
+      {[0, 1].map((side) => {
+        const kept = keptOf(side);
+        const sc = kept ? schemeOf(kept) : null;
+        const mayPick = canSet(view) && view.status !== "FINISHED" && (view.solo || view.you === side);
+        return (
+          <div key={side} className="grid gap-2">
+            <span className="font-medium">{name(side)}</span>
+            {mayPick && (
+              <NativeSelect value={kept ?? ""} disabled={busy} aria-label={t("pickScheme")}
+                onChange={(e) => e.target.value && void run({ type: "PICK_SCHEME", side: side as 0 | 1, scheme: e.target.value }, side as 0 | 1)}>
+                <option value="">{t("pickScheme")}</option>
+                {(content?.schemes ?? []).map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+              </NativeSelect>
+            )}
+            {sc ? <SchemeCard scheme={sc} highlight /> : !mayPick && <span className="text-xs text-muted-foreground">{t("noSchemeYet")}</span>}
+          </div>
+        );
+      })}
     </CollapsibleCard>
   );
 }
@@ -40,6 +85,11 @@ export function QuestCard({ view }: { view: TableView }) {
  * open while they still have to draw or choose.
  */
 export function SchemesCard({ view, busy, run }: Props) {
+  if (view.mode === "SANDBOX") return <SandboxSchemes view={view} busy={busy} run={run} />;
+  return <DrawnSchemes view={view} busy={busy} run={run} />;
+}
+
+function DrawnSchemes({ view, busy, run }: Props) {
   const t = useTranslations("table");
   const content = useGameContent();
   const you = view.you;
@@ -144,7 +194,13 @@ export function VpCard({ view, busy, run, onReport }: Props & { onReport: () => 
             {playing && judge && (
               <Button size="sm" variant="outline" disabled={busy} onClick={() => void run({ type: "END_GAME" })}><Flag aria-hidden /> {t("judgeEndGame")}</Button>
             )}
-            {playing && you >= 0 && (
+            {playing && view.solo && (
+              <Button size="sm" variant="outline" disabled={busy}
+                onClick={async () => { if (await run({ type: "END_GAME" }, 0)) await run({ type: "END_GAME" }, 1); }}>
+                <Flag aria-hidden /> {t("endGameSolo")}
+              </Button>
+            )}
+            {playing && you >= 0 && !view.solo && (
               view.endProposedBy == null ? (
                 <Button size="sm" variant="outline" disabled={busy} onClick={() => void run({ type: "END_GAME" })}><Flag aria-hidden /> {t("proposeEnd")}</Button>
               ) : view.endProposedBy === you ? (
@@ -160,7 +216,7 @@ export function VpCard({ view, busy, run, onReport }: Props & { onReport: () => 
               )
             )}
 
-            {view.status === "FINISHED" && view.game.endReason === "FINISHED" && you >= 0 && (
+            {view.status === "FINISHED" && view.game.endReason === "FINISHED" && you >= 0 && view.mode !== "SANDBOX" && (
               view.reportedGameId ? (
                 <p className="text-xs">{t.rich("reported", { link: (c) => <Link className="underline" href="/games">{c}</Link> })}</p>
               ) : (

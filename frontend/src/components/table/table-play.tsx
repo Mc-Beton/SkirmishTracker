@@ -29,6 +29,8 @@ import {
 } from "@/lib/table/geometry.ts";
 import { useTableLive } from "@/lib/table/live";
 import { deploymentZones } from "@/lib/table/deployment.ts";
+import { rotate as rotateVec } from "@/lib/table/terrain.ts";
+import { SandboxPanel, type Placing, type SandboxTab } from "@/components/table/sandbox-panel";
 import { canMeasure, rulerAllowed, showsAwareness, showsRouteLength } from "@/lib/table/measuring.ts";
 
 const SIDE = ["A", "B"] as const;
@@ -83,6 +85,10 @@ export function TablePlay({ tableId }: { tableId: string }) {
   const [ruler, setRuler] = useState<{ p: Vec; id: string | null }[]>([]);
   const [showAwareness, setShowAwareness] = useState(false);
   const [showZones, setShowZones] = useState(true);
+  // free game: what the next click places, the selected terrain piece and the panel tab
+  const [placing, setPlacing] = useState<Placing | null>(null);
+  const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
+  const [sandboxTab, setSandboxTab] = useState<SandboxTab>("MAT");
   const [undoTo, setUndoTo] = useState<number | null>(null);
 
   useEffect(() => {
@@ -110,11 +116,21 @@ export function TablePlay({ tableId }: { tableId: string }) {
 
   useTableLive(me ? tableId : null, () => void load());
 
-  const run = useCallback(async (cmd: TableCommand) => {
+  /**
+   * Sends a command. In a free game played alone you act for both sides: the side is the one of the model the
+   * command is about, else the given one, else the active player's.
+   */
+  const run = useCallback(async (cmd: TableCommand, asSide?: 0 | 1) => {
     setBusy(true);
     setError(null);
     try {
-      setView(await sendCommand(tableId, cmd));
+      let side = asSide;
+      if (view?.solo && side == null) {
+        const ref = "id" in cmd ? view.models.find((m) => m.id === cmd.id) : undefined;
+        side = (ref?.side ?? ("side" in cmd && (cmd.type === "ADD_MODEL" || cmd.type === "PICK_SCHEME") ? cmd.side
+          : view.game.status === "PLAYING" ? view.game.active : 0)) as 0 | 1;
+      }
+      setView(await sendCommand(tableId, cmd, view?.solo ? side : undefined));
       return true;
     } catch (e) {
       setError(tErr(e));
@@ -122,7 +138,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
     } finally {
       setBusy(false);
     }
-  }, [tableId, tErr]);
+  }, [tableId, tErr, view]);
 
   const table = useMemo(() => (view ? toTable(view) : null), [view]);
   const zones = useMemo(() => (view ? deploymentZones(view.field.widthIn, view.field.heightIn, view.field.deployment ?? "STANDARD",
@@ -145,10 +161,13 @@ export function TablePlay({ tableId }: { tableId: string }) {
   const playing = view?.game.status === "PLAYING";
   const setup = view?.game.status === "SETUP";
   const activeSide = view?.game.active;
-  const myTurn = playing && activeSide === you;
+  const sandbox = view?.mode === "SANDBOX";
+  /** A free game with no opponent: you play both sides. */
+  const solo = !!view?.solo;
+  const myTurn = playing && (solo || activeSide === you);
   const activation = view?.game.activation ?? null;
   const activatedHere = !!activation && model?.id === activation.id;
-  const mine = !!model && model.side === you;
+  const mine = !!model && (solo || model.side === you);
   const role = view?.role ?? "OBSERVER";
   const judge = role === "JUDGE";
   const readOnly = role === "OBSERVER" || role === "ADMIN";
@@ -169,7 +188,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
     }
   }, [table, model, activatedHere, myTurn, waypoints, freeMove, activation, mode, routeLength]);
   const moving = activatedHere && waypoints.length > 0;
-  const myPieces = useMemo(() => table?.pieces.filter((p) => p.side === SIDE[you as 0 | 1]) ?? [], [table, you]);
+  const myPieces = useMemo(() => table?.pieces.filter((p) => solo || p.side === SIDE[you as 0 | 1]) ?? [], [table, you, solo]);
   const measurable = (a: Piece | Vec, b: Piece | Vec) => canMeasure(measureMode, role, myPieces, a, b, moving);
 
   const los = useMemo(() => {
@@ -209,8 +228,34 @@ export function TablePlay({ tableId }: { tableId: string }) {
   const pickModelAt = (p: Vec) =>
     view?.models.find((m) => m.deployed && m.x != null && Math.hypot(m.x - p.x, m.y! - p.y) <= hitbox(m.size).r + 0.1);
 
+  /** Free game: the placed terrain piece under the point (rotated rectangle of its art). */
+  const pickPieceAt = (p: Vec) => {
+    if (!view) return undefined;
+    for (let i = view.placements.length - 1; i >= 0; i--) {
+      const pl = view.placements[i];
+      const local = rotateVec({ x: p.x - pl.x, y: p.y - pl.y }, -pl.rotation);
+      if (Math.abs(local.x) <= pl.widthIn / 2 && Math.abs(local.y) <= pl.heightIn / 2) return pl;
+    }
+    return undefined;
+  };
+
   const onBoardClick = async (p: Vec) => {
     if (!view || busy) return;
+    if (sandbox && placing) {
+      if (placing.kind === "TERRAIN") {
+        await run({ type: "PLACE_TERRAIN", ref: placing.ref, x: p.x, y: p.y, facing: placing.rotation, scale: placing.scale });
+      } else if (placing.kind === "MODEL") {
+        await run({ type: "ADD_MODEL", ref: placing.ref, side: placing.side, x: p.x, y: p.y, facing: placing.side === 0 ? 270 : 90 }, placing.side);
+      } else {
+        const piece = view.placements.find((x) => x.id === placing.id);
+        if (piece && await run({ type: "MOVE_TERRAIN", id: piece.id, x: p.x, y: p.y, facing: piece.rotation, scale: piece.scale })) setPlacing(null);
+      }
+      return;
+    }
+    if (sandbox && sandboxTab === "TERRAIN" && tool === "NONE" && !pickModelAt(p)) {
+      setSelectedPiece(pickPieceAt(p)?.id ?? null);
+      return;
+    }
     if (tool === "TOKEN") {
       const hitToken = view.tokens.find((k) => Math.hypot(k.x - p.x, k.y - p.y) <= TOKEN_R + 0.1);
       if (hitToken) {
@@ -269,7 +314,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
       if ((e.target as HTMLElement)?.tagName === "INPUT") return;
       if (e.key === "q" || e.key === "Q") void rotate(-15);
       if (e.key === "e" || e.key === "E") void rotate(15);
-      if (e.key === "Escape") setWaypoints([]);
+      if (e.key === "Escape") { setWaypoints([]); setPlacing(null); }
       if (e.key === "l" || e.key === "L") setShowLos((s) => !s);
     };
     window.addEventListener("keydown", onKey);
@@ -280,18 +325,36 @@ export function TablePlay({ tableId }: { tableId: string }) {
     return <div className="mx-auto max-w-6xl p-4">{error ? <Alert variant="destructive">{error}</Alert> : t("loading")}</div>;
   }
 
-  const playerName = (side: number) => side === JUDGE_SIDE ? t("judgeWho", { name: view.judge?.name ?? "?" })
+  const playerName = (side: number) => solo && side === JUDGE_SIDE ? view.players[0]?.name ?? "?"
+    : solo && side === 1 ? t("sideB")
+    : side === JUDGE_SIDE ? t("judgeWho", { name: view.judge?.name ?? "?" })
     : view.players.find((p) => p.side === side)?.name ?? "?";
   const lastRolls = view.log.filter((e) => e.type === "ROLLED" && !e.undone).slice(-3).reverse();
-  const myUndeployed = view.models.filter((m) => m.side === you && !m.deployed);
-  const meReady = you >= 0 && view.game.ready[you as 0 | 1];
+  const myUndeployed = view.models.filter((m) => (solo || m.side === you) && !m.deployed);
+  const meReady = solo ? view.game.ready[0] && view.game.ready[1] : you >= 0 && view.game.ready[you as 0 | 1];
+  /** Alone: pick the first player if nobody did, then "Ready" for both sides. */
+  const startSolo = async () => {
+    if (view.game.firstPlayer == null && !(await run({ type: "FIRST_PLAYER", side: 0 }, 0))) return;
+    for (const s of [0, 1] as const) {
+      if (!view.game.ready[s] && !(await run({ type: "READY" }, s))) return;
+    }
+  };
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex flex-wrap items-center gap-2 lg:col-span-2">
-          <h1 className="font-display text-xl">{view.mapName}</h1>
+          <h1 className="font-display text-xl">{sandbox ? t("freeGame") : view.mapName}</h1>
+          {solo && <Badge variant="secondary">{t("soloBadge")}</Badge>}
           <Badge variant="outline">{t(`status.${view.status}`)}</Badge>
           {playing && <Badge>{t("round", { round: view.game.round })}</Badge>}
+          {playing && sandbox && !readOnly && (
+            <span className="flex items-center gap-1" role="group" aria-label={t("setRound")}>
+              <Button size="icon" variant="outline" className="size-7" disabled={busy || view.game.round <= 1} aria-label={t("roundDown")}
+                onClick={() => void run({ type: "SET_ROUND", round: view.game.round - 1 })}><Minus aria-hidden /></Button>
+              <Button size="icon" variant="outline" className="size-7" disabled={busy || view.game.round >= 10} aria-label={t("roundUp")}
+                onClick={() => void run({ type: "SET_ROUND", round: view.game.round + 1 })}><Plus aria-hidden /></Button>
+            </span>
+          )}
           {playing && (
             <Badge variant={myTurn ? "default" : "secondary"}>
               {myTurn ? t("yourTurn") : t("opponentTurn", { name: playerName(activeSide!) })}
@@ -381,6 +444,18 @@ export function TablePlay({ tableId }: { tableId: string }) {
                 }
               }}
               over={(ctx, px) => {
+                const sel = sandbox ? view.placements.find((x) => x.id === selectedPiece) : undefined;
+                if (sel) {
+                  const w = sel.widthIn / 2, h = sel.heightIn / 2;
+                  const corners = [{ x: -w, y: -h }, { x: w, y: -h }, { x: w, y: h }, { x: -w, y: h }]
+                    .map((c) => { const r = rotateVec(c, sel.rotation); return { x: r.x + sel.x, y: r.y + sel.y }; });
+                  ctx.strokeStyle = "#33d3e0";
+                  ctx.lineWidth = 2;
+                  ctx.setLineDash([6, 4]);
+                  tracePath(ctx, px, corners, true);
+                  ctx.stroke();
+                  ctx.setLineDash([]);
+                }
                 if (ruler.length) {
                   ctx.strokeStyle = "#f2d36b";
                   ctx.fillStyle = "#f2d36b";
@@ -412,7 +487,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
                 ctx.fillText(label, px(end.x) + 17, px(end.y) - px(0.33));
               }}
               onPointerUp={(p) => void onBoardClick(p)}
-              cursor={freeMove || setup || tool !== "NONE" ? "copy" : "crosshair"}
+              cursor={freeMove || setup || tool !== "NONE" || placing ? "copy" : "crosshair"}
             />
             <div className="flex flex-wrap gap-2 p-2">
               <Button size="sm" variant={showLos ? "default" : "outline"} onClick={() => setShowLos((s) => !s)} disabled={!model?.deployed}>
@@ -465,6 +540,10 @@ export function TablePlay({ tableId }: { tableId: string }) {
       </div>
 
       <div className="grid min-w-0 content-start gap-3">
+        {sandbox && role === "PLAYER" && view.status !== "FINISHED" && (
+          <SandboxPanel view={view} busy={busy} run={run} tab={sandboxTab} setTab={setSandboxTab} placing={placing}
+            setPlacing={setPlacing} selectedPiece={selectedPiece} setSelectedPiece={setSelectedPiece} />
+        )}
         {setup && role === "PLAYER" && (
           <Card>
             <CardHeader><CardTitle className="text-base">{t("setupTitle")}</CardTitle></CardHeader>
@@ -486,9 +565,15 @@ export function TablePlay({ tableId }: { tableId: string }) {
                     onClick={() => void run({ type: "FIRST_PLAYER", side: s as 0 | 1 })}>{playerName(s)}</Button>
                 ))}
               </div>
-              <Button disabled={busy || myUndeployed.length > 0 || meReady} onClick={() => void run({ type: "READY" })}>
-                {meReady ? t("readyWaiting") : t("ready")}
-              </Button>
+              {solo ? (
+                <Button disabled={busy || myUndeployed.length > 0 || view.models.length === 0} onClick={() => void startSolo()}>
+                  {t("startSolo")}
+                </Button>
+              ) : (
+                <Button disabled={busy || myUndeployed.length > 0 || meReady} onClick={() => void run({ type: "READY" })}>
+                  {meReady ? t("readyWaiting") : t("ready")}
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -503,6 +588,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
             onAp={(ap) => void run({ type: "AP", id: model.id, ap })}
             onState={(s, on) => void run({ type: "STATE", id: model.id, state: s, on })}
             onRotate={(d) => void rotate(d)}
+            onRemove={sandbox && canEdit && !readOnly ? async () => { if (await run({ type: "REMOVE_MODEL", id: model.id })) setSelected(null); } : undefined}
           />
         ) : (
           <Card><CardContent className="p-4 text-sm text-muted-foreground">{t("pickModel")}</CardContent></Card>
@@ -518,7 +604,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
                 </Button>
                 {!view.canUndo && playing && myTurn && <span className="text-xs text-muted-foreground">{t("undoHint")}</span>}
               </div>
-              {myTurn && model && mine && !activatedHere && (
+              {myTurn && model && mine && !activatedHere && model.side === activeSide && (
                 <Button disabled={busy || model.ap < 1} onClick={async () => { setWaypoints([]); await run({ type: "ACTIVATE", id: model.id }); }}>
                   <Zap aria-hidden /> {t("activate", { ap: model.ap })}
                 </Button>
@@ -556,7 +642,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
                   </Button>
                 </>
               )}
-              {!myTurn && activation && model && mine && (
+              {activation && model && mine && model.side !== activeSide && (
                 <Button disabled={busy || model.ap < 1} onClick={() => void run({ type: "REACT", id: model.id })}>
                   <Zap aria-hidden /> {t("react", { name: names.get(activation.id) ?? "" })}
                 </Button>
@@ -671,7 +757,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
           </Card>
         )}
 
-        {view.status !== "WAITING" && <QuestCard view={view} />}
+        {view.status !== "WAITING" && <QuestCard view={view} busy={busy} run={run} />}
         {view.status !== "WAITING" && <SchemesCard view={view} busy={busy} run={run} />}
         {view.creator && view.status !== "FINISHED" && <TableSharing view={view} onChanged={() => void load()} />}
 
@@ -679,7 +765,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
           <CardHeader><CardTitle className="text-base">{t("log")}</CardTitle></CardHeader>
           <CardContent>
             <ol className="grid max-h-72 gap-1 overflow-auto text-xs">
-              {[...view.log].reverse().filter((e) => e.type !== "MODEL_ADDED" && e.type !== "PARTY_INFO").map((e) => (
+              {[...view.log].reverse().filter((e) => e.side >= 0 || (e.type !== "MODEL_ADDED" && e.type !== "PARTY_INFO" && e.type !== "QUEST_SET")).map((e) => (
                 <li key={e.seq} className={`flex items-start gap-1 ${e.undone ? "text-muted-foreground line-through"
                   : e.type === "FREE_MOVED" || e.side === JUDGE_SIDE ? "text-amber-300" : ""}`}>
                   <span className="min-w-0 flex-1"><span className="text-muted-foreground">#{e.seq}</span> {describe(t as unknown as T, e, names, playerName)}</span>
@@ -701,7 +787,7 @@ export function TablePlay({ tableId }: { tableId: string }) {
           </CardContent>
         </Card>
 
-        {view.status !== "FINISHED" && you >= 0 && view.status !== "WAITING" && (
+        {view.status !== "FINISHED" && you >= 0 && view.status !== "WAITING" && !solo && (
           confirmConcede ? (
             <div className="flex gap-2">
               <Button variant="destructive" onClick={() => void run({ type: "CONCEDE" })}><Flag aria-hidden /> {t("concedeConfirm")}</Button>
@@ -729,6 +815,8 @@ function ModelCard(props: {
   onAp: (ap: number) => void;
   onState: (s: ModelState, on: boolean) => void;
   onRotate: (d: number) => void;
+  /** Free game: take the model off the table. */
+  onRemove?: () => void;
 }) {
   const t = useTranslations("table");
   const { model: m, mine, readOnly } = props;
@@ -772,6 +860,11 @@ function ModelCard(props: {
               <Button size="icon" variant="outline" className="size-7" aria-label={t("rotateLeft")} onClick={() => props.onRotate(-15)}><RotateCcw aria-hidden /></Button>
               <Button size="icon" variant="outline" className="size-7" aria-label={t("rotateRight")} onClick={() => props.onRotate(15)}><RotateCw aria-hidden /></Button>
             </span>
+          )}
+          {props.onRemove && (
+            <Button size="sm" variant="ghost" className="h-7 px-2" disabled={busy} onClick={props.onRemove}>
+              <Trash2 aria-hidden /> {t("removeModel")}
+            </Button>
           )}
         </div>
         <div>
@@ -858,6 +951,14 @@ function describe(t: T, e: LogEntry, names: Map<string, string>, player: (side: 
     case "TEMPLATE_PLACED": return t("logLine.TEMPLATE_PLACED", { who, template: t(`template.${String(d.kind)}`) });
     case "TEMPLATE_REMOVED": return t("logLine.TEMPLATE_REMOVED", { who });
     case "END_PROPOSED": return Number(d.side) < 0 ? t("logLine.END_WITHDRAWN", { who }) : t("logLine.END_PROPOSED", { who });
+    case "MODEL_ADDED": return t("logLine.MODEL_ADDED", { who, model: name(d.id) });
+    case "MODEL_REMOVED": return t("logLine.MODEL_REMOVED", { who, model: String(d.id) });
+    case "BACKGROUND_SET": return t("logLine.BACKGROUND_SET", { who });
+    case "TERRAIN_PLACED": return t("logLine.TERRAIN_PLACED", { who, name: String(d.name ?? "") });
+    case "TERRAIN_MOVED": return t("logLine.TERRAIN_MOVED", { who });
+    case "TERRAIN_REMOVED": return t("logLine.TERRAIN_REMOVED", { who });
+    case "ROUND_SET": return t("logLine.ROUND_SET", { who, round: Number(d.round) });
+    case "QUEST_SET": return t("logLine.QUEST_SET", { who });
     default: return e.type;
   }
 }

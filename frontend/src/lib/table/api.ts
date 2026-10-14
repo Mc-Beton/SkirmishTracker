@@ -151,7 +151,9 @@ export type TableView = {
   reportedGameId: string | null;
   field: { widthIn: number; heightIn: number; deploymentDepth: number; deployment: "STANDARD" | "CORNER"; cornerRadius: number };
   background: { imageId: string; widthIn: number; heightIn: number };
-  placements: { assetId: string; imageId: string | null; widthIn: number; heightIn: number; x: number; y: number; rotation: number }[];
+  /** `id` names the piece (free game: move / remove it), `scale` is already applied to the size. */
+  placements: { assetId: string; imageId: string | null; widthIn: number; heightIn: number; x: number; y: number; rotation: number;
+    id: string; scale: number; name: string | null }[];
   terrain: { id: string; kind: "OBSTACLE" | "AREA"; points: Vec[]; height: number; envs: Env[] }[];
   players: { side: 0 | 1; userId: string; name: string }[];
   you: -1 | 0 | 1;
@@ -176,6 +178,14 @@ export type TableView = {
   judge: { side: number; userId: string; name: string } | null;
   /** The player who created the table manages links and observers. */
   creator: boolean;
+  /** For the creator: the player invited by name while the seat is free. */
+  invited: { side: number; userId: string; name: string } | null;
+  /** STANDARD: map and lists up front; SANDBOX: a free game built during play. */
+  mode: TableMode;
+  /** Free game with no opponent yet: you play both sides. */
+  solo: boolean;
+  /** Free game: the chosen mat. */
+  backgroundId: string | null;
 };
 
 /** Core Rules p.18 – what the players may pre-measure. */
@@ -195,6 +205,23 @@ export function inviteLink(kind: InviteKind, token: string): string {
   return `${window.location.origin}/tables/join?invite=${encodeURIComponent(token)}${as}`;
 }
 
+/** An invitation by name, as the invited player sees it before accepting. */
+export type TableInvitation = {
+  id: string;
+  mapName: string;
+  questCode: string | null;
+  measureMode: MeasureMode;
+  deployment: "STANDARD" | "CORNER";
+  from: { side: number; userId: string; name: string };
+  invitedAt: string;
+  mode: TableMode;
+};
+
+export type TableMode = "STANDARD" | "SANDBOX";
+
+/** A model profile for the free game's model list. */
+export type ProfileView = { code: string; name: string; size: Size; factions: string[]; classes: string[] };
+
 export type TableSummary = {
   id: string;
   status: TableView["status"];
@@ -204,6 +231,7 @@ export type TableSummary = {
   yourSide: number;
   role: TableRole;
   updatedAt: string;
+  mode: TableMode;
 };
 
 /** A command for POST /api/tables/{id}/commands (flat, `type` picks the command). */
@@ -232,7 +260,18 @@ export type TableCommand =
   | { type: "VP"; side: 0 | 1; round: number; vpScenario: number; vpScheme: number }
   | { type: "PLACE_TEMPLATE"; kind: TableTemplate["kind"]; x: number; y: number; facing: number; id?: string; label?: string }
   | { type: "REMOVE_TEMPLATE"; id: string }
-  | { type: "END_GAME" };
+  | { type: "END_GAME" }
+  // free game
+  | { type: "ADD_MODEL"; ref: string; side: 0 | 1; x: number; y: number; facing: number }
+  | { type: "REMOVE_MODEL"; id: string }
+  | { type: "SET_BACKGROUND"; ref: string }
+  | { type: "PLACE_TERRAIN"; ref: string; x: number; y: number; facing: number; scale: number }
+  | { type: "MOVE_TERRAIN"; id: string; x: number; y: number; facing: number; scale: number }
+  | { type: "REMOVE_TERRAIN"; id: string }
+  | { type: "SET_ROUND"; round: number }
+  | { type: "SET_QUEST"; ref?: string }
+  | { type: "PICK_SCHEME"; side: 0 | 1; scheme: string };
 
-export const sendCommand = (tableId: string, cmd: TableCommand) =>
-  api<TableView>("POST", `/api/tables/${tableId}/commands`, cmd);
+/** `asSide`: in a free game played alone, the side you act for (ignored otherwise). */
+export const sendCommand = (tableId: string, cmd: TableCommand, asSide?: 0 | 1) =>
+  api<TableView>("POST", `/api/tables/${tableId}/commands`, asSide == null ? cmd : { ...cmd, asSide });

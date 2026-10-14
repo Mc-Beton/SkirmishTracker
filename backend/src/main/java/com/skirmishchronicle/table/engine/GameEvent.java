@@ -2,6 +2,7 @@ package com.skirmishchronicle.table.engine;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.skirmishchronicle.table.geo.TerrainShapes;
 import com.skirmishchronicle.table.geo.Vec;
 import com.skirmishchronicle.table.rules.ModelState;
 import java.util.List;
@@ -40,6 +41,13 @@ import java.util.List;
         @JsonSubTypes.Type(value = GameEvent.TemplatePlaced.class, name = "TEMPLATE_PLACED"),
         @JsonSubTypes.Type(value = GameEvent.TemplateRemoved.class, name = "TEMPLATE_REMOVED"),
         @JsonSubTypes.Type(value = GameEvent.EndProposed.class, name = "END_PROPOSED"),
+        @JsonSubTypes.Type(value = GameEvent.ModelRemoved.class, name = "MODEL_REMOVED"),
+        @JsonSubTypes.Type(value = GameEvent.BackgroundSet.class, name = "BACKGROUND_SET"),
+        @JsonSubTypes.Type(value = GameEvent.TerrainPlaced.class, name = "TERRAIN_PLACED"),
+        @JsonSubTypes.Type(value = GameEvent.TerrainMoved.class, name = "TERRAIN_MOVED"),
+        @JsonSubTypes.Type(value = GameEvent.TerrainRemoved.class, name = "TERRAIN_REMOVED"),
+        @JsonSubTypes.Type(value = GameEvent.RoundSet.class, name = "ROUND_SET"),
+        @JsonSubTypes.Type(value = GameEvent.QuestSet.class, name = "QUEST_SET"),
 })
 public sealed interface GameEvent {
 
@@ -145,5 +153,35 @@ public sealed interface GameEvent {
 
     /** One player proposes to end the game; it ends when the other one agrees. */
     record EndProposed(int side) implements GameEvent {
+    }
+
+    // ---------- free game (sandbox): the field and the parties are built during the game ----------
+
+    /** A model taken off the table for good (free game). */
+    record ModelRemoved(String id) implements GameEvent {
+    }
+
+    /** The mat of a free game, copied from the library (its size becomes the field). */
+    record BackgroundSet(String backgroundId, String imageId, double widthIn, double heightIn, List<TerrainShapes.Area> areas)
+            implements GameEvent {
+    }
+
+    /** A terrain piece put on the field of a free game, copied from the library with its shapes. */
+    record TerrainPlaced(String id, String assetId, String name, String imageId, double widthIn, double heightIn,
+                         List<TerrainShapes.Shape> shapes, double x, double y, double rotation, double scale) implements GameEvent {
+    }
+
+    record TerrainMoved(String id, double x, double y, double rotation, double scale) implements GameEvent {
+    }
+
+    record TerrainRemoved(String id) implements GameEvent {
+    }
+
+    /** The round set by hand (free game). */
+    record RoundSet(int round) implements GameEvent {
+    }
+
+    /** The quest chosen during a free game (null = none). */
+    record QuestSet(String code) implements GameEvent {
     }
 }

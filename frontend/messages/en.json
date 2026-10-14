@@ -330,7 +330,14 @@
     "TABLE_HAS_JUDGE": "This game already has a judge.",
     "TABLE_OBSERVERS_OFF": "Observers are switched off.",
     "TABLE_CREATOR_ONLY": "Only the creator of the table can change this.",
-    "TABLE_READ_ONLY": "As an observer you can only watch."
+    "TABLE_READ_ONLY": "As an observer you can only watch.",
+    "TABLE_PLAYER_NOT_FOUND": "Player not found.",
+    "TABLE_SANDBOX_ONLY": "This works only in a free game.",
+    "TABLE_SANDBOX_NO_REPORT": "A free game is not reported as an own game.",
+    "TABLE_TOO_MANY_MODELS": "Too many models on the table (max 40).",
+    "TABLE_BAD_BACKGROUND": "Invalid mat.",
+    "TABLE_UNKNOWN_SCHEME": "Unknown Scheme.",
+    "TABLE_LIST_REQUIRED": "Choose a list – without one you can only join a free game."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -1234,7 +1241,8 @@
       "WARBAND_SUBMITTED": "{tournament}: {player} submitted a warband list for review.",
       "JUDGE_CALL": "{tournament}: round {round}, table {table} ({players}) is calling a judge.",
       "RESULT_RECORDED": "{tournament}: {opponent} entered the result of your game – {score}.",
-      "GAME_STARTED": "{player} started a game with you – you can enter points."
+      "GAME_STARTED": "{player} started a game with you – you can enter points.",
+      "TABLE_INVITATION": "{player} invites you to an online game on {map}."
     }
   },
   "offline": {
@@ -1896,7 +1904,15 @@
       "TEMPLATE_PLACED": "{who} places a template: {template}",
       "TEMPLATE_REMOVED": "{who} removes a template",
       "END_PROPOSED": "{who} proposes to end the game",
-      "END_WITHDRAWN": "{who} withdraws the proposal to end"
+      "END_WITHDRAWN": "{who} withdraws the proposal to end",
+      "MODEL_ADDED": "{who}: places {model}",
+      "MODEL_REMOVED": "{who}: removes model {model}",
+      "BACKGROUND_SET": "{who}: changes the mat",
+      "TERRAIN_PLACED": "{who}: places terrain {name}",
+      "TERRAIN_MOVED": "{who}: moves terrain",
+      "TERRAIN_REMOVED": "{who}: removes terrain",
+      "ROUND_SET": "{who}: sets round {round}",
+      "QUEST_SET": "{who}: changes the quest"
     },
     "mapsTitle": "Maps",
     "mapsIntro": "Official maps, maps shared by players and your own. Build one from a background and library terrain.",
@@ -1998,7 +2014,7 @@
       "PROFANE_MIASMA": "Profane miasma",
       "MANAGMATIC": "Managmatic"
     },
-    "step3Quest": "3. Quest (optional)",
+    "step3Quest": "4. Quest (optional)",
     "noQuest": "— no quest —",
     "questTitle": "Quest: {name}",
     "schemes": "Schemes",
@@ -2109,7 +2125,7 @@
     "withJudge": "Invite a judge",
     "judgeHelp": "The judge may move, turn and mark all models, enter points, end the game and undo any number of steps – also after dice rolls.",
     "linksOnce": "Copy the links now – new ones can be generated later in the table panel.",
-    "step4Options": "4. Table rules",
+    "step4Options": "5. Table rules",
     "joinAs": {
       "PLAYER": "Join an online game",
       "JUDGE": "Judge an online game",
@@ -2131,6 +2147,67 @@
     "deploymentKind": {
       "STANDARD": "Standard deployment",
       "CORNER": "Corner deployment"
-    }
+    },
+    "quest": "Quest",
+    "changePlayer": "Change player",
+    "playerSearchPlaceholder": "Type at least 2 letters of the player's name…",
+    "noPlayersFound": "No players found.",
+    "invitationsTitle": "Game invitations",
+    "invitedBy": "from {name}",
+    "answerInvitation": "Answer",
+    "invitationSent": "Invitation sent to {name}. They get a notification with a link to the table.",
+    "stepOpponent": "3. Opponent (optional)",
+    "opponentHelp": "The chosen player gets a notification and joins with one click. The invitation link is created anyway – you can send it to someone else.",
+    "invitationTitle": "Online game invitation",
+    "invitationDeclined": "Invitation declined.",
+    "invitationFrom": "{name} invites you to an online game. Pick a list and join the table.",
+    "acceptInvitation": "Join the game",
+    "declineInvitation": "Decline",
+    "inviteByName": "Invite a player from the list",
+    "invitedPlayer": "Invited: {name}",
+    "cancelInvitation": "Withdraw",
+    "sendInvitation": "Send invitation",
+    "freeGame": "Free game",
+    "soloBadge": "Solo – you play both sides",
+    "soloShort": "solo",
+    "setRound": "Change round",
+    "roundDown": "Previous round",
+    "roundUp": "Next round",
+    "startSolo": "Start the game (both sides)",
+    "sideB": "Side B",
+    "removeModel": "Remove from the table",
+    "sandboxTitle": "Free table",
+    "sandboxTab": {
+      "MAT": "Mat",
+      "TERRAIN": "Terrain",
+      "MODELS": "Models"
+    },
+    "placingHelp": {
+      "TERRAIN": "Click on the board to place: {name}. Esc to stop.",
+      "MODEL": "Click on the board to place: {name}. Esc to stop.",
+      "MOVE_TERRAIN": "Click the new spot for: {name}."
+    },
+    "chooseBackground": "Choose a mat…",
+    "matHelp": "The mat sets the size of the table and its natural areas (water, forest). You can change it at any time.",
+    "terrainPiece": "Terrain piece",
+    "movePiece": "Move",
+    "pickPieceHelp": "Click a piece on the board to turn, scale, move or remove it. Or pick a new one from the library below.",
+    "side": "Side",
+    "profileSearch": "Search models or factions…",
+    "modelsHelp": "Pick a model and click on the board – every click places another one. Remove it in the model card.",
+    "pickScheme": "Pick a Scheme…",
+    "endGameSolo": "End the game",
+    "gameMode": "Kind of game",
+    "modeName": {
+      "STANDARD": "Game with a map and lists",
+      "SANDBOX": "Free game"
+    },
+    "modeHelp": {
+      "STANDARD": "A ready map, both players' lists, deployment by the quest.",
+      "SANDBOX": "An empty table: add the mat, terrain and any models as you go. Play both sides alone or invite someone."
+    },
+    "createSandbox": "Open a free table",
+    "noListFreeGame": "No list (free game only)",
+    "noListHelp": "Without a list you can join only a free game – add your models on the table."
   }
 }

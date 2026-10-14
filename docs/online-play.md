@@ -86,6 +86,9 @@ widoczny w dzienniku), Cover, szablony AoE na mapie, ukrywanie informacji (Shrou
 | POST | `/api/tables/judge` `{invite}`, `/api/tables/watch` `{invite}` | zalogowani (sędzia: link jednorazowy, nie gracz tej gry) |
 | POST | `/api/tables/{id}/invites` `{kind: PLAYER\|JUDGE\|WATCH}`, `/api/tables/{id}/observers` `{allowed}` | założyciel stołu |
 | POST | `/api/tables/join` `{invite, listId}` | zalogowani (zaproszenie jednorazowe, w bazie tylko hash) |
+| POST/DELETE | `/api/tables/{id}/invite-user` `{userId}` | założyciel: zaproszenie gracza z listy (powiadomienie `TABLE_INVITATION`), wycofanie |
+| GET | `/api/tables/invitations`, `/api/tables/{id}/invitation` | zaproszony gracz (inni: 404) |
+| POST | `/api/tables/{id}/accept` `{listId}`, `/api/tables/{id}/decline` | zaproszony gracz |
 | GET | `/api/tables/mine`, `/api/tables/{id}`, `/api/tables/{id}/live` | gracze, sędzia, obserwatorzy (gdy włączeni), admin |
 | POST | `/api/tables/{id}/commands` | gracze i sędzia (obserwator/admin: 403 `TABLE_READ_ONLY`) |
 | POST | `/api/tables/{id}/report` → gra własna | uczestnicy, raz, po zakończeniu za zgodą |
@@ -120,6 +123,24 @@ Komendy (`type`): `FIRST_PLAYER`, `DEPLOY`, `READY`, `ACTIVATE`, `MOVE`, `FREE_M
   potwierdza jak zwykłą grę własną, więc liczy się do ELO, lig i statystyk. Zgłoszenie tylko raz.
 - Cofanie obejmuje też żetony, PZ, szablony i propozycję końca (w swojej turze, nie za rzutem kośćmi).
 
+### Gra swobodna (sandbox)
+
+- Drugi rodzaj stołu (`game_tables.mode = SANDBOX`, V21; `POST /api/tables/sandbox {questCode?, measureMode?, judge?,
+  observers?, opponentId?}`): bez mapy i rozpisek. Stół startuje od razu w rozstawieniu.
+- W trakcie gry (panel „Stół swobodny”): **mata** z biblioteki (`SET_BACKGROUND`, jej rozmiar staje się polem),
+  **teren** z biblioteki (`PLACE_TERRAIN` / `MOVE_TERRAIN` z obrotem i skalą / `REMOVE_TERRAIN`, max 80) i **dowolne
+  postacie** z profili (`ADD_MODEL` stawia od razu w klikniętym miejscu, `REMOVE_MODEL`, max 40; `GET /api/tables/profiles`).
+  Zdarzenia niosą kopię danych z biblioteki, więc da się je cofać, a późniejsze zmiany w bibliotece nie psują partii.
+- Scenariusz (`SET_QUEST`) i scheme (`PICK_SCHEME`, z listy, bez losowania) wybiera się z list; rundę można ustawić ręcznie
+  (`SET_ROUND`). Strefy rozstawienia się wyświetlają, ale nie są wymuszane.
+- **Solo:** dopóki nikt nie dołączył, założyciel gra za obie strony – każda komenda może mieć `asSide` (0/1), a silnik
+  dalej pilnuje tur, AP i ruchu dla tej strony. Przeglądarka sama dobiera stronę (strona modelu, inaczej aktywny gracz).
+  Cofanie w solo działa jak u sędziego (dowolny krok). „Rozpocznij grę” = pierwszy gracz + „Gotowe” za obie strony,
+  „Zakończ grę” = koniec za zgodą obu stron.
+- Przeciwnik może dołączyć w dowolnym momencie (link lub zaproszenie z listy), także **bez rozpiski** – przejmuje
+  stronę B z modelami, które już na niej stoją. Z rozpiską jego modele dostają kolejne numery (b3, b4…).
+- Gry swobodnej nie zgłasza się jako gry własnej (bez ELO i statystyk).
+
 ### Tryb mierzenia, sędzia, obserwatorzy
 
 - **Tryb mierzenia** (podręcznik s.18) wybiera założyciel stołu: *Assisted* – wszystko; *Standard* – tylko w zasięgu
@@ -138,7 +159,11 @@ Komendy (`type`): `FIRST_PLAYER`, `DEPLOY`, `READY`, `ACTIVATE`, `MOVE`, `FREE_M
 
 ## 5. Strony
 
-- `/tables` – moje stoły, nowy stół (mapa + rozpiska → link z zaproszeniem), `/tables/join?invite=…`.
+- `/tables` – zaproszenia do gry, moje stoły, nowy stół (mapa + rozpiska + opcjonalnie przeciwnik z listy graczy →
+  link z zaproszeniem i powiadomienie dla wybranego gracza), `/tables/join?invite=…` (link),
+  `/tables/join?table=…` (zaproszenie z listy: szczegóły stołu, wybór rozpiski, „Dołącz” / „Odrzuć”).
+  Wyszukiwanie gracza od 2 liter (`/api/players/search`). Jeden zaproszony gracz naraz (`game_tables.invited_user_id`, V20);
+  link działa równolegle – kto pierwszy zajmie miejsce, ten gra.
 - `/tables/{id}` – gra: plansza (tło, grafiki terenu, nakładka „teren według zasad”, strefy rozstawienia),
   karta modelu (statystyki z karty i efektywne, HP ±, AP ±, stany), aktywacja i ruch z podglądem trasy i licznikiem
   cali, reakcja, ruch swobodny, obrót (Q/E), linia wzroku (L), kości, dziennik, cofanie, poddanie.

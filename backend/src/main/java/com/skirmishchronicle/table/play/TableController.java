@@ -3,6 +3,7 @@ package com.skirmishchronicle.table.play;
 import com.skirmishchronicle.common.ApiException;
 import com.skirmishchronicle.common.CurrentUser;
 import com.skirmishchronicle.table.engine.Command;
+import com.skirmishchronicle.table.engine.GameEvent;
 import com.skirmishchronicle.table.geo.Geometry;
 import com.skirmishchronicle.table.geo.Vec;
 import com.skirmishchronicle.table.rules.ModelState;
@@ -17,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,7 +34,14 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class TableController {
 
     public record CreateRequest(@NotNull UUID mapId, @NotNull UUID listId, @Size(max = 60) String questCode,
-                                GameTable.MeasureMode measureMode, Boolean judge, Boolean observers) {
+                                GameTable.MeasureMode measureMode, Boolean judge, Boolean observers, UUID opponentId) {
+    }
+
+    public record InviteUserRequest(@NotNull UUID userId) {
+    }
+
+    /** {@code listId} may be left out only for a free game. */
+    public record AcceptRequest(UUID listId) {
     }
 
     public record InviteRequest(@NotNull @Size(max = 100) String invite) {
@@ -44,7 +53,12 @@ public class TableController {
     public record ObserversRequest(@NotNull Boolean allowed) {
     }
 
-    public record JoinRequest(@NotNull @Size(max = 100) String invite, @NotNull UUID listId) {
+    /** {@code listId} may be left out only for a free game. */
+    public record JoinRequest(@NotNull @Size(max = 100) String invite, UUID listId) {
+    }
+
+    public record SandboxRequest(@Size(max = 60) String questCode, GameTable.MeasureMode measureMode, Boolean judge,
+                                 Boolean observers, UUID opponentId) {
     }
 
     /**
@@ -58,7 +72,7 @@ public class TableController {
                                  Integer side, @Size(max = 60) String label, Integer count, Integer target, Integer delta,
                                  @Size(max = 20) String state, Boolean on, Integer ap, @Size(max = 20) String kind,
                                  @Size(max = 60) String scheme, Integer round, Integer vpScenario, Integer vpScheme,
-                                 Long toSeq) {
+                                 Long toSeq, @Size(max = 60) String ref, Double scale, Integer asSide) {
 
         Command toCommand() {
             return switch (type) {
@@ -87,8 +101,28 @@ public class TableController {
                 case "PLACE_TEMPLATE" -> new Command.PlaceTemplate(text(kind), point(x, y), angle(), blankToNull(id), label);
                 case "REMOVE_TEMPLATE" -> new Command.RemoveTemplate(modelId());
                 case "END_GAME" -> new Command.EndGame();
+                // free game
+                case "ADD_MODEL" -> new Command.AddModel(text(ref), req(side), point(x, y), angle());
+                case "REMOVE_MODEL" -> new Command.RemoveModel(modelId());
+                case "SET_BACKGROUND" -> new Command.SetBackground(new GameEvent.BackgroundSet(text(ref), null, 0, 0, null));
+                case "PLACE_TERRAIN" -> new Command.PlaceTerrain(text(ref), null, null, 0, 0, null, point(x, y), angle(), factor());
+                case "MOVE_TERRAIN" -> new Command.MoveTerrain(modelId(), point(x, y), angle(), factor());
+                case "REMOVE_TERRAIN" -> new Command.RemoveTerrain(modelId());
+                case "SET_ROUND" -> new Command.SetRound(req(round));
+                case "SET_QUEST" -> new Command.SetQuest(blankToNull(ref));
+                case "PICK_SCHEME" -> new Command.PickScheme(req(side), text(scheme));
                 default -> throw bad();
             };
+        }
+
+        private double factor() {
+            if (scale == null) {
+                return 1;
+            }
+            if (!Double.isFinite(scale)) {
+                throw bad();
+            }
+            return scale;
         }
 
         private String modelId() {
@@ -168,7 +202,56 @@ public class TableController {
     @ResponseStatus(HttpStatus.CREATED)
     public TableService.Created create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateRequest body) {
         return tables.create(CurrentUser.from(jwt), body.mapId(), body.listId(), body.questCode(), body.measureMode(),
-                Boolean.TRUE.equals(body.judge()), Boolean.TRUE.equals(body.observers()));
+                Boolean.TRUE.equals(body.judge()), Boolean.TRUE.equals(body.observers()), body.opponentId());
+    }
+
+    /** A free game: no map or lists up front; the creator may play both sides until somebody joins. */
+    @PostMapping("/sandbox")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TableService.Created createSandbox(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody SandboxRequest body) {
+        return tables.createSandbox(CurrentUser.from(jwt), body.questCode(), body.measureMode(), Boolean.TRUE.equals(body.judge()),
+                Boolean.TRUE.equals(body.observers()), body.opponentId());
+    }
+
+    /** Model profiles for the free game's model list. */
+    @GetMapping("/profiles")
+    public List<TableService.ProfileView> profiles() {
+        return tables.profiles();
+    }
+
+    /** Creator: invite a registered player by name (notification with a link to accept). */
+    @PostMapping("/{id}/invite-user")
+    public TableView.Player inviteUser(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id,
+                                       @Valid @RequestBody InviteUserRequest body) {
+        return tables.inviteUser(CurrentUser.from(jwt), id, body.userId());
+    }
+
+    @DeleteMapping("/{id}/invite-user")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelUserInvite(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        tables.cancelUserInvite(CurrentUser.from(jwt), id);
+    }
+
+    /** Open invitations of the logged-in player. */
+    @GetMapping("/invitations")
+    public List<TableService.Invitation> invitations(@AuthenticationPrincipal Jwt jwt) {
+        return tables.invitations(CurrentUser.from(jwt));
+    }
+
+    @GetMapping("/{id}/invitation")
+    public TableService.Invitation invitation(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        return tables.invitation(CurrentUser.from(jwt), id);
+    }
+
+    @PostMapping("/{id}/accept")
+    public Map<String, UUID> accept(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @Valid @RequestBody AcceptRequest body) {
+        return Map.of("id", tables.acceptInvitation(CurrentUser.from(jwt), id, body.listId()));
+    }
+
+    @PostMapping("/{id}/decline")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void decline(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        tables.declineInvitation(CurrentUser.from(jwt), id);
     }
 
     @PostMapping("/judge")
@@ -214,7 +297,7 @@ public class TableController {
     @PostMapping("/{id}/commands")
     public TableView command(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id,
                              @Valid @RequestBody CommandRequest body) {
-        return tables.command(CurrentUser.from(jwt), id, body.toCommand());
+        return tables.command(CurrentUser.from(jwt), id, body.toCommand(), body.asSide());
     }
 
     /** Reports the finished game as an own game (the opponent confirms it). */

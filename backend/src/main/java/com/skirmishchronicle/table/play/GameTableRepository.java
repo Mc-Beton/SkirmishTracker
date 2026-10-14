@@ -23,6 +23,10 @@ public interface GameTableRepository extends JpaRepository<GameTable, UUID> {
 
     Optional<GameTable> findByJudgeInviteHash(String hash);
 
+    /** Open invitations of a player (the seat is still free). */
+    @Query("select t from GameTable t where t.invitedUserId = :userId and t.playerB is null order by t.updatedAt desc")
+    List<GameTable> findInvitationsOf(UUID userId);
+
     Optional<GameTable> findByWatchInviteHash(String hash);
 
     @Query("select count(t) from GameTable t where (t.playerA = :userId or t.playerB = :userId) and t.status <> :done")

@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.skirmishchronicle.table.geo.Env;
 import com.skirmishchronicle.table.geo.Geometry.MoveMode;
 import com.skirmishchronicle.table.geo.Terrain;
+import com.skirmishchronicle.table.geo.TerrainShapes;
 import com.skirmishchronicle.table.geo.Vec;
 import com.skirmishchronicle.table.rules.ModelState;
 import com.skirmishchronicle.table.rules.Profiles;
@@ -69,8 +70,10 @@ class TableEngineTest {
 
     private GameState.Deployment deployment = GameState.Deployment.STANDARD;
 
+    private boolean sandbox;
+
     private GameState state() {
-        return GameState.fold(36, 36, 8, deployment, terrain, log, PROFILES);
+        return GameState.fold(36, 36, 8, deployment, terrain, log, PROFILES, sandbox);
     }
 
     private List<GameEvent> run(int side, Command c) {
@@ -301,6 +304,44 @@ class TableEngineTest {
         run(0, new Command.Activate("a2"));
         GameEvent.Moved m = (GameEvent.Moved) run(0, new Command.Move("a2", MoveMode.WALK, List.of(new Vec(18, 14)))).get(0);
         assertEquals(17 + 16 / 25.4, m.path().get(m.path().size() - 1).y(), 0.02);
+    }
+
+    @Test
+    void freeGameBuildsTheFieldAndModelsDuringPlay() {
+        sandbox = true;
+        assertEquals("TABLE_SANDBOX_ONLY", new Object() {
+            String code() {
+                try {
+                    engine.decide(GameState.fold(36, 36, 8, terrain, log, PROFILES), log, 0, new Command.SetRound(2));
+                    return "OK";
+                } catch (RuleViolation v) {
+                    return v.code();
+                }
+            }
+        }.code());
+        run(0, new Command.SetBackground(new GameEvent.BackgroundSet("bg", "img", 48, 48, List.of())));
+        assertEquals(48, state().width, 1e-9);
+        TerrainShapes.Shape wall = new TerrainShapes.Shape(TerrainShapes.ShapeType.WALL, List.of(new Vec(-3, 0), new Vec(3, 0)), 0.5, 3, Set.of());
+        run(0, new Command.PlaceTerrain("ruin", "Ruin", "img", 6, 6, List.of(wall), new Vec(24, 24), 0, 2));
+        assertEquals(1, state().pieces.size());
+        assertEquals(1, state().terrain.size());
+        run(0, new Command.MoveTerrain("p1", new Vec(30, 30), 90, 1));
+        assertEquals(30, state().pieces.get("p1").x(), 1e-9);
+        // models from the profiles, anywhere on the field, numbered after the lists' ones (a1, a2 exist)
+        run(0, new Command.AddModel("CITADEL_GUARD", 0, new Vec(5, 5), 0));
+        assertTrue(state().models.containsKey("a3"));
+        assertEquals("TABLE_NOT_YOUR_MODEL", code(0, new Command.AddModel("CITADEL_GUARD", 1, new Vec(9, 9), 0)));
+        run(0, new Command.RemoveModel("a3"));
+        assertFalse(state().models.containsKey("a3"));
+        run(0, new Command.RemoveTerrain("p1"));
+        assertTrue(state().terrain.isEmpty());
+        deployAndStart();
+        run(0, new Command.SetRound(3));
+        assertEquals(3, state().round);
+        run(1, new Command.PickScheme(1, "ASSASSINATION_CONTRACT"));
+        assertEquals("ASSASSINATION_CONTRACT", state().schemeKept.get(1));
+        run(0, new Command.SetQuest("MAGIC_STONES"));
+        assertEquals("MAGIC_STONES", state().questCode);
     }
 
     @Test

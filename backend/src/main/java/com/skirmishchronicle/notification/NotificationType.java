@@ -19,6 +19,7 @@ public enum NotificationType {
     GAME_TO_CONFIRM,
     GAME_CONFIRMED,
     GAME_REJECTED,
+    TABLE_INVITATION,
     LEAGUE_SUBMISSION,
     LEAGUE_DECISION,
     // organizer

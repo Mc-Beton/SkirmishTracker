@@ -18,7 +18,7 @@ public record TableView(UUID id, String status, String mapName, String questCode
                         List<ModelView> models, List<PartyView> parties, List<Token> tokens, List<Template> templates,
                         List<VpRow> vp, int[] vpTotal, Integer endProposedBy, UUID reportedGameId, List<LogEntry> log,
                         boolean canUndo, long seq, String measureMode, String role, boolean observersAllowed,
-                        Player judge, boolean creator) {
+                        Player judge, boolean creator, Player invited, String mode, boolean solo, String backgroundId) {
 
     /** A player's list: faction, Leader and Scheme cards (drawn and kept – public, as in the rules). */
     public record PartyView(int side, String faction, int leaderInt, String leaderId, List<SchemeCard> drawn, String kept) {
@@ -44,8 +44,12 @@ public record TableView(UUID id, String status, String mapName, String questCode
     public record Background(UUID imageId, double widthIn, double heightIn) {
     }
 
-    /** A placed terrain picture: centre, rotation and real size of the art (already multiplied by the placement scale). */
-    public record Placed(String assetId, UUID imageId, double widthIn, double heightIn, double x, double y, double rotation) {
+    /**
+     * A placed terrain picture: centre, rotation and real size of the art (already multiplied by {@code scale});
+     * {@code id} names the piece (free game: for moving and removing it).
+     */
+    public record Placed(String assetId, UUID imageId, double widthIn, double heightIn, double x, double y, double rotation,
+                         String id, double scale, String name) {
     }
 
     public record TerrainView(String id, String kind, List<Vec> points, double height, List<String> envs) {
