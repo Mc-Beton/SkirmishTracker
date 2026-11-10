@@ -10,11 +10,12 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { api } from "@/lib/api";
 import type { LeagueSummary, OrganizerLink } from "@/lib/leagues";
+import type { GameSystem } from "@/lib/game-system";
 
 const VARIANT = { PENDING: "warning", ACCEPTED: "success", REJECTED: "destructive" } as const;
 
 /** Organizer panel: submit the tournament to a league and see the owner's decisions. */
-export function LeagueSubmit({ tournamentId }: { tournamentId: string }) {
+export function LeagueSubmit({ tournamentId, system }: { tournamentId: string; system: GameSystem }) {
   const t = useTranslations("leagues");
   const errorMessage = useErrorMessage();
   const [leagues, setLeagues] = useState<LeagueSummary[]>([]);
@@ -29,7 +30,8 @@ export function LeagueSubmit({ tournamentId }: { tournamentId: string }) {
   useEffect(() => {
     let active = true;
     Promise.all([
-      api<LeagueSummary[]>("GET", "/api/leagues"),
+      // Only leagues of the tournament's own game system accept it.
+      api<LeagueSummary[]>("GET", `/api/leagues?system=${system}`),
       api<OrganizerLink[]>("GET", `/api/tournaments/${tournamentId}/league-links`),
     ])
       .then(([l, k]) => {
@@ -41,7 +43,7 @@ export function LeagueSubmit({ tournamentId }: { tournamentId: string }) {
     return () => {
       active = false;
     };
-  }, [tournamentId, errorMessage]);
+  }, [tournamentId, system, errorMessage]);
 
   const linked = new Set(links.filter((l) => l.status !== "REJECTED").map((l) => l.leagueId));
   const options = leagues.filter((l) => !linked.has(l.id));

@@ -11,8 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { CollapsibleSection } from "@/components/ui/collapsible-card";
 import { defaultPlan, RoundPlanEditor } from "@/components/tournaments/round-plan-editor";
-import { useGameContent } from "@/lib/content";
+import { useScenarios } from "@/components/use-scenarios";
+import { useGameSystem } from "@/components/game-system-provider";
+import { LIST_VISIBILITIES, type ListVisibility } from "@/lib/game-system";
 import {
+  BOLT_ACTION_SETTINGS,
   DEFAULT_SETTINGS,
   SCORING_MODES,
   TOP_CUTS,
@@ -50,9 +53,13 @@ type FormState = {
   listDeadline: string;
   entryFeeAmount: string;
   entryFeeCurrency: string;
+  maxOrderDice: string;
+  maxPlatoons: string;
+  listVisibility: ListVisibility;
+  requireApproval: boolean;
 };
 
-function initialState(t?: TournamentDetail): FormState {
+function initialState(t: TournamentDetail | undefined, boltAction: boolean): FormState {
   return {
     name: t?.name ?? "",
     description: t?.description ?? "",
@@ -72,6 +79,10 @@ function initialState(t?: TournamentDetail): FormState {
     listDeadline: toLocalInput(t?.listDeadline ?? null),
     entryFeeAmount: t?.entryFeeAmount?.toString() ?? "",
     entryFeeCurrency: t?.entryFeeCurrency ?? "PLN",
+    maxOrderDice: t?.maxOrderDice?.toString() ?? "",
+    maxPlatoons: t?.maxPlatoons?.toString() ?? "",
+    listVisibility: t?.listVisibility ?? (boltAction ? "AFTER_FIRST_PAIRINGS" : "AFTER_DEADLINE"),
+    requireApproval: t?.requireApproval ?? boltAction,
   };
 }
 
@@ -91,15 +102,22 @@ export function TournamentForm({
 }) {
   const t = useTranslations("tournaments");
   const errorMessage = useErrorMessage();
-  const [form, setForm] = useState<FormState>(() => initialState(tournament));
-  const [settings, setSettings] = useState<TournamentSettings>(() => tournament?.settings ?? DEFAULT_SETTINGS);
+  const { system: chosenSystem } = useGameSystem();
+  // A new tournament belongs to the system chosen under the logo; an existing one keeps its own.
+  const system = tournament?.gameSystem ?? chosenSystem;
+  const ba = system === "BOLT_ACTION";
+  const [form, setForm] = useState<FormState>(() => initialState(tournament, ba));
+  const [settings, setSettings] = useState<TournamentSettings>(() => tournament?.settings
+    ?? (ba ? BOLT_ACTION_SETTINGS : DEFAULT_SETTINGS));
   const flag = (key: keyof TournamentSettings) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setSettings((st) => ({ ...st, [key]: e.target.checked }));
   const num = (key: keyof TournamentSettings) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setSettings((st) => ({ ...st, [key]: e.target.value === "" ? 0 : Number.parseInt(e.target.value, 10) }));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const content = useGameContent();
+  const scenarios = useScenarios(system);
+  const optInt = (key: "maxPrimaryPoints" | "maxSecondaryPoints") => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setSettings((st) => ({ ...st, [key]: e.target.value === "" ? null : Number.parseInt(e.target.value, 10) }));
   const lockedUpTo = tournament?.roundsCount ?? 0;
   const [plans, setPlans] = useState<RoundPlan[]>(() => {
     if (tournament?.roundPlans?.length) return tournament.roundPlans;
@@ -132,6 +150,12 @@ export function TournamentForm({
     try {
       await onSubmit({
         ...settings,
+        gameSystem: system,
+        ...(ba ? { scoringMode: "WIN_DRAW_LOSS" as const, teamSize: null, teamUniqueFactions: false } : {}),
+        maxOrderDice: ba ? int(form.maxOrderDice) : null,
+        maxPlatoons: ba ? int(form.maxPlatoons) : null,
+        listVisibility: ba ? form.listVisibility : "AFTER_DEADLINE",
+        requireApproval: form.requireApproval,
         name: form.name,
         description: form.description || null,
         startsAt: fromLocalInput(form.startsAt) ?? "",
@@ -146,9 +170,9 @@ export function TournamentForm({
         format: form.format,
         maxPlayers: int(form.maxPlayers),
         pointsLimit: int(form.pointsLimit),
-        listFormat: form.listFormat,
-        partyLimit: form.listFormat === "ROSTER" ? int(form.partyLimit) : null,
-        hiddenRosters: form.listFormat === "ROSTER" && form.hiddenRosters,
+        listFormat: ba ? "CLASSIC" : form.listFormat,
+        partyLimit: !ba && form.listFormat === "ROSTER" ? int(form.partyLimit) : null,
+        hiddenRosters: !ba && form.listFormat === "ROSTER" && form.hiddenRosters,
         roundsPlanned: int(form.roundsPlanned),
         listDeadline: fromLocalInput(form.listDeadline),
         roundPlans: plans,
@@ -228,7 +252,7 @@ export function TournamentForm({
             </NativeSelect>
           </Field>
         )}
-        <div className="grid gap-4 sm:grid-cols-2">
+        {!ba && <div className="grid gap-4 sm:grid-cols-2">
           <Field id="teamSize" label={t("form.mode")} hint={settings.teamSize ? t("form.teamModeHint") : undefined}>
             <NativeSelect id="teamSize" value={settings.teamSize ?? ""}
               onChange={(e) => setSettings((st) => ({ ...st, teamSize: e.target.value ? Number(e.target.value) : null,
@@ -241,7 +265,7 @@ export function TournamentForm({
             <Check id="teamUniqueFactions" checked={settings.teamUniqueFactions} onChange={flag("teamUniqueFactions")}
               label={t("form.teamUniqueFactions")} hint={t("form.teamUniqueFactionsHint")} className="self-end" />
           )}
-        </div>
+        </div>}
         <div className="grid gap-4 sm:grid-cols-3">
           <Field id="maxPlayers" label={settings.teamSize ? t("form.maxTeams") : t("form.maxPlayers")}
             hint={settings.teamSize ? undefined : t("form.maxPlayersHint")}>
@@ -261,6 +285,25 @@ export function TournamentForm({
             <p className="self-end text-xs text-muted-foreground">{t(`form.roundsAuto.${form.format}`)}</p>
           )}
         </div>
+        {ba ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field id="maxOrderDice" label={t("form.maxOrderDice")} hint={t("form.maxOrderDiceHint")}>
+              <Input id="maxOrderDice" type="number" min={1} max={100} value={form.maxOrderDice} placeholder="18"
+                onChange={set("maxOrderDice")} />
+            </Field>
+            <Field id="maxPlatoons" label={t("form.maxPlatoons")} hint={t("form.maxPlatoonsHint")}>
+              <Input id="maxPlatoons" type="number" min={1} max={20} value={form.maxPlatoons} placeholder="4"
+                onChange={set("maxPlatoons")} />
+            </Field>
+            <Field id="listVisibility" label={t("form.listVisibility")}
+              hint={t(`form.listVisibilityHint.${form.listVisibility}`)}>
+              <NativeSelect id="listVisibility" value={form.listVisibility}
+                onChange={(e) => setForm((f) => ({ ...f, listVisibility: e.target.value as ListVisibility }))}>
+                {LIST_VISIBILITIES.map((v) => <option key={v} value={v}>{t(`form.listVisibilities.${v}`)}</option>)}
+              </NativeSelect>
+            </Field>
+          </div>
+        ) : (
         <div className="grid gap-4 sm:grid-cols-3">
           <Field id="listFormat" label={t("form.listFormat")} hint={t(`form.listFormatHint.${form.listFormat}`)}>
             <NativeSelect id="listFormat" value={form.listFormat}
@@ -286,6 +329,10 @@ export function TournamentForm({
             </>
           )}
         </div>
+        )}
+        <Check id="requireApproval" checked={form.requireApproval}
+          onChange={(e) => setForm((f) => ({ ...f, requireApproval: e.target.checked }))}
+          label={t("form.requireApproval")} hint={t("form.requireApprovalHint")} />
         <div className="grid gap-4 sm:grid-cols-3">
           <Field id="listDeadline" label={t("form.listDeadline")}>
             <Input id="listDeadline" type="datetime-local" value={form.listDeadline} onChange={set("listDeadline")} />
@@ -326,7 +373,8 @@ export function TournamentForm({
             <p className="text-sm font-medium">{t("form.softPrefs")}</p>
             <div className="grid gap-2 pl-1">
               <Check id="avoidSameClub" checked={settings.avoidSameClub} onChange={flag("avoidSameClub")} label={t("form.avoidSameClub")} />
-              <Check id="avoidSameFaction" checked={settings.avoidSameFaction} onChange={flag("avoidSameFaction")} label={t("form.avoidSameFaction")} />
+              <Check id="avoidSameFaction" checked={settings.avoidSameFaction} onChange={flag("avoidSameFaction")}
+                label={ba ? t("form.avoidSameNation") : t("form.avoidSameFaction")} />
               <Check id="avoidSameCity" checked={settings.avoidSameCity} onChange={flag("avoidSameCity")} label={t("form.avoidSameCity")} />
               <p className="text-xs text-muted-foreground">{t("form.softPrefsPerRound")}</p>
             </div>
@@ -335,20 +383,44 @@ export function TournamentForm({
       </Section>
 
       <Section title={t("plan.title")} collapsible={collapsible}>
-        <RoundPlanEditor plans={plans} onChange={setPlans} format={form.format} content={content}
+        <RoundPlanEditor plans={plans} onChange={setPlans} format={form.format} scenarios={scenarios.list}
           lockedUpTo={lockedUpTo}
           softPrefsConfigured={!settings.teamSize && settings.avoidSameClub || settings.avoidSameFaction || settings.avoidSameCity} />
       </Section>
 
       <Section title={t("form.scoring")} collapsible={collapsible}>
-        <Field id="scoringMode" label={t("form.scoringMode")}>
+        {ba && (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field id="scoreSlots" label={t("form.scoreSlots")} hint={t(`form.scoreSlotsHint.${settings.secondarySlot ? 2 : 1}`)}>
+              <NativeSelect id="scoreSlots" value={settings.secondarySlot ? "2" : "1"}
+                onChange={(e) => setSettings((st) => ({ ...st, secondarySlot: e.target.value === "2",
+                  maxSecondaryPoints: e.target.value === "2" ? st.maxSecondaryPoints : null }))}>
+                <option value="1">{t("form.scoreSlotsOne")}</option>
+                <option value="2">{t("form.scoreSlotsTwo")}</option>
+              </NativeSelect>
+            </Field>
+            <Field id="maxPrimaryPoints" label={settings.secondarySlot ? t("form.maxScenarioPoints") : t("form.maxGamePoints")}
+              hint={t("form.maxPointsHint")}>
+              <Input id="maxPrimaryPoints" type="number" min={1} max={1000} value={settings.maxPrimaryPoints ?? ""}
+                onChange={optInt("maxPrimaryPoints")} />
+            </Field>
+            {settings.secondarySlot && (
+              <Field id="maxSecondaryPoints" label={t("form.maxSecondaryPoints")} hint={t("form.maxPointsHint")}>
+                <Input id="maxSecondaryPoints" type="number" min={1} max={1000} value={settings.maxSecondaryPoints ?? ""}
+                  onChange={optInt("maxSecondaryPoints")} />
+              </Field>
+            )}
+          </div>
+        )}
+        {!ba && <Field id="scoringMode" label={t("form.scoringMode")}>
           <NativeSelect id="scoringMode" value={settings.scoringMode}
             onChange={(e) => setSettings((st) => ({ ...st, scoringMode: e.target.value as TournamentSettings["scoringMode"] }))}>
             {SCORING_MODES.map((m) => (
               <option key={m} value={m}>{t(`scoringMode.${m}`)}</option>
             ))}
           </NativeSelect>
-        </Field>
+        </Field>}
+        {ba && <p className="text-sm text-muted-foreground">{t("form.tournamentPointsHint")}</p>}
         {settings.scoringMode === "WIN_DRAW_LOSS" ? (
           <div className="grid grid-cols-3 gap-4">
             <NumField id="winPoints" label={t("form.winPoints")} value={settings.winPoints} onChange={num("winPoints")} />

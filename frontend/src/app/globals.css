@@ -42,6 +42,57 @@
   /* Diverging pair for reports (above / below a reference, neutral midpoint = card); validated on --card. */
   --diverge-pos: #3987e5;
   --diverge-neg: #d95926;
+  /* Header / footer glass and the glow on top of the page. */
+  --chrome: rgb(7 11 24 / 0.9);
+  --chrome-glow: rgba(51, 211, 224, 0.45);
+  --page-glow: #16254a;
+}
+
+/*
+ * Bolt Action: "Modern Wargame" – light, contemporary, SaaS-like. Parchment surfaces, sage and field-green,
+ * a terracotta highlight. The html element carries data-system="bolt-action" and no `dark` class.
+ */
+:root[data-system="bolt-action"] {
+  --font-display-face: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+  --background: #f4f2ea;
+  --foreground: #23302a;
+  --card: #fbfaf5;
+  --card-foreground: #23302a;
+  --popover: #fbfaf5;
+  --popover-foreground: #23302a;
+  --primary: #34483c;
+  --primary-foreground: #f4f2ea;
+  --secondary: #dad6c6;
+  --secondary-foreground: #23302a;
+  --muted: #ebe8dc;
+  --muted-foreground: #5d685b;
+  --accent: #e2e6d8;
+  --accent-foreground: #23302a;
+  --destructive: #b0442c;
+  --border: #d8d4c3;
+  --input: #c9c5b2;
+  --ring: #7d8b6c;
+  --highlight: #c0825f;
+  /* Categorical chart slots validated on a light surface. */
+  --series-1: #34483c;
+  --series-2: #c0825f;
+  --series-3: #7d8b6c;
+  --series-4: #2f6690;
+  --series-5: #a14a76;
+  --series-6: #b38a1e;
+  --series-7: #6a5aa8;
+  --series-8: #8c5a3c;
+  --diverge-pos: #34483c;
+  --diverge-neg: #c0825f;
+  --chrome: rgb(251 250 245 / 0.92);
+  --chrome-glow: rgba(52, 72, 60, 0.18);
+  --page-glow: #e7e9dc;
+}
+
+:root[data-system="bolt-action"] .font-display {
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 @theme inline {
@@ -78,7 +129,7 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     /* A faint glow from the top, like light over a night battlefield. */
-    background-image: radial-gradient(120% 60% at 50% -10%, #16254a 0%, transparent 60%);
+    background-image: radial-gradient(120% 60% at 50% -10%, var(--page-glow) 0%, transparent 60%);
     background-attachment: fixed;
   }
 }

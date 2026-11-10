@@ -48,6 +48,16 @@ public class TournamentGuard {
         }
     }
 
+    /**
+     * Eldfall-only features (warbands, scheme draws, turn-by-turn scoring, rosters, teams): a Bolt Action
+     * tournament enters only the final score of each game.
+     */
+    public static void requireEldfall(Tournament t) {
+        if (t.isBoltAction()) {
+            throw new ApiException(HttpStatus.CONFLICT, "NOT_AVAILABLE_FOR_GAME_SYSTEM");
+        }
+    }
+
     public static ApiException notFound() {
         return new ApiException(HttpStatus.NOT_FOUND, "TOURNAMENT_NOT_FOUND");
     }

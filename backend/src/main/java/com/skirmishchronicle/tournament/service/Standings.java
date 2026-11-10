@@ -17,8 +17,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Computes standings from confirmed matches. Order: wins, big points, small points.
- * A draw weighs the same as a loss for the win count; BYE counts as a win.
+ * Computes standings from confirmed matches. Order: see {@link #order}. A draw weighs the same as a loss for the
+ * win count; BYE counts as a win.
  */
 public final class Standings {
 
@@ -29,6 +29,8 @@ public final class Standings {
         public int losses;
         public int bigPoints;
         public int smallPoints;
+        /** Second score slot (Bolt Action secondary objectives); 0 with one-slot scoring. */
+        public int secondaryPoints;
         public int penaltyPoints;
         public int played;
         public boolean hadBye;
@@ -91,12 +93,15 @@ public final class Standings {
             int sb = m.getSmallB();
             a.smallPoints += sa;
             b.smallPoints += sb;
-            a.bigPoints += settings.bigPointsForGame(sa, sb);
-            b.bigPoints += settings.bigPointsForGame(sb, sa);
-            if (sa > sb) {
+            a.secondaryPoints += m.getSecondaryA() == null ? 0 : m.getSecondaryA();
+            b.secondaryPoints += m.getSecondaryB() == null ? 0 : m.getSecondaryB();
+            int outcome = m.outcomeA();
+            a.bigPoints += settings.bigPointsForResult(sa, sb, outcome);
+            b.bigPoints += settings.bigPointsForResult(sb, sa, -outcome);
+            if (outcome > 0) {
                 a.wins++;
                 b.losses++;
-            } else if (sb > sa) {
+            } else if (outcome < 0) {
                 b.wins++;
                 a.losses++;
             } else {
@@ -108,10 +113,23 @@ public final class Standings {
             rowFor(rows, p.getUserId()).penaltyPoints += p.getBigPoints();
         }
         List<Row> sorted = new ArrayList<>(rows.values());
-        sorted.sort(Comparator.comparingInt((Row r) -> r.wins).reversed()
-                .thenComparing(Comparator.comparingInt(Row::totalBig).reversed())
-                .thenComparing(Comparator.comparingInt((Row r) -> r.smallPoints).reversed()));
+        sorted.sort(order(settings));
         return sorted;
+    }
+
+    /**
+     * Eldfall: wins → big points (minus penalties) → small points. Bolt Action: tournament points (minus
+     * penalties) → scenario points → secondary points.
+     */
+    public static Comparator<Row> order(TournamentSettings settings) {
+        if (settings.pointsFirst()) {
+            return Comparator.comparingInt(Row::totalBig).reversed()
+                    .thenComparing(Comparator.comparingInt((Row r) -> r.smallPoints).reversed())
+                    .thenComparing(Comparator.comparingInt((Row r) -> r.secondaryPoints).reversed());
+        }
+        return Comparator.comparingInt((Row r) -> r.wins).reversed()
+                .thenComparing(Comparator.comparingInt(Row::totalBig).reversed())
+                .thenComparing(Comparator.comparingInt((Row r) -> r.smallPoints).reversed());
     }
 
     private static Row rowFor(Map<UUID, Row> rows, UUID id) {

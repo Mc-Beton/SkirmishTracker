@@ -26,5 +26,12 @@ public record TournamentDetails(
         /** Points of the party picked from the roster for each game (ROSTER only). */
         Integer partyLimit,
         /** ROSTER: opponents do not see each other's roster (only the organizer does) until the event ends. */
-        boolean hiddenRosters) {
+        boolean hiddenRosters,
+        /** Bolt Action: max order dice / platoons a list may declare (null = no limit). */
+        Integer maxOrderDice,
+        Integer maxPlatoons,
+        /** Who sees other players' lists (Bolt Action). */
+        ListVisibility listVisibility,
+        /** Registrations wait on the waiting list until the organizer approves them. */
+        boolean requireApproval) {
 }

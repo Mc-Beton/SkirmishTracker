@@ -47,9 +47,10 @@ public class TournamentController {
             @RequestParam(defaultValue = "UPCOMING") TournamentService.Tab tab,
             @RequestParam(required = false) String city,
             @RequestParam(required = false) TournamentRank rank,
+            @RequestParam(required = false) String system,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return service.list(tab, city, rank, page, size);
+        return service.list(tab, city, rank, com.skirmishchronicle.common.GameSystem.parse(system), page, size);
     }
 
     @GetMapping("/{id}")
@@ -124,7 +125,7 @@ public class TournamentController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateParticipant(@PathVariable UUID id, @PathVariable UUID participantId,
                                   @AuthenticationPrincipal Jwt jwt, @RequestBody UpdateParticipantRequest body) {
-        service.updateParticipant(CurrentUser.from(jwt), id, participantId, body.paid(), body.listStatus());
+        service.updateParticipant(CurrentUser.from(jwt), id, participantId, body.paid(), body.listStatus(), body.status());
     }
 
     @DeleteMapping("/{id}/participants/{participantId}")

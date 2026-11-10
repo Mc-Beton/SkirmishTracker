@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
+import { cookies } from "next/headers";
+import { GameSystemProvider } from "@/components/game-system-provider";
+import { DEFAULT_SYSTEM, isGameSystem, SYSTEM_COOKIE, themeColorOf, themeOf, type GameSystem } from "@/lib/game-system";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -18,18 +21,24 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = {
-  themeColor: "#0a0f1f",
-  width: "device-width",
-  initialScale: 1,
-};
+async function currentSystem(): Promise<GameSystem> {
+  const value = (await cookies()).get(SYSTEM_COOKIE)?.value;
+  return isGameSystem(value) ? value : DEFAULT_SYSTEM;
+}
+
+export async function generateViewport(): Promise<Viewport> {
+  return { themeColor: themeColorOf(await currentSystem()), width: "device-width", initialScale: 1 };
+}
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const locale = await getLocale();
+  const system = await currentSystem();
+  // Eldfall: dark night-sky theme; Bolt Action: light "modern wargame" theme (globals.css, data-system).
   return (
-    <html lang={locale} className="dark">
+    <html lang={locale} className={system === "ELDFALL" ? "dark" : undefined} data-system={themeOf(system)}>
       <body className="flex min-h-dvh flex-col">
         <NextIntlClientProvider>
+          <GameSystemProvider initial={system}>
           <AuthProvider>
             <SiteHeader />
             <OfflineStatus />
@@ -37,6 +46,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <main className="flex flex-1 flex-col">{children}</main>
             <SiteFooter />
           </AuthProvider>
+          </GameSystemProvider>
         </NextIntlClientProvider>
       </body>
     </html>

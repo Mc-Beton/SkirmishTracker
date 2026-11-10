@@ -1,6 +1,7 @@
 package com.skirmishchronicle.tournament.domain;
 
 import com.skirmishchronicle.common.AbstractEntity;
+import com.skirmishchronicle.common.GameSystem;
 import com.skirmishchronicle.pairing.PairingModels.FirstRoundMode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -167,6 +168,32 @@ public class Tournament extends AbstractEntity {
     @Column(name = "team_unique_factions", nullable = false)
     private boolean teamUniqueFactions;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "game_system", nullable = false, length = 20)
+    private GameSystem gameSystem = GameSystem.ELDFALL;
+
+    @Column(name = "secondary_slot", nullable = false)
+    private boolean secondarySlot;
+
+    @Column(name = "max_primary_points")
+    private Integer maxPrimaryPoints;
+
+    @Column(name = "max_secondary_points")
+    private Integer maxSecondaryPoints;
+
+    @Column(name = "max_order_dice")
+    private Integer maxOrderDice;
+
+    @Column(name = "max_platoons")
+    private Integer maxPlatoons;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "list_visibility", nullable = false, length = 30)
+    private ListVisibility listVisibility = ListVisibility.AFTER_DEADLINE;
+
+    @Column(name = "require_approval", nullable = false)
+    private boolean requireApproval;
+
     @Version
     private Long version;
 
@@ -174,8 +201,14 @@ public class Tournament extends AbstractEntity {
     }
 
     public Tournament(UUID ownerId) {
+        this(ownerId, GameSystem.ELDFALL);
+    }
+
+    /** The game system is fixed for the tournament's whole life. */
+    public Tournament(UUID ownerId, GameSystem gameSystem) {
         this.id = UUID.randomUUID();
         this.ownerId = ownerId;
+        this.gameSystem = gameSystem == null ? GameSystem.ELDFALL : gameSystem;
     }
 
     @PrePersist
@@ -211,6 +244,11 @@ public class Tournament extends AbstractEntity {
         this.listFormat = d.listFormat() == null ? ListFormat.CLASSIC : d.listFormat();
         this.partyLimit = this.listFormat == ListFormat.ROSTER ? d.partyLimit() : null;
         this.hiddenRosters = this.listFormat == ListFormat.ROSTER && d.hiddenRosters();
+        boolean ba = gameSystem == GameSystem.BOLT_ACTION;
+        this.maxOrderDice = ba ? d.maxOrderDice() : null;
+        this.maxPlatoons = ba ? d.maxPlatoons() : null;
+        this.listVisibility = ba && d.listVisibility() != null ? d.listVisibility() : ListVisibility.AFTER_DEADLINE;
+        this.requireApproval = d.requireApproval();
     }
 
     public void updateSettings(TournamentSettings st) {
@@ -234,13 +272,17 @@ public class Tournament extends AbstractEntity {
         this.topCut = format == TournamentFormat.ELIMINATION ? 0 : st.topCut();
         this.teamSize = st.teamSize();
         this.teamUniqueFactions = st.teamSize() != null && st.teamUniqueFactions();
+        this.secondarySlot = st.secondarySlot();
+        this.maxPrimaryPoints = st.maxPrimaryPoints();
+        this.maxSecondaryPoints = st.secondarySlot() ? st.maxSecondaryPoints() : null;
     }
 
     public TournamentSettings settings() {
         return new TournamentSettings(firstRoundMode, challengesEnabled, challengesPublic, avoidSameClub,
                 avoidSameFaction, avoidSameCity, softPrefsFirstRound, scoringMode, winPoints, drawPoints,
                 lossPoints, smallPointsMultiplier, byeBigPoints, byeSmallPoints, splitBigPoints, splitSmallPoints,
-                DifferenceRow.parse(differenceTable), topCut, teamSize, teamUniqueFactions);
+                DifferenceRow.parse(differenceTable), topCut, teamSize, teamUniqueFactions, gameSystem, secondarySlot,
+                maxPrimaryPoints, maxSecondaryPoints);
     }
 
     public void changeStatus(TournamentStatus next) {
@@ -350,6 +392,30 @@ public class Tournament extends AbstractEntity {
 
     public TournamentStatus getStatus() {
         return status;
+    }
+
+    public GameSystem getGameSystem() {
+        return gameSystem;
+    }
+
+    public boolean isBoltAction() {
+        return gameSystem == GameSystem.BOLT_ACTION;
+    }
+
+    public Integer getMaxOrderDice() {
+        return maxOrderDice;
+    }
+
+    public Integer getMaxPlatoons() {
+        return maxPlatoons;
+    }
+
+    public ListVisibility getListVisibility() {
+        return listVisibility;
+    }
+
+    public boolean isRequireApproval() {
+        return requireApproval;
     }
 
     public boolean isOfficial() {

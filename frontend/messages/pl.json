@@ -337,7 +337,26 @@
     "TABLE_TOO_MANY_MODELS": "Za dużo modeli na stole (max 40).",
     "TABLE_BAD_BACKGROUND": "Nieprawidłowa mata.",
     "TABLE_UNKNOWN_SCHEME": "Nieznany scheme.",
-    "TABLE_LIST_REQUIRED": "Wybierz rozpiskę – bez niej można dołączyć tylko do gry swobodnej."
+    "TABLE_LIST_REQUIRED": "Wybierz rozpiskę – bez niej można dołączyć tylko do gry swobodnej.",
+    "GAME_SYSTEM_LOCKED": "Systemu gry nie można zmienić.",
+    "BOLT_ACTION_NO_TEAMS": "Turnieje drużynowe są na razie dostępne tylko dla Eldfall.",
+    "BOLT_ACTION_NO_ROSTER": "Format Roster jest dostępny tylko dla Eldfall.",
+    "BOLT_ACTION_WDL_ONLY": "W Bolt Action punkty turniejowe liczy się za wygraną, remis i porażkę.",
+    "SECONDARY_SLOT_BOLT_ACTION_ONLY": "Dwa sloty punktów są dostępne tylko w Bolt Action.",
+    "NOT_AVAILABLE_FOR_GAME_SYSTEM": "Ta funkcja nie jest dostępna w tym systemie gry.",
+    "SCORE_OVER_LIMIT": "Wynik przekracza limit punktów ustalony przez organizatora.",
+    "SECONDARY_REQUIRED": "Wpisz punkty celów dodatkowych obu graczy.",
+    "SECONDARY_OVER_LIMIT": "Cele dodatkowe przekraczają limit ustalony przez organizatora.",
+    "TOURNAMENT_FULL": "Brak wolnych miejsc – zwiększ limit graczy.",
+    "NATION_NOT_FOUND": "Wybierz nację z listy.",
+    "LIST_TEXT_TOO_LONG": "Rozpiska jest za długa.",
+    "POINTS_OVER_LIMIT": "Rozpiska przekracza limit punktów.",
+    "ORDER_DICE_OVER_LIMIT": "Za dużo kości rozkazów.",
+    "PLATOONS_OVER_LIMIT": "Za dużo plutonów.",
+    "PDF_INVALID": "To nie jest poprawny plik PDF.",
+    "PDF_TOO_LARGE": "Plik PDF jest za duży (maks. 5 MB).",
+    "BA_LIST_SAVE_FIRST": "Najpierw zapisz rozpiskę (nacja i deklaracje).",
+    "LEAGUE_GAME_SYSTEM_MISMATCH": "Liga dotyczy innego systemu gry niż turniej."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -395,7 +414,15 @@
       "noParticipants": "Nikt się jeszcze nie zapisał.",
       "listFormat": "Format rozpisek",
       "rosterFormat": "Roster {roster} pkt → drużyna {party} pkt na grę",
-      "hiddenRosters": "rozpiski ukryte"
+      "hiddenRosters": "rozpiski ukryte",
+      "listLimits": "Limity rozpiski",
+      "scoring": "Punkty z gry",
+      "scoringTwoSlots": "Scenariusz (maks. {scenario}) + cele dodatkowe (maks. {secondary})",
+      "scoringOneSlot": "Jeden slot (maks. {max})",
+      "tournamentPoints": "Punkty turniejowe",
+      "wdl": "Wygrana {w} · remis {d} · porażka {l}",
+      "listVisibility": "Widoczność rozpisek",
+      "pending": "Oczekujący na zatwierdzenie"
     },
     "join": "Zapisz się",
     "leave": "Wypisz się",
@@ -497,7 +524,39 @@
       "partyLimit": "Limit drużyny na grę (pkt)",
       "partyLimitHint": "Zalecane: roster 125, drużyna 85.",
       "hiddenRosters": "Ukryte rozpiski zgłoszeniowe",
-      "hiddenRostersHint": "Przeciwnicy nie widzą swoich rozpisek do końca turnieju (widzi je tylko organizator)."
+      "hiddenRostersHint": "Przeciwnicy nie widzą swoich rozpisek do końca turnieju (widzi je tylko organizator).",
+      "maxOrderDice": "Maks. kości rozkazów",
+      "maxOrderDiceHint": "Puste = bez limitu. Typowo 18–20.",
+      "maxPlatoons": "Maks. plutonów",
+      "maxPlatoonsHint": "Puste = bez limitu.",
+      "listVisibility": "Widoczność rozpisek",
+      "listVisibilityHint": {
+        "AFTER_FIRST_PAIRINGS": "Gracze widzą rozpiski innych po ogłoszeniu parowań 1. rundy.",
+        "AFTER_DEADLINE": "Po terminie zgłaszania rozpisek albo od startu turnieju.",
+        "PUBLIC": "Rozpiski widać od razu.",
+        "HIDDEN": "Rozpiski widzi tylko organizator (i właściciel)."
+      },
+      "listVisibilities": {
+        "AFTER_FIRST_PAIRINGS": "Po ogłoszeniu 1. parowań",
+        "AFTER_DEADLINE": "Po terminie rozpisek",
+        "PUBLIC": "Zawsze widoczne",
+        "HIDDEN": "Ukryte"
+      },
+      "requireApproval": "Zgłoszenia zatwierdza organizator",
+      "requireApprovalHint": "Nowi gracze trafiają na listę oczekujących; przenosisz ich do zatwierdzonych w panelu organizatora.",
+      "avoidSameNation": "Ta sama nacja",
+      "scoreSlots": "Punkty z gry",
+      "scoreSlotsHint": {
+        "1": "Jeden wynik na gracza – decyduje o zwycięstwie.",
+        "2": "Punkty scenariusza decydują; przy remisie rozstrzygają cele dodatkowe."
+      },
+      "scoreSlotsOne": "Jeden slot",
+      "scoreSlotsTwo": "Dwa sloty: scenariusz + cele dodatkowe",
+      "maxScenarioPoints": "Limit punktów scenariusza",
+      "maxGamePoints": "Limit punktów w grze",
+      "maxSecondaryPoints": "Limit celów dodatkowych",
+      "maxPointsHint": "Na gracza w jednej grze; puste = bez limitu.",
+      "tournamentPointsHint": "Punkty turniejowe za wygraną, remis i porażkę ustalasz poniżej. Tabela: punkty turniejowe → punkty scenariusza → cele dodatkowe."
     },
     "manageView": {
       "title": "Panel organizatora",
@@ -551,7 +610,10 @@
       "judgeResolve": "Rozwiązane",
       "lineupHint": "Kapitanowie mogą zmienić ustawienie na planszach do startu rundy (Ty też).",
       "teamPlayersHint": "Gracze dołączają przez drużyny – dodawaj ich w sekcji Drużyny.",
-      "paidShort": "Opł."
+      "paidShort": "Opł.",
+      "pending": "oczekuje",
+      "approve": "Zatwierdź",
+      "unapprove": "Cofnij zatwierdzenie"
     },
     "listStatus": {
       "NOT_SUBMITTED": "Brak",
@@ -669,7 +731,9 @@
       },
       "judgeCalled": "Sędzia wezwany",
       "callJudge": "Wezwij sędziego",
-      "callJudgeConfirm": "Wezwać sędziego do Waszego stołu?"
+      "callJudgeConfirm": "Wezwać sędziego do Waszego stołu?",
+      "scenarioPoints": "Punkty scenariusza",
+      "secondaryPoints": "Cele dodatkowe"
     },
     "standings": {
       "pos": "#",
@@ -688,7 +752,10 @@
       "eliminated": "odpadł",
       "wdlShort": "{w}–{d}–{l}",
       "gamesShort": "{n, plural, one {# gra} few {# gry} other {# gier}}",
-      "penaltyShort": "kara −{n}"
+      "penaltyShort": "kara −{n}",
+      "tp": "PT",
+      "scenario": "Scen.",
+      "secondary": "Dod."
     },
     "inLeague": "Liga: {name}",
     "plan": {
@@ -793,7 +860,12 @@
     },
     "calendar": "Kalendarz",
     "addToCalendar": "Dodaj do kalendarza",
-    "rosterShort": "Roster {roster}/{party}"
+    "rosterShort": "Roster {roster}/{party}",
+    "pendingMsg": "Zgłoszenie czeka na zatwierdzenie przez organizatora.",
+    "system": {
+      "ELDFALL": "Eldfall",
+      "BOLT_ACTION": "Bolt Action"
+    }
   },
   "game": {
     "back": "Wróć do turnieju",
@@ -1136,7 +1208,9 @@
         "name": "Organizator",
         "hint": "Poprowadź turniej do końca."
       }
-    }
+    },
+    "nations": "Nacje",
+    "noNations": "Brak rozpisek."
   },
   "games": {
     "title": "Moje gry",
@@ -1269,7 +1343,8 @@
   "footer": {
     "disclaimer": "Nieoficjalny projekt fanowski, stworzony przez fana gry. Eldfall Chronicles oraz powiązane elementy należą do ich właścicieli.",
     "support": "Kontakt",
-    "terms": "Regulamin"
+    "terms": "Regulamin",
+    "disclaimerBoltAction": "Nieoficjalny projekt fanowski. Bolt Action jest znakiem towarowym Warlord Games; aplikacja nie jest z nimi powiązana."
   },
   "support": {
     "title": "Kontakt",
@@ -2215,5 +2290,84 @@
     "terrainLocked": "Teren zablokowany",
     "dragToBoard": "Przeciągnij na planszę albo kliknij i kliknij na planszy",
     "moveHelp": "Kliknij cel – model idzie tak daleko, jak pozwalają zasady (klik na wroga = do kontaktu). Shift + klik dodaje punkt trasy. Kółko myszy lub uchwyt przed modelem obraca."
+  },
+  "system": {
+    "label": "System gry",
+    "name": {
+      "ELDFALL": "Eldfall Chronicles",
+      "BOLT_ACTION": "Bolt Action"
+    }
+  },
+  "boltAction": {
+    "nations": {
+      "GERMANY": "Niemcy",
+      "UNITED_STATES": "Stany Zjednoczone",
+      "GREAT_BRITAIN": "Wielka Brytania",
+      "BRITISH_COMMONWEALTH": "Wspólnota Brytyjska",
+      "SOVIET_UNION": "Związek Radziecki",
+      "IMPERIAL_JAPAN": "Cesarska Japonia",
+      "ITALY": "Włochy",
+      "FRANCE": "Francja",
+      "POLAND": "Polska",
+      "FINLAND": "Finlandia",
+      "HUNGARY": "Węgry",
+      "ROMANIA": "Rumunia",
+      "BULGARIA": "Bułgaria",
+      "GREECE": "Grecja",
+      "NORWAY": "Norwegia",
+      "BELGIUM": "Belgia",
+      "NETHERLANDS": "Holandia",
+      "PARTISANS": "Partyzanci",
+      "OTHER": "Inna"
+    },
+    "scenarios": {
+      "BA_SEEK_AND_DESTROY": "Seek & Destroy",
+      "BA_KEY_POSITIONS": "Key Positions",
+      "BA_BREAKTHROUGH": "Breakthrough",
+      "BA_TOP_SECRET": "Top Secret",
+      "BA_DEMOLITION": "Demolition",
+      "BA_HOLD_UNTIL_RELIEVED": "Hold Until Relieved"
+    }
+  },
+  "baLists": {
+    "myList": "Moja rozpiska",
+    "pts": "pkt",
+    "diceN": "{n} kości",
+    "platoonsN": "{n} plut.",
+    "notYet": "Nie dodano jeszcze rozpiski.",
+    "none": "Brak rozpiski.",
+    "edit": "Edytuj rozpiskę",
+    "add": "Dodaj rozpiskę",
+    "view": "Zobacz rozpiskę",
+    "noLists": "Brak zgłoszonych rozpisek.",
+    "hasText": "Rozpiska tekstowa",
+    "hasPdf": "Załączony PDF",
+    "tab": "Rozpiski",
+    "backToTournament": "Wróć do turnieju",
+    "listOf": "Rozpiska: {name}",
+    "limits": "Limity",
+    "limitPoints": "{n} pkt",
+    "limitDice": "maks. {n} kości",
+    "limitPlatoons": "maks. {n} plutonów",
+    "deadline": "Termin: {at}",
+    "locked": "Rozpiski nie można już zmieniać.",
+    "nation": "Nacja",
+    "pickNation": "Wybierz nację",
+    "points": "Punkty",
+    "orderDice": "Kości rozkazów",
+    "platoons": "Plutony",
+    "text": "Treść rozpiski",
+    "textPlaceholder": "Wklej rozpiskę (np. eksport z aplikacji Warlord Games)…",
+    "textHint": "Wystarczy tekst albo PDF – możesz dodać oba.",
+    "pdf": "Rozpiska w PDF",
+    "removePdf": "Usuń PDF",
+    "pdfReplaceHint": "Wybierz nowy plik, żeby zastąpić obecny (maks. 5 MB).",
+    "pdfHint": "Plik PDF, maks. 5 MB.",
+    "save": "Zapisz rozpiskę",
+    "saved": "Rozpiska zapisana – organizator ją sprawdzi.",
+    "downloadPdf": "Pobierz {name}",
+    "confirmRemovePdf": "Usunąć załączony PDF?",
+    "pdfTooLarge": "Plik jest za duży (maks. 5 MB).",
+    "needTextOrPdf": "Wklej treść rozpiski albo dołącz PDF."
   }
 }

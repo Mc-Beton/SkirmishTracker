@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useErrorMessage } from "@/components/auth/use-error-message";
+import { useGameSystem } from "@/components/game-system-provider";
 import { DEFAULT_LEAGUE, LEAGUE_SCORING_MODES, type LeagueScoringMode, type LeagueSettings } from "@/lib/leagues";
 
 type Props = { initial?: LeagueSettings; submitLabel: string; onSubmit: (s: LeagueSettings) => Promise<void> };
@@ -18,7 +19,10 @@ export function LeagueForm({ initial, submitLabel, onSubmit }: Props) {
   const t = useTranslations("leagues.form");
   const tm = useTranslations("leagues.mode");
   const errorMessage = useErrorMessage();
-  const start = initial ?? DEFAULT_LEAGUE;
+  const { system: chosen } = useGameSystem();
+  // A new league belongs to the system chosen under the logo; own games are Eldfall-only for now.
+  const start = initial ?? { ...DEFAULT_LEAGUE, gameSystem: chosen, ownGamesAllowed: chosen === "ELDFALL" };
+  const eldfall = start.gameSystem === "ELDFALL";
   const [name, setName] = useState(start.name);
   const [description, setDescription] = useState(start.description ?? "");
   const [city, setCity] = useState(start.city ?? "");
@@ -66,7 +70,8 @@ export function LeagueForm({ initial, submitLabel, onSubmit }: Props) {
         startsOn,
         endsOn,
         scoringMode: mode,
-        ownGamesAllowed: mode !== "PLACE_POINTS" && ownGames,
+        ownGamesAllowed: eldfall && mode !== "PLACE_POINTS" && ownGames,
+        gameSystem: start.gameSystem,
         placePoints: parsed,
         participationPoints: n("participationPoints"),
         multiplierLocal: n("multiplierLocal"),
@@ -141,7 +146,7 @@ export function LeagueForm({ initial, submitLabel, onSubmit }: Props) {
             <p className="text-xs text-muted-foreground">{t(`rankMultipliersHint.${mode}`)}</p>
           </div>
         )}
-        {mode === "BIG_POINTS" && ownGames && (
+        {eldfall && mode === "BIG_POINTS" && ownGames && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {field("bigPointsMultiplier", t("bigPointsMultiplier"), "0.01")}
             {field("gameWinPoints", t("gameWinPoints"))}
@@ -149,7 +154,7 @@ export function LeagueForm({ initial, submitLabel, onSubmit }: Props) {
             {field("gameLossPoints", t("gameLossPoints"))}
           </div>
         )}
-        {mode !== "PLACE_POINTS" && (
+        {eldfall && mode !== "PLACE_POINTS" && (
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" className="mt-1" checked={ownGames} onChange={(e) => setOwnGames(e.target.checked)} />
             <span>

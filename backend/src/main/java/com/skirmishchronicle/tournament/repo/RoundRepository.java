@@ -16,6 +16,9 @@ public interface RoundRepository extends JpaRepository<TournamentRound, UUID> {
 
     long countByTournamentId(UUID tournamentId);
 
+    /** True once a round left the organizer-only PAIRED state (its pairings are public). */
+    boolean existsByTournamentIdAndStatusNot(UUID tournamentId, com.skirmishchronicle.tournament.domain.RoundStatus status);
+
     /** Rounds whose timer is running and has not announced the end yet. */
     List<TournamentRound> findByTimerRunningSinceIsNotNullAndTimerNotifiedFalse();
 }

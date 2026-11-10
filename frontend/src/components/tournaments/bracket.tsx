@@ -39,6 +39,7 @@ function teamAsMatch(tm: TeamMatch): Match {
     smallB: tm.teamB && (tm.complete || tm.gameWinsA + tm.gameWinsB > 0) ? tm.gameWinsB : null,
     bigA: null, bigB: null, reportedBy: null, rematch: false, canReport: false, canConfirm: false,
     seedA: tm.seedA, seedB: tm.seedB, advancing: tm.winner, judgeCalled: false, teamMatchId: null,
+    secondaryA: null, secondaryB: null,
   };
 }
 

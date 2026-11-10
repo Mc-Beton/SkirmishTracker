@@ -70,6 +70,7 @@ public class SecurityConfig {
                         // Tournament pages are public; personal and organizer views are not.
                         .requestMatchers(HttpMethod.GET, "/api/tournaments/mine", "/api/tournaments/*/audit",
                                 "/api/tournaments/*/warbands/me", "/api/tournaments/*/league-links",
+                                "/api/tournaments/*/ba-lists/me", "/api/tournaments/*/ba-lists/me/pdf",
                                 "/api/players/search", "/api/games/**")
                                 .authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/tournaments", "/api/tournaments/*",
@@ -78,6 +79,9 @@ public class SecurityConfig {
                                 "/api/tournaments/*/teams", "/api/tournaments/*/team-standings",
                                 "/api/tournaments/*/matches/*/game", "/api/tournaments/*/warbands",
                                 "/api/tournaments/*/warbands/*", "/api/content", "/api/content/armies",
+                                // Bolt Action lists: the service applies the organizer's visibility setting
+                                "/api/tournaments/*/ba-lists", "/api/tournaments/*/ba-lists/*",
+                                "/api/tournaments/*/ba-lists/*/pdf",
                                 "/api/tournaments/*/leagues", "/api/leagues", "/api/leagues/*", "/api/players/*",
                                 "/api/ranking", "/api/live", "/api/seasons", "/api/seasons/*", "/api/calendar",
                                 "/api/calendar.ics", "/api/tournaments/*/calendar.ics", "/api/players/*/versus/*",

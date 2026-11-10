@@ -6,6 +6,10 @@ import com.skirmishchronicle.notification.NotificationType;
 import com.skirmishchronicle.audit.AuditService;
 import com.skirmishchronicle.common.ApiException;
 import com.skirmishchronicle.common.CurrentUser;
+import com.skirmishchronicle.common.GameSystem;
+import com.skirmishchronicle.boltaction.BoltAction;
+import com.skirmishchronicle.tournament.domain.ListFormat;
+import com.skirmishchronicle.tournament.domain.ScoringMode;
 import com.skirmishchronicle.identity.domain.User;
 import com.skirmishchronicle.identity.repo.UserRepository;
 import com.skirmishchronicle.tournament.domain.ListStatus;
@@ -83,10 +87,11 @@ public class TournamentService {
     @Transactional
     public UUID create(CurrentUser actor, TournamentDetails details, TournamentSettings settings,
                        List<TournamentViews.RoundPlan> plans) {
+        GameSystem system = settings.gameSystem() == null ? GameSystem.ELDFALL : settings.gameSystem();
         validate(details);
-        validate(settings, details);
-        validatePlans(plans);
-        Tournament t = new Tournament(actor.id());
+        validate(settings, details, system);
+        validatePlans(plans, system);
+        Tournament t = new Tournament(actor.id(), system);
         t.updateDetails(details);
         t.updateSettings(settings);
         tournaments.save(t);
@@ -98,10 +103,13 @@ public class TournamentService {
     @Transactional
     public void update(CurrentUser actor, UUID id, TournamentDetails details, TournamentSettings settings,
                        List<TournamentViews.RoundPlan> plans) {
-        validate(details);
-        validate(settings, details);
-        validatePlans(plans);
         Tournament t = lockManaged(actor, id);
+        if (settings.gameSystem() != null && settings.gameSystem() != t.getGameSystem()) {
+            throw new ApiException(HttpStatus.CONFLICT, "GAME_SYSTEM_LOCKED");
+        }
+        validate(details);
+        validate(settings, details, t.getGameSystem());
+        validatePlans(plans, t.getGameSystem());
         if (t.getStatus() == TournamentStatus.FINISHED || t.getStatus() == TournamentStatus.CANCELLED) {
             throw new ApiException(HttpStatus.CONFLICT, "TOURNAMENT_NOT_EDITABLE");
         }
@@ -132,6 +140,33 @@ public class TournamentService {
         audit.record(actor.id(), AUDIT_TYPE, id, "UPDATED", null);
     }
 
+    /** Organizer approves a waiting player (REGISTERED) or moves an approved one back (WAITLIST). */
+    private void changeParticipantStatus(CurrentUser actor, Tournament t, TournamentParticipant p,
+                                         ParticipantStatus target, String name) {
+        if (t.isTeamTournament()) {
+            throw new ApiException(HttpStatus.CONFLICT, "TEAM_TOURNAMENT");
+        }
+        if (t.getStatus() == TournamentStatus.FINISHED || t.getStatus() == TournamentStatus.CANCELLED) {
+            throw new ApiException(HttpStatus.CONFLICT, "ROSTER_LOCKED");
+        }
+        if (target == ParticipantStatus.REGISTERED) {
+            if (!hasFreeSlot(t)) {
+                throw new ApiException(HttpStatus.CONFLICT, "TOURNAMENT_FULL");
+            }
+            p.promote();
+            notifications.notify(p.getUserId(), NotificationType.PROMOTED_FROM_WAITLIST,
+                    Map.of("tournament", t.getName()), "/tournaments/" + t.getId());
+            audit.record(actor.id(), AUDIT_TYPE, t.getId(), "PLAYER_APPROVED", name);
+        } else {
+            if (rounds.countByTournamentId(t.getId()) > 0) {
+                throw new ApiException(HttpStatus.CONFLICT, "ROSTER_LOCKED");
+            }
+            p.moveToWaitlist();
+            challenges.cancelAllOf(t.getId(), p.getUserId());
+            audit.record(actor.id(), AUDIT_TYPE, t.getId(), "PLAYER_UNAPPROVED", name);
+        }
+    }
+
     @Transactional
     public void changeStatus(CurrentUser actor, UUID id, TournamentStatus target) {
         Tournament t = lockManaged(actor, id);
@@ -155,6 +190,12 @@ public class TournamentService {
     @Transactional(readOnly = true)
     public TournamentViews.Page<TournamentViews.Summary> list(Tab tab, String city, TournamentRank rank,
                                                               int page, int size) {
+        return list(tab, city, rank, GameSystem.ELDFALL, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public TournamentViews.Page<TournamentViews.Summary> list(Tab tab, String city, TournamentRank rank,
+                                                              GameSystem system, int page, int size) {
         Specification<Tournament> spec = statusIn(switch (tab) {
             case UPCOMING -> EnumSet.of(TournamentStatus.PUBLISHED, TournamentStatus.REGISTRATION_CLOSED);
             case ONGOING -> EnumSet.of(TournamentStatus.IN_PROGRESS);
@@ -167,6 +208,8 @@ public class TournamentService {
         if (rank != null) {
             spec = spec.and((root, q, cb) -> cb.equal(root.get("rank"), rank));
         }
+        GameSystem gs = system == null ? GameSystem.ELDFALL : system;
+        spec = spec.and((root, q, cb) -> cb.equal(root.get("gameSystem"), gs));
         Sort sort = tab == Tab.FINISHED ? Sort.by("startsAt").descending() : Sort.by("startsAt").ascending();
         var result = tournaments.findAll(spec, PageRequest.of(page, size, sort));
         return new TournamentViews.Page<>(summaries(result.getContent()), page, size, result.getTotalElements());
@@ -190,7 +233,8 @@ public class TournamentService {
                 roundPlans.findByTournamentIdOrderByNumberAsc(id).stream()
                         .map(p -> new TournamentViews.RoundPlan(p.getNumber(), p.getScenarioCode(), p.getPairing(),
                                 p.getTableOrder(), p.getSoftPreferences(), p.getDurationMinutes())).toList(),
-                t.isOfficial(), t.getListFormat(), t.getPartyLimit(), t.isHiddenRosters());
+                t.isOfficial(), t.getListFormat(), t.getPartyLimit(), t.isHiddenRosters(), t.getGameSystem(),
+                t.getMaxOrderDice(), t.getMaxPlatoons(), t.getListVisibility(), t.isRequireApproval());
     }
 
     @Transactional(readOnly = true)
@@ -241,7 +285,9 @@ public class TournamentService {
         if (participants.findByTournamentIdAndUserId(id, actor.id()).isPresent()) {
             throw new ApiException(HttpStatus.CONFLICT, "ALREADY_REGISTERED");
         }
-        ParticipantStatus status = hasFreeSlot(t) ? ParticipantStatus.REGISTERED : ParticipantStatus.WAITLIST;
+        // With organizer approval every registration waits on the list until the organizer approves it.
+        ParticipantStatus status = !t.isRequireApproval() && hasFreeSlot(t)
+                ? ParticipantStatus.REGISTERED : ParticipantStatus.WAITLIST;
         User user = users.findById(actor.id()).orElseThrow();
         TournamentParticipant p = new TournamentParticipant(id, actor.id(), status);
         p.snapshotProfile(user.getClub(), user.getHomeCity());
@@ -322,10 +368,20 @@ public class TournamentService {
     @Transactional
     public void updateParticipant(CurrentUser actor, UUID id, UUID participantId, Boolean paid,
                                   ListStatus listStatus) {
-        Tournament t = tournaments.findById(id).orElseThrow(TournamentService::notFound);
+        updateParticipant(actor, id, participantId, paid, listStatus, null);
+    }
+
+    @Transactional
+    public void updateParticipant(CurrentUser actor, UUID id, UUID participantId, Boolean paid,
+                                  ListStatus listStatus, ParticipantStatus status) {
+        Tournament t = status == null ? tournaments.findById(id).orElseThrow(TournamentService::notFound)
+                : lockManaged(actor, id);
         requireManager(actor, t);
         TournamentParticipant p = participantOf(id, participantId);
         String name = users.findById(p.getUserId()).map(User::getDisplayName).orElse("?");
+        if (status != null && status != p.getStatus()) {
+            changeParticipantStatus(actor, t, p, status, name);
+        }
         if (paid != null && paid != p.isPaid()) {
             p.setPaid(paid);
             audit.record(actor.id(), AUDIT_TYPE, id, paid ? "MARKED_PAID" : "MARKED_UNPAID", name);
@@ -340,7 +396,21 @@ public class TournamentService {
 
     // ---------------------------------------------------------------- helpers
 
-    private void validate(TournamentSettings st, TournamentDetails d) {
+    private void validate(TournamentSettings st, TournamentDetails d, GameSystem system) {
+        if (system == GameSystem.BOLT_ACTION) {
+            // Bolt Action: individual events, one list, W/D/L tournament points set by the organizer.
+            if (st.teamSize() != null) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "BOLT_ACTION_NO_TEAMS");
+            }
+            if (d.listFormat() == ListFormat.ROSTER) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "BOLT_ACTION_NO_ROSTER");
+            }
+            if (st.scoringMode() != ScoringMode.WIN_DRAW_LOSS) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "BOLT_ACTION_WDL_ONLY");
+            }
+        } else if (st.secondarySlot()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "SECONDARY_SLOT_BOLT_ACTION_ONLY");
+        }
         if (!TournamentSettings.TOP_CUTS.contains(st.topCut())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TOP_CUT");
         }
@@ -354,7 +424,7 @@ public class TournamentService {
         }
     }
 
-    private void validatePlans(List<TournamentViews.RoundPlan> plans) {
+    private void validatePlans(List<TournamentViews.RoundPlan> plans, GameSystem system) {
         if (plans == null) {
             return;
         }
@@ -363,10 +433,14 @@ public class TournamentService {
             if (p.number() < 1 || p.number() > 30 || !numbers.add(p.number())) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ROUND_PLAN");
             }
-            if (p.scenarioCode() != null && content.quest(p.scenarioCode()).isEmpty()) {
+            if (p.scenarioCode() != null && !scenarioExists(system, p.scenarioCode())) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "SCENARIO_NOT_FOUND");
             }
         }
+    }
+
+    private boolean scenarioExists(GameSystem system, String code) {
+        return system == GameSystem.BOLT_ACTION ? BoltAction.isScenario(code) : content.quest(code).isPresent();
     }
 
     private void savePlans(UUID tournamentId, List<TournamentViews.RoundPlan> plans, int generatedRounds) {
@@ -398,6 +472,10 @@ public class TournamentService {
 
     /** Moves the earliest waitlisted players up while there is room. Caller must hold the tournament lock. */
     private void promoteFromWaitlist(Tournament t) {
+        if (t.isRequireApproval()) {
+            // The organizer approves waiting players by hand.
+            return;
+        }
         List<TournamentParticipant> waiting =
                 participants.findByTournamentIdAndStatusOrderByRegisteredAtAsc(t.getId(), ParticipantStatus.WAITLIST);
         long registered = participants.countByTournamentIdAndStatus(t.getId(), ParticipantStatus.REGISTERED);
@@ -469,7 +547,7 @@ public class TournamentService {
                 t.getCity(), t.getVenueName(), t.getRank(), t.getFormat(), t.getStatus(), t.getMaxPlayers(),
                 counts.getOrDefault(t.getId(), 0L), t.getPointsLimit(),
                 owners.getOrDefault(t.getOwnerId(), "?"), t.isOfficial(), t.getListFormat(),
-                t.getPartyLimit())).toList();
+                t.getPartyLimit(), t.getGameSystem())).toList();
     }
 
     private Map<UUID, String> displayNames(Collection<UUID> ids) {

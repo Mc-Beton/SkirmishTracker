@@ -1,3 +1,5 @@
+import type { GameSystem, ListVisibility } from "@/lib/game-system";
+
 export type TournamentRank = "LOCAL" | "MASTER" | "INTERNATIONAL";
 export type TournamentFormat = "SWISS" | "ELIMINATION" | "ROUND_ROBIN";
 export type TournamentStatus =
@@ -58,6 +60,13 @@ export type TournamentSettings = {
   /** Players per team (2–5); null = individual tournament. */
   teamSize: number | null;
   teamUniqueFactions: boolean;
+  /** Fixed at creation (sent on create; the server keeps the stored one). */
+  gameSystem: GameSystem;
+  /** Two score slots per game: scenario points + secondary objectives (Bolt Action). */
+  secondarySlot: boolean;
+  /** Per-game limits of the slots (null = no limit). */
+  maxPrimaryPoints: number | null;
+  maxSecondaryPoints: number | null;
 };
 
 export const DEFAULT_SETTINGS: TournamentSettings = {
@@ -88,6 +97,20 @@ export const DEFAULT_SETTINGS: TournamentSettings = {
   topCut: 0,
   teamSize: null,
   teamUniqueFactions: false,
+  gameSystem: "ELDFALL",
+  secondarySlot: false,
+  maxPrimaryPoints: null,
+  maxSecondaryPoints: null,
+};
+
+/** Bolt Action defaults: W/D/L tournament points chosen by the organizer, one score slot. */
+export const BOLT_ACTION_SETTINGS: TournamentSettings = {
+  ...DEFAULT_SETTINGS,
+  gameSystem: "BOLT_ACTION",
+  scoringMode: "WIN_DRAW_LOSS",
+  winPoints: 3,
+  drawPoints: 1,
+  lossPoints: 0,
 };
 
 export type ChallengeStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN" | "CANCELLED";
@@ -127,6 +150,9 @@ export type Match = {
   judgeCalled: boolean;
   /** Team events: the team match this board belongs to. */
   teamMatchId: string | null;
+  /** Second score slot (secondary objectives), two-slot scoring only. */
+  secondaryA: number | null;
+  secondaryB: number | null;
 };
 /** remainingSeconds was computed at serverTime; while running the client counts down from there. */
 export type RoundTimer = { totalSeconds: number; remainingSeconds: number; running: boolean; serverTime: string };
@@ -219,6 +245,8 @@ export type StandingRow = {
   /** Reached the knockout bracket / already knocked out. */
   knockout: boolean;
   eliminated: boolean;
+  /** Secondary objective points (two-slot scoring). */
+  secondaryPoints: number;
 };
 export type TeamStandingRow = {
   position: number;
@@ -295,6 +323,7 @@ export type TournamentSummary = {
   official: boolean;
   listFormat: ListFormat;
   partyLimit: number | null;
+  gameSystem: GameSystem;
 };
 
 export type TournamentDetail = {
@@ -330,6 +359,13 @@ export type TournamentDetail = {
   partyLimit: number | null;
   /** ROSTER: opponents do not see each other's rosters until the event ends. */
   hiddenRosters: boolean;
+  gameSystem: GameSystem;
+  /** Bolt Action list limits (the points limit is pointsLimit). */
+  maxOrderDice: number | null;
+  maxPlatoons: number | null;
+  listVisibility: ListVisibility;
+  /** Registrations wait for the organizer's approval. */
+  requireApproval: boolean;
 };
 
 export type Participant = {
@@ -367,6 +403,10 @@ export type TournamentInput = TournamentSettings & {
   listFormat?: ListFormat;
   partyLimit?: number | null;
   hiddenRosters?: boolean;
+  maxOrderDice?: number | null;
+  maxPlatoons?: number | null;
+  listVisibility?: ListVisibility;
+  requireApproval?: boolean;
   roundsPlanned: number | null;
   listDeadline: string | null;
   roundPlans: RoundPlan[];

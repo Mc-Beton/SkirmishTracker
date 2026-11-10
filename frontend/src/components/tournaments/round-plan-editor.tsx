@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { NativeSelect } from "@/components/ui/native-select";
-import type { GameContent } from "@/lib/content";
+import type { ScenarioOption } from "@/components/use-scenarios";
 import { TABLE_ORDERS, type RoundPairing, type RoundPlan, type TournamentFormat } from "@/lib/tournaments";
 
 export const MAX_PLAN_ROUNDS = 30;
@@ -22,11 +22,12 @@ export function defaultPlan(number: number): RoundPlan {
  * One row per round: scenario, pairing method (Swiss only), table order and soft preferences.
  * Rounds that were already generated are read-only.
  */
-export function RoundPlanEditor({ plans, onChange, format, content, lockedUpTo, softPrefsConfigured }: {
+export function RoundPlanEditor({ plans, onChange, format, scenarios, lockedUpTo, softPrefsConfigured }: {
   plans: RoundPlan[];
   onChange: (plans: RoundPlan[]) => void;
   format: TournamentFormat;
-  content: GameContent | null;
+  /** Scenarios of the tournament's game system. */
+  scenarios: ScenarioOption[];
   /** Rounds 1..lockedUpTo are already generated. */
   lockedUpTo: number;
   /** At least one soft preference (club/faction/city) is switched on. */
@@ -63,7 +64,7 @@ export function RoundPlanEditor({ plans, onChange, format, content, lockedUpTo, 
                   <NativeSelect aria-label={t("scenarioFor", { n: p.number })} value={p.scenarioCode ?? ""} disabled={locked}
                     onChange={(e) => update(i, { scenarioCode: e.target.value || null })}>
                     <option value="">{t("noScenario")}</option>
-                    {content?.quests.map((q) => <option key={q.code} value={q.code}>{q.name}</option>)}
+                    {scenarios.map((q) => <option key={q.code} value={q.code}>{q.name}</option>)}
                   </NativeSelect>
                 </Field>
                 {swiss ? (

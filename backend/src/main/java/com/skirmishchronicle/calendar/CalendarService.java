@@ -31,7 +31,8 @@ public class CalendarService {
 
     public record CalendarEvent(UUID id, String name, Instant startsAt, Instant endsAt, String venueName, String city,
                                 String country, TournamentRank rank, TournamentStatus status, boolean official,
-                                long registered, Integer maxPlayers, boolean team) {
+                                long registered, Integer maxPlayers, boolean team,
+                                com.skirmishchronicle.common.GameSystem gameSystem) {
     }
 
     private final TournamentRepository tournaments;
@@ -46,7 +47,15 @@ public class CalendarService {
 
     @Transactional(readOnly = true)
     public List<CalendarEvent> events(LocalDate from, LocalDate to, String country, boolean officialOnly) {
-        List<Tournament> list = select(from, to, country, officialOnly);
+        return events(from, to, country, officialOnly, null);
+    }
+
+    /** {@code system} null = every game system. */
+    @Transactional(readOnly = true)
+    public List<CalendarEvent> events(LocalDate from, LocalDate to, String country, boolean officialOnly,
+                                      com.skirmishchronicle.common.GameSystem system) {
+        List<Tournament> list = select(from, to, country, officialOnly).stream()
+                .filter(t -> system == null || t.getGameSystem() == system).toList();
         Map<UUID, Long> counts = new HashMap<>();
         if (!list.isEmpty()) {
             for (Object[] row : participants.countByTournamentIds(list.stream().map(Tournament::getId).toList(),
@@ -56,7 +65,8 @@ public class CalendarService {
         }
         return list.stream().map(t -> new CalendarEvent(t.getId(), t.getName(), t.getStartsAt(), t.getEndsAt(),
                 t.getVenueName(), t.getCity(), t.getCountry(), t.getRank(), t.getStatus(), t.isOfficial(),
-                counts.getOrDefault(t.getId(), 0L), t.getMaxPlayers(), t.getTeamSize() != null)).toList();
+                counts.getOrDefault(t.getId(), 0L), t.getMaxPlayers(), t.getTeamSize() != null, t.getGameSystem()))
+                .toList();
     }
 
     /** Subscription feed: the last month and the coming year. */

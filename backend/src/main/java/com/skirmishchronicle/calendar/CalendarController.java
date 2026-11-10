@@ -29,8 +29,10 @@ public class CalendarController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) String country,
-            @RequestParam(defaultValue = "false") boolean official) {
-        return service.events(from, to, country, official);
+            @RequestParam(defaultValue = "false") boolean official,
+            @RequestParam(required = false) String system) {
+        return service.events(from, to, country, official,
+                system == null || system.isBlank() ? null : com.skirmishchronicle.common.GameSystem.parse(system));
     }
 
     @GetMapping("/api/calendar.ics")

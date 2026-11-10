@@ -10,6 +10,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { api } from "@/lib/api";
 import type { RankingRow } from "@/lib/players";
+import { useGameSystem } from "@/components/game-system-provider";
 import { cn } from "@/lib/utils";
 
 export function Ranking() {
@@ -17,18 +18,19 @@ export function Ranking() {
   const errorMessage = useErrorMessage();
   const { me } = useAuth();
   const [rows, setRows] = useState<RankingRow[] | null>(null);
+  const { system } = useGameSystem();
   const [filter, setFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    api<RankingRow[]>("GET", "/api/ranking")
+    api<RankingRow[]>("GET", `/api/ranking?system=${system}`)
       .then((r) => active && setRows(r))
       .catch((err) => active && setError(errorMessage(err)));
     return () => {
       active = false;
     };
-  }, [errorMessage]);
+  }, [system, errorMessage]);
 
   const q = filter.trim().toLowerCase();
   const shown = rows?.filter((r) => !q || r.displayName.toLowerCase().includes(q) || (r.club ?? "").toLowerCase().includes(q));

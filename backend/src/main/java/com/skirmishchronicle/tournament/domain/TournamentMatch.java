@@ -63,6 +63,13 @@ public class TournamentMatch extends AbstractEntity {
     @Column(name = "confirmed_at")
     private Instant confirmedAt;
 
+    /** Second score slot (secondary objectives); null unless the tournament uses two-slot scoring. */
+    @Column(name = "secondary_a")
+    private Integer secondaryA;
+
+    @Column(name = "secondary_b")
+    private Integer secondaryB;
+
     @Column(name = "team_match_id")
     private UUID teamMatchId;
 
@@ -135,9 +142,15 @@ public class TournamentMatch extends AbstractEntity {
     }
 
     public void report(UUID reporter, int a, int b) {
+        report(reporter, a, b, null, null);
+    }
+
+    public void report(UUID reporter, int a, int b, Integer secA, Integer secB) {
         this.resultType = MatchResultType.PLAYED;
         this.smallA = a;
         this.smallB = b;
+        this.secondaryA = secA;
+        this.secondaryB = secB;
         this.status = MatchStatus.REPORTED;
         this.reportedBy = reporter;
         this.reportedAt = Instant.now();
@@ -157,9 +170,15 @@ public class TournamentMatch extends AbstractEntity {
 
     /** Organizer decision: final immediately. */
     public void setResult(UUID organizer, MatchResultType type, Integer a, Integer b) {
+        setResult(organizer, type, a, b, null, null);
+    }
+
+    public void setResult(UUID organizer, MatchResultType type, Integer a, Integer b, Integer secA, Integer secB) {
         this.resultType = type;
         this.smallA = a;
         this.smallB = b;
+        this.secondaryA = secA;
+        this.secondaryB = secB;
         confirm(organizer);
     }
 
@@ -186,6 +205,8 @@ public class TournamentMatch extends AbstractEntity {
         }
         smallA = null;
         smallB = null;
+        secondaryA = null;
+        secondaryB = null;
     }
 
     @Override
@@ -223,6 +244,24 @@ public class TournamentMatch extends AbstractEntity {
 
     public Integer getSmallB() {
         return smallB;
+    }
+
+    public Integer getSecondaryA() {
+        return secondaryA;
+    }
+
+    public Integer getSecondaryB() {
+        return secondaryB;
+    }
+
+    public Integer secondaryFor(UUID userId) {
+        return userId.equals(playerA) ? secondaryA : secondaryB;
+    }
+
+    /** Result of a played game for side A (1 / 0 / -1): scenario points, secondaries break a tie. */
+    public int outcomeA() {
+        return TournamentSettings.outcome(smallA == null ? 0 : smallA, smallB == null ? 0 : smallB, secondaryA,
+                secondaryB);
     }
 
     public MatchStatus getStatus() {

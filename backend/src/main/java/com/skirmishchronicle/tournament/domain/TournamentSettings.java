@@ -1,5 +1,6 @@
 package com.skirmishchronicle.tournament.domain;
 
+import com.skirmishchronicle.common.GameSystem;
 import com.skirmishchronicle.pairing.PairingModels.FirstRoundMode;
 import com.skirmishchronicle.pairing.PairingModels.SoftPreferences;
 import java.util.List;
@@ -28,7 +29,14 @@ public record TournamentSettings(
         /** Players per team (2–5); null = individual tournament. */
         Integer teamSize,
         /** In a team, every player must use a different faction. */
-        boolean teamUniqueFactions) {
+        boolean teamUniqueFactions,
+        /** Game system of the tournament (read only: chosen when the tournament is created). */
+        GameSystem gameSystem,
+        /** Two score slots per game: scenario points and secondary points (secondaries break a scenario tie). */
+        boolean secondarySlot,
+        /** Upper limits of the score slots per game (null = up to the global maximum). */
+        Integer maxPrimaryPoints,
+        Integer maxSecondaryPoints) {
 
     public boolean teams() {
         return teamSize != null;
@@ -38,6 +46,34 @@ public record TournamentSettings(
 
     public SoftPreferences softPreferences() {
         return new SoftPreferences(avoidSameClub, avoidSameFaction, avoidSameCity);
+    }
+
+    /**
+     * Standings order: Bolt Action ranks by tournament points, then scenario points, then secondary points;
+     * Eldfall by wins, then big points, then small points.
+     */
+    public boolean pointsFirst() {
+        return gameSystem == GameSystem.BOLT_ACTION;
+    }
+
+    /**
+     * Result of a played game for side A: 1 won, 0 draw, -1 lost. Scenario (small) points decide; secondary
+     * points only break a tie (two-slot scoring – they are null otherwise).
+     */
+    public static int outcome(int smallA, int smallB, Integer secondaryA, Integer secondaryB) {
+        int c = Integer.compare(smallA, smallB);
+        if (c == 0 && secondaryA != null && secondaryB != null) {
+            c = Integer.compare(secondaryA, secondaryB);
+        }
+        return Integer.signum(c);
+    }
+
+    /** Big points for one side of a played game whose result for that side is {@code sign} (see outcome). */
+    public int bigPointsForResult(int mySmall, int opponentSmall, int sign) {
+        if (scoringMode == ScoringMode.WIN_DRAW_LOSS) {
+            return sign > 0 ? winPoints : sign == 0 ? drawPoints : lossPoints;
+        }
+        return bigPointsForGame(mySmall, opponentSmall);
     }
 
     /** Big points for one side of a played game. */

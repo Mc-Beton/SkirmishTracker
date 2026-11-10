@@ -14,6 +14,7 @@ import { TournamentCard } from "@/components/tournaments/tournament-card";
 import { api } from "@/lib/api";
 import { RANKS, type Page, type TournamentSummary } from "@/lib/tournaments";
 import { cn } from "@/lib/utils";
+import { useGameSystem } from "@/components/game-system-provider";
 
 type Tab = "UPCOMING" | "ONGOING" | "FINISHED" | "MINE";
 type Mine = { organized: TournamentSummary[]; joined: TournamentSummary[] };
@@ -28,16 +29,20 @@ export function TournamentList() {
   const [items, setItems] = useState<TournamentSummary[] | null>(null);
   const [mine, setMine] = useState<Mine | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { system } = useGameSystem();
 
   useEffect(() => {
     let active = true;
     const timer = setTimeout(() => {
       const request =
         tab === "MINE"
-          ? api<Mine>("GET", "/api/tournaments/mine").then((m) => active && setMine(m))
+          ? api<Mine>("GET", "/api/tournaments/mine").then((m) => active && setMine({
+              organized: m.organized.filter((x) => x.gameSystem === system),
+              joined: m.joined.filter((x) => x.gameSystem === system),
+            }))
           : api<Page<TournamentSummary>>(
               "GET",
-              `/api/tournaments?${new URLSearchParams({ tab, city, ...(rank ? { rank } : {}), size: "50" })}`,
+              `/api/tournaments?${new URLSearchParams({ tab, city, system, ...(rank ? { rank } : {}), size: "50" })}`,
             ).then((p) => active && setItems(p.items));
       request.then(() => active && setError(null)).catch((err) => active && setError(errorMessage(err)));
     }, 250); // debounce typing in the city filter
@@ -45,7 +50,7 @@ export function TournamentList() {
       active = false;
       clearTimeout(timer);
     };
-  }, [tab, city, rank, errorMessage]);
+  }, [tab, city, rank, system, errorMessage]);
 
   const tabs: Tab[] = me ? ["UPCOMING", "ONGOING", "FINISHED", "MINE"] : ["UPCOMING", "ONGOING", "FINISHED"];
 

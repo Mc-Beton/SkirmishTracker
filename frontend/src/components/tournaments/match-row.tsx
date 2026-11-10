@@ -20,11 +20,16 @@ const STATUS_VARIANT = {
 type Props = {
   match: Match;
   meId?: string;
-  onReport?: (a: number, b: number) => Promise<void>;
+  /** Final score; secondaries only with two-slot scoring (Bolt Action). */
+  onReport?: (a: number, b: number, secA?: number | null, secB?: number | null) => Promise<void>;
   onConfirm?: () => Promise<void>;
   onDispute?: () => Promise<void>;
   /** Organizer controls. */
-  onSetResult?: (type: "PLAYED" | "SPLIT", a?: number, b?: number) => Promise<void>;
+  onSetResult?: (type: "PLAYED" | "SPLIT", a?: number, b?: number, secA?: number | null, secB?: number | null) => Promise<void>;
+  /** Two score slots (scenario + secondary objectives) and their per-game limits. */
+  secondarySlot?: boolean;
+  maxPrimary?: number | null;
+  maxSecondary?: number | null;
   onPickPlayer?: (playerId: string) => void;
   pickedPlayer?: string | null;
   /** Link to the detailed game page. */
@@ -35,12 +40,15 @@ type Props = {
   onCallJudge?: () => Promise<void>;
 };
 
-export function MatchRow({ match: m, meId, onReport, onConfirm, onDispute, onSetResult, onPickPlayer, pickedPlayer, gameHref, allowSplit = true, onCallJudge }: Props) {
+export function MatchRow({ match: m, meId, onReport, onConfirm, onDispute, onSetResult, onPickPlayer, pickedPlayer, gameHref, allowSplit = true, onCallJudge, secondarySlot = false, maxPrimary, maxSecondary }: Props) {
   const t = useTranslations("tournaments.rounds");
   const tm = useTranslations("tournaments.manageView");
   const mine = !!meId && (m.playerA.id === meId || m.playerB?.id === meId);
   const [a, setA] = useState(m.smallA?.toString() ?? "");
   const [b, setB] = useState(m.smallB?.toString() ?? "");
+  const [xa, setXa] = useState(m.secondaryA?.toString() ?? "");
+  const [xb, setXb] = useState(m.secondaryB?.toString() ?? "");
+  const sec = (v: string) => (secondarySlot ? Number(v) : null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -64,17 +72,29 @@ export function MatchRow({ match: m, meId, onReport, onConfirm, onDispute, onSet
       <span className={cn(id === meId && "font-semibold")}>{label}</span>
     );
 
-  const score = (x: number | null, big: number | null) =>
-    x == null ? "–" : big == null ? `${x}` : `${x} (${big})`;
+  // "8" / "8 (3)" with big points; with secondaries "8+2 (3)".
+  const score = (x: number | null, secondary: number | null, big: number | null) =>
+    x == null ? "–" : `${x}${secondary != null ? `+${secondary}` : ""}${big == null ? "" : ` (${big})`}`;
 
   const scoreForm = (submit: () => Promise<void>, label: string) => (
     <form method="post" className="flex flex-wrap items-center gap-2"
       onSubmit={(e) => { e.preventDefault(); void run(submit); }}>
-      <Input aria-label={`${t("smallPoints")}: ${m.playerA.displayName}`} type="number" min={0} max={1000}
-        value={a} onChange={(e) => setA(e.target.value)} className="h-8 w-16" required />
+      {secondarySlot && <span className="w-full text-xs text-muted-foreground">{t("scenarioPoints")}</span>}
+      <Input aria-label={`${secondarySlot ? t("scenarioPoints") : t("smallPoints")}: ${m.playerA.displayName}`} type="number"
+        min={0} max={maxPrimary ?? 1000} value={a} onChange={(e) => setA(e.target.value)} className="h-8 w-16" required />
       <span>:</span>
-      <Input aria-label={`${t("smallPoints")}: ${m.playerB?.displayName}`} type="number" min={0} max={1000}
-        value={b} onChange={(e) => setB(e.target.value)} className="h-8 w-16" required />
+      <Input aria-label={`${secondarySlot ? t("scenarioPoints") : t("smallPoints")}: ${m.playerB?.displayName}`} type="number"
+        min={0} max={maxPrimary ?? 1000} value={b} onChange={(e) => setB(e.target.value)} className="h-8 w-16" required />
+      {secondarySlot && (
+        <>
+          <span className="w-full text-xs text-muted-foreground">{t("secondaryPoints")}</span>
+          <Input aria-label={`${t("secondaryPoints")}: ${m.playerA.displayName}`} type="number" min={0}
+            max={maxSecondary ?? 1000} value={xa} onChange={(e) => setXa(e.target.value)} className="h-8 w-16" required />
+          <span>:</span>
+          <Input aria-label={`${t("secondaryPoints")}: ${m.playerB?.displayName}`} type="number" min={0}
+            max={maxSecondary ?? 1000} value={xb} onChange={(e) => setXb(e.target.value)} className="h-8 w-16" required />
+        </>
+      )}
       <Button type="submit" size="sm" disabled={busy}>{label}</Button>
     </form>
   );
@@ -90,7 +110,8 @@ export function MatchRow({ match: m, meId, onReport, onConfirm, onDispute, onSet
         </span>
         {m.playerB && (
           <span className="tabular-nums">
-            {m.resultType === "SPLIT" ? t("split") : `${score(m.smallA, m.bigA)} : ${score(m.smallB, m.bigB)}`}
+            {m.resultType === "SPLIT" ? t("split")
+              : `${score(m.smallA, m.secondaryA, m.bigA)} : ${score(m.smallB, m.secondaryB, m.bigB)}`}
           </span>
         )}
         {m.rematch && (
@@ -108,9 +129,9 @@ export function MatchRow({ match: m, meId, onReport, onConfirm, onDispute, onSet
       </div>
 
       {/* An organizer who also plays uses the organizer form below (final at once) instead of reporting. */}
-      {m.canReport && onReport && !onSetResult && m.status !== "REPORTED" && scoreForm(() => onReport(Number(a), Number(b)), t("report"))}
+      {m.canReport && onReport && !onSetResult && m.status !== "REPORTED" && scoreForm(() => onReport(Number(a), Number(b), sec(xa), sec(xb)), t("report"))}
       {m.canReport && onReport && !onSetResult && m.status === "REPORTED" && m.reportedBy === meId && (
-        editing ? scoreForm(() => onReport(Number(a), Number(b)), t("report")) : (
+        editing ? scoreForm(() => onReport(Number(a), Number(b), sec(xa), sec(xb)), t("report")) : (
           <Button size="sm" variant="ghost" className="justify-self-start" onClick={() => setEditing(true)}>{t("report")}</Button>
         )
       )}
@@ -130,7 +151,7 @@ export function MatchRow({ match: m, meId, onReport, onConfirm, onDispute, onSet
       {onSetResult && m.playerB && (
         editing ? (
           <div className="flex flex-wrap items-center gap-2">
-            {scoreForm(() => onSetResult("PLAYED", Number(a), Number(b)), tm("save"))}
+            {scoreForm(() => onSetResult("PLAYED", Number(a), Number(b), sec(xa), sec(xb)), tm("save"))}
             {allowSplit && (
               <Button size="sm" variant="secondary" disabled={busy} onClick={() => run(() => onSetResult("SPLIT"))}>{t("split")}</Button>
             )}

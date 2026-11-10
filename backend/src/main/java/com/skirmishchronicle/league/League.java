@@ -1,5 +1,6 @@
 package com.skirmishchronicle.league;
 
+import com.skirmishchronicle.common.GameSystem;
 import com.skirmishchronicle.common.AbstractEntity;
 import com.skirmishchronicle.tournament.domain.TournamentRank;
 import jakarta.persistence.Column;
@@ -28,7 +29,9 @@ public class League extends AbstractEntity {
                            LeagueScoringMode scoringMode, boolean ownGamesAllowed, List<Integer> placePoints,
                            int participationPoints, BigDecimal multiplierLocal, BigDecimal multiplierMaster,
                            BigDecimal multiplierInternational, BigDecimal bigPointsMultiplier, int gameWinPoints,
-                           int gameDrawPoints, int gameLossPoints) {
+                           int gameDrawPoints, int gameLossPoints,
+                           /** Fixed at creation (null in a request = Eldfall / keep). */
+                           GameSystem gameSystem) {
     }
 
     @Id
@@ -86,6 +89,10 @@ public class League extends AbstractEntity {
     @Column(name = "game_loss_points", nullable = false)
     private int gameLossPoints;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "game_system", nullable = false, length = 20)
+    private GameSystem gameSystem = GameSystem.ELDFALL;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -99,8 +106,13 @@ public class League extends AbstractEntity {
     }
 
     public League(UUID ownerId) {
+        this(ownerId, GameSystem.ELDFALL);
+    }
+
+    public League(UUID ownerId, GameSystem gameSystem) {
         this.id = UUID.randomUUID();
         this.ownerId = ownerId;
+        this.gameSystem = gameSystem == null ? GameSystem.ELDFALL : gameSystem;
     }
 
     @PrePersist
@@ -122,7 +134,9 @@ public class League extends AbstractEntity {
         this.endsOn = s.endsOn();
         this.scoringMode = s.scoringMode();
         // Place points are tournament-only, so own games make no sense in that mode.
-        this.ownGamesAllowed = s.ownGamesAllowed() && s.scoringMode() != LeagueScoringMode.PLACE_POINTS;
+        // Own games are Eldfall-only for now (Bolt Action leagues count tournaments).
+        this.ownGamesAllowed = s.ownGamesAllowed() && s.scoringMode() != LeagueScoringMode.PLACE_POINTS
+                && gameSystem == GameSystem.ELDFALL;
         this.placePoints = String.join(",", s.placePoints().stream().map(String::valueOf).toList());
         this.participationPoints = s.participationPoints();
         this.multiplierLocal = s.multiplierLocal();
@@ -137,7 +151,7 @@ public class League extends AbstractEntity {
     public Settings settings() {
         return new Settings(name, description, city, startsOn, endsOn, scoringMode, ownGamesAllowed, placePointList(),
                 participationPoints, multiplierLocal, multiplierMaster, multiplierInternational, bigPointsMultiplier,
-                gameWinPoints, gameDrawPoints, gameLossPoints);
+                gameWinPoints, gameDrawPoints, gameLossPoints, gameSystem);
     }
 
     public List<Integer> placePointList() {
@@ -153,6 +167,10 @@ public class League extends AbstractEntity {
             case MASTER -> multiplierMaster;
             case INTERNATIONAL -> multiplierInternational;
         };
+    }
+
+    public GameSystem getGameSystem() {
+        return gameSystem;
     }
 
     public boolean isOwnedBy(UUID userId) {

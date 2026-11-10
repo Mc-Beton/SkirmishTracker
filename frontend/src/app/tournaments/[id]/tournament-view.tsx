@@ -26,7 +26,10 @@ import { StandingsTable } from "@/components/tournaments/standings-table";
 import { Bracket } from "@/components/tournaments/bracket";
 import { roundTitle } from "@/components/tournaments/round-title";
 import { cn } from "@/lib/utils";
-import { useGameContent } from "@/lib/content";
+import { useScenarios } from "@/components/use-scenarios";
+import { MyBaListCard } from "@/components/ba-lists/my-ba-list-card";
+import { BaListTable } from "@/components/ba-lists/ba-list-table";
+import type { BaListSummary } from "@/lib/ba-lists";
 import type { WarbandSummary } from "@/lib/warbands";
 import type { LeagueSummary } from "@/lib/leagues";
 import { MyWarbandCard } from "@/components/warbands/my-warband-card";
@@ -38,8 +41,10 @@ export function TournamentView({ id }: { id: string }) {
   const format = useFormatter();
   const errorMessage = useErrorMessage();
   const { me } = useAuth();
-  const content = useGameContent();
+  const tb = useTranslations("baLists");
   const [tournament, setTournament] = useState<TournamentDetail | null>(null);
+  const scenarios = useScenarios(tournament?.gameSystem ?? "ELDFALL");
+  const [baLists, setBaLists] = useState<BaListSummary[] | null>(null);
   const [players, setPlayers] = useState<Participant[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -55,20 +60,23 @@ export function TournamentView({ id }: { id: string }) {
   const to = useTranslations("offline");
 
   const fetchAll = useCallback(async () => {
-    const [detail, list, ch, rs, st, wb, lg, tm, ts] = await Promise.all([
-      api<TournamentDetail>("GET", `/api/tournaments/${id}`),
+    const detail = await api<TournamentDetail>("GET", `/api/tournaments/${id}`);
+    const ba = detail.gameSystem === "BOLT_ACTION";
+    const [list, ch, rs, st, wb, bl, lg, tm, ts] = await Promise.all([
       api<Participant[]>("GET", `/api/tournaments/${id}/participants`),
       api<Challenge[]>("GET", `/api/tournaments/${id}/challenges`),
       api<Round[]>("GET", `/api/tournaments/${id}/rounds`),
       api<StandingsData>("GET", `/api/tournaments/${id}/standings`),
       // Lists stay hidden (403) from other players until the deadline passes.
-      api<WarbandSummary[]>("GET", `/api/tournaments/${id}/warbands`).catch(() => null),
+      ba ? Promise.resolve(null) : api<WarbandSummary[]>("GET", `/api/tournaments/${id}/warbands`).catch(() => null),
+      // Bolt Action lists: visibility follows the organizer's setting (403 while hidden).
+      ba ? api<BaListSummary[]>("GET", `/api/tournaments/${id}/ba-lists`).catch(() => null) : Promise.resolve(null),
       api<LeagueSummary[]>("GET", `/api/tournaments/${id}/leagues`).catch(() => []),
       api<TeamsData>("GET", `/api/tournaments/${id}/teams`).catch(() => null),
       // 409 NOT_TEAM_TOURNAMENT for individual events.
       api<TeamStandingRow[]>("GET", `/api/tournaments/${id}/team-standings`).catch(() => null),
     ]);
-    return { detail, list, ch, rs, st, wb, lg, tm, ts };
+    return { detail, list, ch, rs, st, wb, bl, lg, tm, ts };
   }, [id]);
 
   const apply = useCallback((d: Awaited<ReturnType<typeof fetchAll>>) => {
@@ -78,6 +86,7 @@ export function TournamentView({ id }: { id: string }) {
     setRounds(d.rs);
     setStandings(d.st);
     setWarbands(d.wb);
+    setBaLists(d.bl);
     setLeagues(d.lg);
     setTeams(d.tm);
     setTeamStandings(d.ts);
@@ -150,22 +159,31 @@ export function TournamentView({ id }: { id: string }) {
   }
 
   const teamEvent = tournament.settings.teamSize != null;
+  const ba = tournament.gameSystem === "BOLT_ACTION";
+  const secondary = tournament.settings.secondarySlot;
+  const lists = ba ? baLists : warbands;
   const myTeamId = teams?.myTeamId ?? null;
   const matchRow = (r: Round, m: Match) => (
-    <MatchRow key={m.id} match={m} meId={me?.id} gameHref={`/tournaments/${id}/matches/${m.id}`}
-      onReport={(a, b) => callOrQueue("POST", `matches/${m.id}/report`, "report", m.table, { smallA: a, smallB: b })}
+    <MatchRow key={m.id} match={m} meId={me?.id}
+      // Bolt Action: only the final score at the end of the game (no turn-by-turn page).
+      gameHref={ba ? undefined : `/tournaments/${id}/matches/${m.id}`}
+      secondarySlot={secondary} maxPrimary={tournament.settings.maxPrimaryPoints}
+      maxSecondary={tournament.settings.maxSecondaryPoints}
+      onReport={(a, b, xa, xb) => callOrQueue("POST", `matches/${m.id}/report`, "report", m.table,
+        { smallA: a, smallB: b, secondaryA: xa ?? null, secondaryB: xb ?? null })}
       onConfirm={() => callOrQueue("POST", `matches/${m.id}/confirm`, "decision", m.table)}
       onDispute={() => callOrQueue("POST", `matches/${m.id}/dispute`, "decision", m.table)}
       onCallJudge={r.status === "IN_PROGRESS" ? () => call("POST", `matches/${m.id}/judge`, {}) : undefined}
       // The organizer enters or corrects any result right here (same as in the organizer panel).
       onSetResult={tournament.canManage && r.status !== "PAIRED"
-        ? (type, a, b) => callOrQueue("PUT", `matches/${m.id}/result`, "result", m.table, { type, smallA: a, smallB: b })
+        ? (type, a, b, xa, xb) => callOrQueue("PUT", `matches/${m.id}/result`, "result", m.table,
+          { type, smallA: a, smallB: b, secondaryA: xa ?? null, secondaryB: xb ?? null })
         : undefined}
       allowSplit={r.phase !== "KNOCKOUT" || tournament.settings.teamSize != null} />
   );
   const finalCard = tournament.status === "FINISHED" && standings ? (
     <FinalStandings standings={standings} teamStandings={teamEvent ? teamStandings : null} teams={teams}
-      meId={me?.id} myTeamId={myTeamId} />
+      meId={me?.id} myTeamId={myTeamId} pointsFirst={ba} secondary={secondary} />
   ) : null;
   const dt = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "full", timeStyle: "short" });
   const registered = players.filter((p) => p.status === "REGISTERED");
@@ -184,6 +202,17 @@ export function TournamentView({ id }: { id: string }) {
       ? [[t("details.listFormat"), t("details.rosterFormat", { roster: tournament.pointsLimit ?? "–", party: tournament.partyLimit ?? "–" })
           + (tournament.hiddenRosters ? ` · ${t("details.hiddenRosters")}` : "")] as [string, string]]
       : tournament.pointsLimit ? [[t("details.pointsLimit"), `${tournament.pointsLimit} ${t("points")}`] as [string, string]] : []),
+    ...(ba && (tournament.maxOrderDice || tournament.maxPlatoons) ? [[t("details.listLimits"), [
+      tournament.maxOrderDice ? tb("limitDice", { n: tournament.maxOrderDice }) : null,
+      tournament.maxPlatoons ? tb("limitPlatoons", { n: tournament.maxPlatoons }) : null,
+    ].filter(Boolean).join(" · ")] as [string, string]] : []),
+    ...(ba ? [
+      [t("details.scoring"), secondary
+        ? t("details.scoringTwoSlots", { scenario: tournament.settings.maxPrimaryPoints ?? "–", secondary: tournament.settings.maxSecondaryPoints ?? "–" })
+        : t("details.scoringOneSlot", { max: tournament.settings.maxPrimaryPoints ?? "–" })] as [string, string],
+      [t("details.tournamentPoints"), t("details.wdl", { w: tournament.settings.winPoints, d: tournament.settings.drawPoints, l: tournament.settings.lossPoints })] as [string, string],
+      [t("details.listVisibility"), t(`form.listVisibilities.${tournament.listVisibility}`)] as [string, string],
+    ] : []),
     ...(tournament.roundsPlanned ? [[t("details.rounds"), String(tournament.roundsPlanned)] as [string, string]] : []),
     ...(tournament.listDeadline ? [[t("details.listDeadline"), dt(tournament.listDeadline)] as [string, string]] : []),
     [t("organizer"), tournament.organizer.displayName],
@@ -196,6 +225,7 @@ export function TournamentView({ id }: { id: string }) {
           <RankBadge rank={tournament.rank} />
           <StatusBadge status={tournament.status} />
           {tournament.official && <OfficialBadge />}
+          <span className="rounded-md border px-2 py-0.5 text-xs font-medium">{t(`system.${tournament.gameSystem}`)}</span>
           {leagues.map((l) => (
             <Link key={l.id} href={`/leagues/${l.id}`}
               className="rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-accent">
@@ -226,10 +256,10 @@ export function TournamentView({ id }: { id: string }) {
       {notice && <Alert>{notice}</Alert>}
 
       <div role="tablist" className="flex w-fit rounded-lg border bg-card p-1">
-        {(["info", "rounds", "standings", ...(warbands ? ["warbands" as const] : [])] as const).map((key) => (
+        {(["info", "rounds", "standings", ...(lists ? ["warbands" as const] : [])] as const).map((key) => (
           <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
             className={cn("rounded-md px-3 py-1.5 text-sm", tab === key ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
-            {t(`viewTabs.${key}`)}
+            {key === "warbands" && ba ? tb("tab") : t(`viewTabs.${key}`)}
           </button>
         ))}
       </div>
@@ -254,10 +284,8 @@ export function TournamentView({ id }: { id: string }) {
               meta={<>
                 <span>{t(`rounds.status.${r.status}`)}</span>
                 {r.tableOrder && r.phase !== "KNOCKOUT" && <span>{t(`plan.tablesShort.${r.tableOrder}`)}</span>}
-                {r.scenario && content && (
-                  <span className="text-primary">
-                    {t("rounds.scenario", { name: content.quests.find((q) => q.code === r.scenario)?.name ?? r.scenario })}
-                  </span>
+                {r.scenario && (
+                  <span className="text-primary">{t("rounds.scenario", { name: scenarios.name(r.scenario) })}</span>
                 )}
                 {r.status === "IN_PROGRESS" && r.timer && <RoundTimer timer={r.timer} compact />}
               </>}>
@@ -285,7 +313,8 @@ export function TournamentView({ id }: { id: string }) {
         </div>
       )}
 
-      {tab === "warbands" && warbands && <WarbandList tournamentId={id} items={warbands} />}
+      {tab === "warbands" && !ba && warbands && <WarbandList tournamentId={id} items={warbands} />}
+      {tab === "warbands" && ba && baLists && <BaListTable tournamentId={id} items={baLists} />}
 
       {tab === "standings" && teamEvent && teamStandings && (
         <Card>
@@ -305,7 +334,7 @@ export function TournamentView({ id }: { id: string }) {
             </CardHeader>
           )}
           <CardContent>
-            <StandingsTable data={standings} highlight={me?.id} />
+            <StandingsTable data={standings} highlight={me?.id} pointsFirst={ba} secondary={secondary} />
           </CardContent>
         </Card>
       )}
@@ -336,7 +365,7 @@ export function TournamentView({ id }: { id: string }) {
                   {tournament.roundPlans.map((p) => (
                     <li key={p.number} className="flex flex-wrap gap-x-3 gap-y-0.5 border-b py-1.5 last:border-0">
                       <span className="w-20 font-medium">{t("rounds.round", { n: p.number })}</span>
-                      <span>{p.scenarioCode ? content?.quests.find((q) => q.code === p.scenarioCode)?.name ?? p.scenarioCode : t("plan.noScenario")}</span>
+                      <span>{p.scenarioCode ? scenarios.name(p.scenarioCode) : t("plan.noScenario")}</span>
                       {tournament.format === "SWISS" && (
                         <span className="text-muted-foreground">{t(`plan.method.${p.pairing ?? (p.number === 1 ? "RANDOM" : "SWISS")}`)}</span>
                       )}
@@ -376,7 +405,7 @@ export function TournamentView({ id }: { id: string }) {
                 <p className="text-sm text-muted-foreground">{t("teams.eventInfo", { n: tournament.settings.teamSize ?? 0 })}</p>
               )}
               {tournament.myStatus === "REGISTERED" && <Alert variant="success">{t("joinedMsg")}</Alert>}
-              {tournament.myStatus === "WAITLIST" && <Alert>{t("waitlistMsg")}</Alert>}
+              {tournament.myStatus === "WAITLIST" && <Alert>{tournament.requireApproval ? t("pendingMsg") : t("waitlistMsg")}</Alert>}
               {!me ? (
                 <Button asChild>
                   <Link href="/login">{t("loginToJoin")}</Link>
@@ -393,7 +422,9 @@ export function TournamentView({ id }: { id: string }) {
             </CardContent>
           </Card>
 
-          {me && tournament.myStatus && <MyWarbandCard tournamentId={id} reloadKey={me.id} />}
+          {me && tournament.myStatus && (ba
+            ? <MyBaListCard tournamentId={id} reloadKey={me.id} />
+            : <MyWarbandCard tournamentId={id} reloadKey={me.id} />)}
 
           {me && tournament.myStatus === "REGISTERED" && tournament.roundsCount === 0
             && (tournament.settings.challengesEnabled || challenges.length > 0)
@@ -440,7 +471,7 @@ export function TournamentView({ id }: { id: string }) {
               )}
               {waitlist.length > 0 && (
                 <div className="grid gap-1">
-                  <h3 className="text-sm font-medium">{t("details.waitlist")}</h3>
+                  <h3 className="text-sm font-medium">{tournament.requireApproval ? t("details.pending") : t("details.waitlist")}</h3>
                   <ol className="grid list-decimal gap-1 pl-5 text-sm text-muted-foreground">
                     {waitlist.map((p) => (
                       <li key={p.id}>{p.displayName}</li>

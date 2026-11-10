@@ -9,6 +9,8 @@ import com.skirmishchronicle.league.LeagueService;
 import com.skirmishchronicle.rating.Elo;
 import com.skirmishchronicle.rating.RatedGame;
 import com.skirmishchronicle.rating.RatingService;
+import com.skirmishchronicle.common.GameSystem;
+import com.skirmishchronicle.boltaction.BaListRepository;
 import com.skirmishchronicle.tournament.domain.ParticipantStatus;
 import com.skirmishchronicle.tournament.domain.Tournament;
 import com.skirmishchronicle.tournament.domain.TournamentFormat;
@@ -87,6 +89,10 @@ public class ProfileService {
                             List<Count> factionWins, List<Count> factionLosses, List<Count> opponentFactions,
                             List<Count> winsAgainst, List<Count> lossesAgainst, int gamesWithMission,
                             List<Count> missions, List<Count> missionWins, List<Count> missionLosses) {
+
+        /** No list statistics (Bolt Action lists are free text). */
+        public static final PlayStats EMPTY = new PlayStats(0, 0, 0, List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(), 0, List.of(), List.of(), List.of());
     }
 
     private static final int TOP = 5;
@@ -109,12 +115,13 @@ public class ProfileService {
     private final FriendlyGameRepository friendly;
     private final com.skirmishchronicle.tournament.repo.MatchRepository matches;
     private final com.fasterxml.jackson.databind.ObjectMapper mapper;
+    private final BaListRepository baLists;
 
     public ProfileService(UserRepository users, RatingService ratings, ParticipantRepository participants,
                           TournamentRepository tournaments, RoundRepository rounds, WarbandRepository warbands,
                           RoundService roundService, LeagueService leagueService, FriendlyGameRepository friendly,
                           com.skirmishchronicle.tournament.repo.MatchRepository matches,
-                          com.fasterxml.jackson.databind.ObjectMapper mapper) {
+                          com.fasterxml.jackson.databind.ObjectMapper mapper, BaListRepository baLists) {
         this.users = users;
         this.ratings = ratings;
         this.participants = participants;
@@ -126,12 +133,22 @@ public class ProfileService {
         this.friendly = friendly;
         this.matches = matches;
         this.mapper = mapper;
+        this.baLists = baLists;
     }
 
     @Transactional(readOnly = true)
     public Profile profile(UUID userId) {
+        return profile(userId, GameSystem.ELDFALL);
+    }
+
+    /**
+     * Profile in one game system: ELO, games, tournaments, leagues and statistics of that system only (Bolt Action
+     * has no list statistics – lists are free text there).
+     */
+    @Transactional(readOnly = true)
+    public Profile profile(UUID userId, GameSystem system) {
         User u = users.findById(userId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAYER_NOT_FOUND"));
-        Map<UUID, Elo.Rating> all = ratings.ratings();
+        Map<UUID, Elo.Rating> all = ratings.ratings(system);
         Elo.Rating mine = all.get(userId);
         Stats stats;
         List<Elo.Point> history = List.of();
@@ -143,21 +160,26 @@ public class ProfileService {
             List<Elo.Point> h = mine.history;
             history = h.subList(Math.max(0, h.size() - HISTORY), h.size());
         }
-        List<TournamentEntry> entered = tournamentsOf(userId);
-        PlayStats play = playStats(userId);
+        List<TournamentEntry> entered = tournamentsOf(userId, system);
+        PlayStats play = system == GameSystem.ELDFALL ? playStats(userId) : PlayStats.EMPTY;
         return new Profile(u.getId(), u.getDisplayName(), u.getClub(), u.getHomeCity(), u.getCreatedAt(), stats,
-                history, entered, leagueService.ofPlayer(userId), recentGames(userId, mine, null, RECENT),
-                factions(userId), play, opponents(userId), badges(userId, mine, entered, play));
+                history, entered, leagueService.ofPlayer(userId, system), recentGames(userId, mine, null, RECENT, system),
+                factions(userId, system), play, opponents(userId, system), badges(userId, mine, entered, play, system));
     }
 
     @Transactional(readOnly = true)
     public Versus versus(UUID userId, UUID opponentId) {
+        return versus(userId, opponentId, GameSystem.ELDFALL);
+    }
+
+    @Transactional(readOnly = true)
+    public Versus versus(UUID userId, UUID opponentId, GameSystem system) {
         User u = users.findById(userId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAYER_NOT_FOUND"));
         User o = users.findById(opponentId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAYER_NOT_FOUND"));
         int wins = 0;
         int draws = 0;
         int losses = 0;
-        for (RatedGame g : ratings.games()) {
+        for (RatedGame g : ratings.games(system)) {
             boolean a = g.playerA().equals(userId) && g.playerB().equals(opponentId);
             boolean b = g.playerB().equals(userId) && g.playerA().equals(opponentId);
             if (!a && !b) {
@@ -174,12 +196,17 @@ public class ProfileService {
         }
         return new Versus(new PlayerRef(u.getId(), u.getDisplayName()), new PlayerRef(o.getId(), o.getDisplayName()),
                 wins + draws + losses, wins, draws, losses,
-                recentGames(userId, ratings.ratings().get(userId), opponentId, HISTORY));
+                recentGames(userId, ratings.ratings(system).get(userId), opponentId, HISTORY, system));
     }
 
     @Transactional(readOnly = true)
     public List<RankingRow> ranking(int limit) {
-        Map<UUID, Elo.Rating> all = ratings.ratings();
+        return ranking(limit, GameSystem.ELDFALL);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RankingRow> ranking(int limit, GameSystem system) {
+        Map<UUID, Elo.Rating> all = ratings.ratings(system);
         List<Map.Entry<UUID, Elo.Rating>> sorted = new ArrayList<>(all.entrySet());
         sorted.sort(Comparator.comparingDouble((Map.Entry<UUID, Elo.Rating> e) -> e.getValue().value).reversed());
         List<Map.Entry<UUID, Elo.Rating>> top = sorted.subList(0, Math.min(limit, sorted.size()));
@@ -216,13 +243,14 @@ public class ProfileService {
 
     // ------------------------------------------------------------------ helpers
 
-    private List<TournamentEntry> tournamentsOf(UUID userId) {
+    private List<TournamentEntry> tournamentsOf(UUID userId, GameSystem system) {
         Set<UUID> ids = participants.findByUserId(userId).stream()
                 .filter(p -> p.getStatus() == ParticipantStatus.REGISTERED)
                 .map(TournamentParticipant::getTournamentId).collect(Collectors.toSet());
         List<TournamentEntry> out = new ArrayList<>();
         for (Tournament t : tournaments.findAllById(ids)) {
-            if (!t.getStatus().isPublic() || t.getStatus() == TournamentStatus.CANCELLED) {
+            if (!t.getStatus().isPublic() || t.getStatus() == TournamentStatus.CANCELLED
+                    || t.getGameSystem() != system) {
                 continue;
             }
             Integer position = null;
@@ -239,12 +267,12 @@ public class ProfileService {
     }
 
     /** Newest games of the player (optionally only against {@code opponent}). */
-    private List<GameEntry> recentGames(UUID userId, Elo.Rating mine, UUID opponent, int limit) {
+    private List<GameEntry> recentGames(UUID userId, Elo.Rating mine, UUID opponent, int limit, GameSystem system) {
         Map<UUID, Integer> change = new HashMap<>();
         if (mine != null) {
             mine.history.forEach(p -> change.put(p.gameId(), p.change()));
         }
-        List<RatedGame> games = ratings.games().stream()
+        List<RatedGame> games = ratings.games(system).stream()
                 .filter(g -> g.playerA().equals(userId) || g.playerB().equals(userId))
                 .filter(g -> opponent == null || g.playerA().equals(opponent) || g.playerB().equals(opponent))
                 .sorted(Comparator.comparing(RatedGame::playedAt, Comparator.nullsLast(Comparator.naturalOrder()))
@@ -267,7 +295,8 @@ public class ProfileService {
             UUID opp = a ? g.playerB() : g.playerA();
             int my = a ? g.smallA() : g.smallB();
             int their = a ? g.smallB() : g.smallA();
-            String result = my > their ? "W" : my == their ? "D" : "L";
+            double score = a ? g.scoreA() : 1.0 - g.scoreA();
+            String result = score == 1.0 ? "W" : score == 0.5 ? "D" : "L";
             return new GameEntry(g.id(), g.playedAt(), new PlayerRef(opp, names.getOrDefault(opp, "?")), my, their,
                     result, change.getOrDefault(g.id(), 0), g.tournamentId(),
                     g.tournamentId() == null ? null : tnames.get(g.tournamentId()));
@@ -276,9 +305,9 @@ public class ProfileService {
 
     private static final int OPPONENTS = 5;
 
-    private List<OpponentRow> opponents(UUID userId) {
+    private List<OpponentRow> opponents(UUID userId, GameSystem system) {
         Map<UUID, int[]> byOpponent = new HashMap<>(); // wins, draws, losses
-        for (RatedGame g : ratings.games()) {
+        for (RatedGame g : ratings.games(system)) {
             boolean a = g.playerA().equals(userId);
             if (!a && !g.playerB().equals(userId)) {
                 continue;
@@ -298,8 +327,9 @@ public class ProfileService {
                 .limit(OPPONENTS).toList();
     }
 
-    private List<Badges.Badge> badges(UUID userId, Elo.Rating mine, List<TournamentEntry> entered, PlayStats play) {
-        List<RatedGame> mineGames = ratings.games().stream()
+    private List<Badges.Badge> badges(UUID userId, Elo.Rating mine, List<TournamentEntry> entered, PlayStats play,
+                                      GameSystem system) {
+        List<RatedGame> mineGames = ratings.games(system).stream()
                 .filter(g -> g.playerA().equals(userId) || g.playerB().equals(userId))
                 .sorted(Comparator.comparing(RatedGame::playedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
                         .thenComparing(g -> g.id().toString()))
@@ -308,7 +338,7 @@ public class ProfileService {
                 .map(g -> g.playerA().equals(userId) ? g.scoreA() : 1.0 - g.scoreA()).toList();
         boolean giant = false;
         if (!mineGames.isEmpty()) {
-            Map<UUID, Elo.PreGame> pre = Elo.preGame(ratings.games());
+            Map<UUID, Elo.PreGame> pre = Elo.preGame(ratings.games(system));
             for (RatedGame g : mineGames) {
                 boolean a = g.playerA().equals(userId);
                 Elo.PreGame p = pre.get(g.id());
@@ -344,7 +374,7 @@ public class ProfileService {
         int countries = (int) finishedById.values().stream().map(Tournament::getCountry).distinct().count();
         int maxFactionWins = play.factionWins().stream().mapToInt(Count::count).max().orElse(0);
         int organized = (int) tournaments.findByOwnerIdOrderByStartsAtDesc(userId).stream()
-                .filter(t -> t.getStatus() == TournamentStatus.FINISHED).count();
+                .filter(t -> t.getStatus() == TournamentStatus.FINISHED && t.getGameSystem() == system).count();
         return Badges.of(new Badges.Input(mine == null ? 0 : mine.games, Badges.bestWinStreak(scores), wins, podiums,
                 countries, maxFactionWins, play.factions().size(), giant, organized, officialWins));
     }
@@ -507,10 +537,15 @@ public class ProfileService {
         return set;
     }
 
-    private List<FactionCount> factions(UUID userId) {
+    /** Eldfall: factions of the player's warbands; Bolt Action: nations of the player's lists. */
+    private List<FactionCount> factions(UUID userId, GameSystem system) {
         Map<String, Integer> counts = new HashMap<>();
-        for (Warband w : warbands.findByUserId(userId)) {
-            counts.merge(w.getFaction(), 1, Integer::sum);
+        if (system == GameSystem.BOLT_ACTION) {
+            baLists.findByUserId(userId).forEach(l -> counts.merge(l.getNation(), 1, Integer::sum));
+        } else {
+            for (Warband w : warbands.findByUserId(userId)) {
+                counts.merge(w.getFaction(), 1, Integer::sum);
+            }
         }
         return counts.entrySet().stream()
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())

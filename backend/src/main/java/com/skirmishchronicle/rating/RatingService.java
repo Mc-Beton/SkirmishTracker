@@ -1,5 +1,6 @@
 package com.skirmishchronicle.rating;
 
+import com.skirmishchronicle.common.GameSystem;
 import com.skirmishchronicle.friendly.FriendlyGame;
 import com.skirmishchronicle.friendly.FriendlyGameRepository;
 import com.skirmishchronicle.friendly.FriendlyGameStatus;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Global ELO: replays every confirmed, played tournament game and every confirmed own game in chronological
+ * ELO per game system (separate rankings): replays every confirmed, played tournament game and every confirmed own game in chronological
  * order (tournament games by round start, own games by the day they were played). The result is cached until a
  * new game is confirmed or a result is corrected.
  */
@@ -27,7 +28,8 @@ public class RatingService {
 
     public static final int START = Elo.START;
 
-    private record Snapshot(List<Object> key, List<RatedGame> games, Map<UUID, Elo.Rating> ratings) {
+    private record Snapshot(List<Object> key, Map<GameSystem, List<RatedGame>> games,
+                            Map<GameSystem, Map<UUID, Elo.Rating>> ratings) {
     }
 
     private final MatchRepository matches;
@@ -39,22 +41,38 @@ public class RatingService {
         this.friendly = friendly;
     }
 
-    /** All rated games (tournament + own), unordered. */
+    /** All rated Eldfall games (tournament + own), unordered. */
     @Transactional(readOnly = true)
     public List<RatedGame> games() {
-        return snapshot().games();
+        return games(GameSystem.ELDFALL);
     }
 
-    /** Global ratings of everybody who played at least one rated game. */
+    /** All rated games of one game system, unordered. */
+    @Transactional(readOnly = true)
+    public List<RatedGame> games(GameSystem system) {
+        return snapshot().games().getOrDefault(system, List.of());
+    }
+
+    /** Eldfall ratings of everybody who played at least one rated game. */
     @Transactional(readOnly = true)
     public Map<UUID, Elo.Rating> ratings() {
-        return snapshot().ratings();
+        return ratings(GameSystem.ELDFALL);
     }
 
-    /** Rounded current rating per player; players without games get {@link #START}. */
+    @Transactional(readOnly = true)
+    public Map<UUID, Elo.Rating> ratings(GameSystem system) {
+        return snapshot().ratings().getOrDefault(system, Map.of());
+    }
+
+    /** Rounded current Eldfall rating per player; players without games get {@link #START}. */
     @Transactional(readOnly = true)
     public Map<UUID, Integer> current(Collection<UUID> ids) {
-        Map<UUID, Elo.Rating> all = ratings();
+        return current(ids, GameSystem.ELDFALL);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<UUID, Integer> current(Collection<UUID> ids, GameSystem system) {
+        Map<UUID, Elo.Rating> all = ratings(system == null ? GameSystem.ELDFALL : system);
         Map<UUID, Integer> out = new HashMap<>();
         for (UUID id : ids) {
             Elo.Rating r = all.get(id);
@@ -71,8 +89,17 @@ public class RatingService {
         if (s != null && s.key().equals(key)) {
             return s;
         }
-        List<RatedGame> games = load();
-        s = new Snapshot(key, List.copyOf(games), Map.copyOf(Elo.replay(games)));
+        Map<GameSystem, List<RatedGame>> bySystem = new java.util.EnumMap<>(GameSystem.class);
+        for (RatedGame g : load()) {
+            bySystem.computeIfAbsent(g.system(), k -> new ArrayList<>()).add(g);
+        }
+        Map<GameSystem, List<RatedGame>> games = new java.util.EnumMap<>(GameSystem.class);
+        Map<GameSystem, Map<UUID, Elo.Rating>> ratings = new java.util.EnumMap<>(GameSystem.class);
+        bySystem.forEach((system, list) -> {
+            games.put(system, List.copyOf(list));
+            ratings.put(system, Map.copyOf(Elo.replay(list)));
+        });
+        s = new Snapshot(key, Map.copyOf(games), Map.copyOf(ratings));
         cache = s;
         return s;
     }
@@ -83,8 +110,9 @@ public class RatingService {
             if (row[3] == null || row[4] == null) {
                 continue;
             }
+            GameSystem system = row[9] == null ? GameSystem.ELDFALL : (GameSystem) row[9];
             games.add(new RatedGame((UUID) row[0], (UUID) row[1], (UUID) row[2], (Integer) row[3], (Integer) row[4],
-                    (Instant) row[5], (UUID) row[6], null));
+                    (Instant) row[5], (UUID) row[6], null, (Integer) row[7], (Integer) row[8], system));
         }
         for (FriendlyGame g : friendly.findByStatus(FriendlyGameStatus.CONFIRMED)) {
             // Noon UTC of the day played: after morning tournament rounds would be a guess either way.

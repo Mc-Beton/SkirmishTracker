@@ -129,6 +129,7 @@ public class WarbandService {
     @Transactional(readOnly = true)
     public MyWarband mine(CurrentUser actor, UUID tournamentId) {
         Tournament t = guard.visible(actor, tournamentId);
+        TournamentGuard.requireEldfall(t);
         TournamentParticipant p = participants.findByTournamentIdAndUserId(tournamentId, actor.id())
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "NOT_A_PARTICIPANT"));
         boolean editable = playerMayEdit(t, p);
@@ -143,6 +144,7 @@ public class WarbandService {
     @Transactional(readOnly = true)
     public List<Summary> list(CurrentUser viewer, UUID tournamentId) {
         Tournament t = guard.visible(viewer, tournamentId);
+        TournamentGuard.requireEldfall(t);
         boolean manager = TournamentGuard.canManage(viewer, t);
         if (!manager && !listsPublic(t)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "WARBANDS_HIDDEN");
@@ -163,6 +165,7 @@ public class WarbandService {
     @Transactional(readOnly = true)
     public WarbandView get(CurrentUser viewer, UUID tournamentId, UUID userId) {
         Tournament t = guard.visible(viewer, tournamentId);
+        TournamentGuard.requireEldfall(t);
         boolean manager = TournamentGuard.canManage(viewer, t);
         boolean own = viewer != null && viewer.id().equals(userId);
         if (!manager && !own && !listsPublic(t)) {
@@ -198,6 +201,7 @@ public class WarbandService {
         if (!t.getStatus().isPublic() && !TournamentGuard.canManage(actor, t)) {
             throw TournamentGuard.notFound();
         }
+        TournamentGuard.requireEldfall(t);
         boolean manager = TournamentGuard.canManage(actor, t);
         boolean own = actor.id().equals(userId);
         if (!own && !manager) {

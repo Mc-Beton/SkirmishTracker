@@ -54,6 +54,7 @@ public class LeagueService {
 
     public record Summary(UUID id, String name, String city, LocalDate startsOn, LocalDate endsOn,
                           LeagueScoringMode scoringMode, PlayerRef owner, long members, long tournaments,
+                          com.skirmishchronicle.common.GameSystem gameSystem,
                           boolean active) {
     }
 
@@ -101,7 +102,17 @@ public class LeagueService {
 
     @Transactional(readOnly = true)
     public List<Summary> list() {
-        List<League> all = leagues.findAllByOrderByStartsOnDesc();
+        return summaries(leagues.findAllByOrderByStartsOnDesc());
+    }
+
+    /** Leagues of one game system. */
+    @Transactional(readOnly = true)
+    public List<Summary> list(com.skirmishchronicle.common.GameSystem system) {
+        return summaries(leagues.findAllByOrderByStartsOnDesc().stream()
+                .filter(l -> l.getGameSystem() == system).toList());
+    }
+
+    private List<Summary> summaries(List<League> all) {
         Map<UUID, String> names = names(all.stream().map(League::getOwnerId).collect(Collectors.toSet()));
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         return all.stream().map(l -> new Summary(l.getId(), l.getName(), l.getCity(), l.getStartsOn(), l.getEndsOn(),
@@ -109,6 +120,7 @@ public class LeagueService {
                 members.countByLeagueId(l.getId()),
                 links.findByLeagueId(l.getId()).stream()
                         .filter(x -> x.getStatus() == LeagueTournamentStatus.ACCEPTED).count(),
+                l.getGameSystem(),
                 l.covers(today))).toList();
     }
 
@@ -156,9 +168,17 @@ public class LeagueService {
 
     @Transactional(readOnly = true)
     public List<PlayerLeague> ofPlayer(UUID userId) {
+        return ofPlayer(userId, com.skirmishchronicle.common.GameSystem.ELDFALL);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PlayerLeague> ofPlayer(UUID userId, com.skirmishchronicle.common.GameSystem system) {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         List<PlayerLeague> out = new ArrayList<>();
         for (League l : leagues.findAllByOrderByStartsOnDesc()) {
+            if (l.getGameSystem() != system) {
+                continue;
+            }
             List<StandingRow> table = standings(l);
             table.stream().filter(r -> r.userId().equals(userId)).findFirst().ifPresent(r ->
                     out.add(new PlayerLeague(l.getId(), l.getName(), l.getScoringMode(), l.covers(today), r,
@@ -172,7 +192,7 @@ public class LeagueService {
     @Transactional
     public UUID create(CurrentUser actor, League.Settings s) {
         validate(s);
-        League l = new League(actor.id());
+        League l = new League(actor.id(), s.gameSystem());
         l.update(s);
         leagues.save(l);
         members.save(new LeagueMember(l.getId(), actor.id()));
@@ -184,6 +204,9 @@ public class LeagueService {
     public void update(CurrentUser actor, UUID id, League.Settings s) {
         validate(s);
         League l = managed(actor, id);
+        if (s.gameSystem() != null && s.gameSystem() != l.getGameSystem()) {
+            throw new ApiException(HttpStatus.CONFLICT, "GAME_SYSTEM_LOCKED");
+        }
         l.update(s);
         audit.record(actor.id(), AUDIT_TYPE, id, "UPDATED", null);
     }
@@ -250,6 +273,9 @@ public class LeagueService {
         }
         if (t.getStatus() == TournamentStatus.CANCELLED) {
             throw new ApiException(HttpStatus.CONFLICT, "TOURNAMENT_CANCELLED");
+        }
+        if (t.getGameSystem() != l.getGameSystem()) {
+            throw new ApiException(HttpStatus.CONFLICT, "LEAGUE_GAME_SYSTEM_MISMATCH");
         }
         LeagueTournament link = links.findByLeagueIdAndTournamentId(id, tournamentId).orElse(null);
         if (link != null && link.getStatus() != LeagueTournamentStatus.REJECTED) {
@@ -334,7 +360,7 @@ public class LeagueService {
 
         if (l.getScoringMode() == LeagueScoringMode.ELO) {
             Set<UUID> tids = counted.stream().map(Tournament::getId).collect(Collectors.toSet());
-            List<RatedGame> games = ratings.games().stream()
+            List<RatedGame> games = ratings.games(l.getGameSystem()).stream()
                     .filter(g -> (g.tournamentId() != null && tids.contains(g.tournamentId()))
                             || (g.leagueId() != null && g.leagueId().equals(l.getId()) && l.isOwnGamesAllowed()))
                     .toList();

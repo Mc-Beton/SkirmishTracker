@@ -21,7 +21,7 @@ import { MatchRow } from "@/components/tournaments/match-row";
 import { roundTitle } from "@/components/tournaments/round-title";
 import { LeagueSubmit } from "@/components/leagues/league-submit";
 import { StandingsTable } from "@/components/tournaments/standings-table";
-import { useGameContent } from "@/lib/content";
+import { useScenarios } from "@/components/use-scenarios";
 import { RoundTimer } from "@/components/tournaments/round-timer";
 import { TeamsPanel } from "@/components/tournaments/teams-panel";
 import { TeamMatchCard } from "@/components/tournaments/team-match-card";
@@ -62,8 +62,8 @@ export function ManageTournament({ id }: { id: string }) {
   const router = useRouter();
   const justCreated = useSearchParams().get("created") === "1";
   const { me, loading } = useAuth();
-  const content = useGameContent();
   const [data, setData] = useState<Data | null>(null);
+  const scenarios = useScenarios(data?.tournament.gameSystem ?? "ELDFALL");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(justCreated ? t("form.created") : null);
   const [newPlayer, setNewPlayer] = useState("");
@@ -139,6 +139,7 @@ export function ManageTournament({ id }: { id: string }) {
 
   const { tournament, players, audit, challenges, rounds, standings, judgeCalls, teamStandings } = data;
   const teamEvent = tournament.settings.teamSize != null;
+  const ba = tournament.gameSystem === "BOLT_ACTION";
   const openCalls = judgeCalls.filter((c) => !c.resolvedAt);
   const confirmed = players.filter((p) => p.status === "REGISTERED");
   const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
@@ -166,12 +167,16 @@ export function ManageTournament({ id }: { id: string }) {
   const status = tournament.status;
   const post = (path: string) => () => api("POST", `/api/tournaments/${id}/${path}`);
   const organizerRow = (r: Round, m: Match) => (
-    <MatchRow key={m.id} match={m} gameHref={r.status !== "PAIRED" ? `/tournaments/${id}/matches/${m.id}` : undefined}
+    <MatchRow key={m.id} match={m}
+      // Bolt Action has no turn-by-turn game page: only the final score is entered.
+      gameHref={r.status !== "PAIRED" && !ba ? `/tournaments/${id}/matches/${m.id}` : undefined}
+      secondarySlot={tournament.settings.secondarySlot} maxPrimary={tournament.settings.maxPrimaryPoints}
+      maxSecondary={tournament.settings.maxSecondaryPoints}
       onPickPlayer={r.status === "PAIRED" && r.phase === "SWISS" && !teamEvent ? (pid) => pick(r.number, pid) : undefined}
       pickedPlayer={picked} allowSplit={r.phase !== "KNOCKOUT" || teamEvent}
       onSetResult={r.status !== "PAIRED"
-        ? (type, a, b) => run(() => api("PUT", `/api/tournaments/${id}/matches/${m.id}/result`,
-            { type, smallA: a, smallB: b }))
+        ? (type, a, b, xa, xb) => run(() => api("PUT", `/api/tournaments/${id}/matches/${m.id}/result`,
+            { type, smallA: a, smallB: b, secondaryA: xa ?? null, secondaryB: xb ?? null }))
         : undefined} />
   );
 
@@ -300,7 +305,7 @@ export function ManageTournament({ id }: { id: string }) {
       )}
 
       <CollapsibleCard title={tm("leagues")}>
-          <LeagueSubmit tournamentId={id} />
+          <LeagueSubmit tournamentId={id} system={tournament.gameSystem} />
       </CollapsibleCard>
 
       <CollapsibleCard title={tm("roundsTitle")} contentClassName="grid gap-6">
@@ -334,13 +339,13 @@ export function ManageTournament({ id }: { id: string }) {
                 {roundTitle(tr, r)}
                 <span className="font-sans text-sm text-muted-foreground">{t(`rounds.status.${r.status}`)}</span>
               </span>}>
-                {content && (
+                {scenarios.list.length > 0 && (
                   <NativeSelect aria-label={tm("scenario")} className="h-8 w-full font-sans sm:w-56" value={r.scenario ?? ""}
                     disabled={r.status === "COMPLETED"}
                     onChange={(e) => run(() => api("PUT", `/api/tournaments/${id}/rounds/${r.number}/scenario`,
                       { scenarioCode: e.target.value || null }))}>
                     <option value="">{tm("noScenario")}</option>
-                    {content.quests.map((q) => <option key={q.code} value={q.code}>{q.name}</option>)}
+                    {scenarios.list.map((q) => <option key={q.code} value={q.code}>{q.name}</option>)}
                   </NativeSelect>
                 )}
               {r.status !== "COMPLETED" && (
@@ -379,7 +384,8 @@ export function ManageTournament({ id }: { id: string }) {
       {rounds.length > 0 && (
         <CollapsibleCard title={t("viewTabs.standings")} contentClassName="grid gap-4">
             {teamEvent && teamStandings && <TeamStandingsTable rows={teamStandings} />}
-            <StandingsTable data={standings} showPenalties={false} />
+            <StandingsTable data={standings} showPenalties={false} pointsFirst={ba}
+              secondary={tournament.settings.secondarySlot} />
             <form method="post" className="flex flex-wrap items-end gap-2" onSubmit={(e) => {
               e.preventDefault();
               if (!penalty.userId || !penalty.reason.trim()) return;
@@ -466,7 +472,23 @@ export function ManageTournament({ id }: { id: string }) {
                         </Link>
                       )}
                       {p.status === "WAITLIST" && (
-                        <span className="ml-2 text-xs text-muted-foreground">({t("details.waitlist")})</span>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          ({tournament.requireApproval ? tm("pending") : t("details.waitlist")})
+                        </span>
+                      )}
+                      {/* Approval: waiting → approved, or back while no round exists. */}
+                      {!teamEvent && p.status === "WAITLIST" && !["FINISHED", "CANCELLED"].includes(status) && (
+                        <Button size="sm" variant="outline" className="mt-1 h-7 px-2 text-xs sm:ml-2 sm:mt-0"
+                          onClick={() => run(() => api("PATCH", `/api/tournaments/${id}/participants/${p.id}`, { status: "REGISTERED" }))}>
+                          <Check aria-hidden className="size-3" /> {tm("approve")}
+                        </Button>
+                      )}
+                      {!teamEvent && tournament.requireApproval && p.status === "REGISTERED" && rounds.length === 0
+                        && ["DRAFT", "PUBLISHED", "REGISTRATION_CLOSED"].includes(status) && (
+                        <button type="button" className="block text-xs text-muted-foreground underline-offset-2 hover:underline sm:ml-2 sm:inline"
+                          onClick={() => run(() => api("PATCH", `/api/tournaments/${id}/participants/${p.id}`, { status: "WAITLIST" }))}>
+                          {tm("unapprove")}
+                        </button>
                       )}
                       {p.dropped && <span className="ml-2 text-xs text-destructive">({tm("dropped")})</span>}
                     </td>

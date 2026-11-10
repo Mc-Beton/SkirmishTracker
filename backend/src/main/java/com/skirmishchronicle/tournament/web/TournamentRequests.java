@@ -1,5 +1,7 @@
 package com.skirmishchronicle.tournament.web;
 
+import com.skirmishchronicle.common.GameSystem;
+import com.skirmishchronicle.tournament.domain.ListVisibility;
 import com.skirmishchronicle.common.ApiException;
 import com.skirmishchronicle.tournament.domain.ListFormat;
 import org.springframework.http.HttpStatus;
@@ -76,7 +78,20 @@ public final class TournamentRequests {
             @Size(max = 30) List<@Valid RoundPlanRequest> roundPlans,
             ListFormat listFormat,
             @Min(1) @Max(10000) Integer partyLimit,
-            Boolean hiddenRosters) {
+            Boolean hiddenRosters,
+            /** Fixed at creation; ignored on update (the service rejects a change). Null = Eldfall. */
+            GameSystem gameSystem,
+            Boolean secondarySlot,
+            @Min(1) @Max(1000) Integer maxPrimaryPoints,
+            @Min(1) @Max(1000) Integer maxSecondaryPoints,
+            @Min(1) @Max(100) Integer maxOrderDice,
+            @Min(1) @Max(20) Integer maxPlatoons,
+            ListVisibility listVisibility,
+            Boolean requireApproval) {
+
+        public GameSystem system() {
+            return gameSystem == null ? GameSystem.ELDFALL : gameSystem;
+        }
 
         /** Null = keep the current plan (older clients); empty = no plan. */
         public List<TournamentViews.RoundPlan> toPlans() {
@@ -105,7 +120,8 @@ public final class TournamentRequests {
                             ? DifferenceRow.parse(DifferenceRow.DEFAULT)
                             : differenceTable.stream()
                                     .map(r -> new DifferenceRow(r.upTo(), r.winner(), r.loser())).toList(),
-                    or(topCut, 0), teamSize, Boolean.TRUE.equals(teamUniqueFactions));
+                    or(topCut, 0), teamSize, Boolean.TRUE.equals(teamUniqueFactions), gameSystem,
+                    Boolean.TRUE.equals(secondarySlot), maxPrimaryPoints, maxSecondaryPoints);
         }
 
         private static int or(Integer value, int fallback) {
@@ -126,7 +142,9 @@ public final class TournamentRequests {
             }
             return new TournamentDetails(name, blankToNull(description), startsAt, endsAt, blankToNull(venueName),
                     blankToNull(address), city, country, entryFeeAmount, entryFeeCurrency, rank, format, maxPlayers,
-                    limit, roundsPlanned, listDeadline, lf, party, lf == ListFormat.ROSTER && Boolean.TRUE.equals(hiddenRosters));
+                    limit, roundsPlanned, listDeadline, lf, party, lf == ListFormat.ROSTER && Boolean.TRUE.equals(hiddenRosters),
+                    maxOrderDice, maxPlatoons, listVisibility == null ? ListVisibility.AFTER_DEADLINE : listVisibility,
+                    Boolean.TRUE.equals(requireApproval));
         }
 
         private static String blankToNull(String s) {
@@ -150,11 +168,14 @@ public final class TournamentRequests {
     public record ChallengeRequest(@NotNull UUID challengedUserId) {
     }
 
-    public record ScoreRequest(@NotNull @Min(0) @Max(1000) Integer smallA, @NotNull @Min(0) @Max(1000) Integer smallB) {
+    /** secondaryA / secondaryB: second score slot, required only when the tournament uses two-slot scoring. */
+    public record ScoreRequest(@NotNull @Min(0) @Max(1000) Integer smallA, @NotNull @Min(0) @Max(1000) Integer smallB,
+                               @Min(0) @Max(1000) Integer secondaryA, @Min(0) @Max(1000) Integer secondaryB) {
     }
 
     public record ResultRequest(@NotNull MatchResultType type, @Min(0) @Max(1000) Integer smallA,
-                                @Min(0) @Max(1000) Integer smallB) {
+                                @Min(0) @Max(1000) Integer smallB,
+                                @Min(0) @Max(1000) Integer secondaryA, @Min(0) @Max(1000) Integer secondaryB) {
     }
 
     public record SwapRequest(@NotNull UUID playerX, @NotNull UUID playerY) {
@@ -171,6 +192,8 @@ public final class TournamentRequests {
     public record AddPlayerRequest(@NotBlank @Size(max = 32) String displayName) {
     }
 
-    public record UpdateParticipantRequest(Boolean paid, ListStatus listStatus) {
+    /** status: REGISTERED approves a waiting player, WAITLIST moves an approved one back (before round 1). */
+    public record UpdateParticipantRequest(Boolean paid, ListStatus listStatus,
+                                           com.skirmishchronicle.tournament.domain.ParticipantStatus status) {
     }
 }

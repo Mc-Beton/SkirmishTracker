@@ -86,7 +86,7 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   (tylko za frontendem / reverse proxy).
 - **Błędy API:** `throw new ApiException(status, "KOD")`, a kod dopisujemy do `errors` w `pl.json` i `en.json`.
 - **Baza:** zmiany wyłącznie nowymi migracjami `V<n>__opis.sql` (Hibernate ma `ddl-auto=validate`).
-  Następna wolna: **V19**.
+  Następna wolna: **V23**.
 - **Teksty UI:** zawsze w obu plikach `messages/pl.json` i `messages/en.json`.
 - **Mobile first:** żaden widok nie może przewijać się na boki na telefonie (~390 px). Tabele na telefonie
   chowają kolumny (`hidden sm:table-cell`) i pokazują skrót pod nazwą.
@@ -244,6 +244,41 @@ Pełny opis: `docs/online-play.md`. W skrócie:
 - Tryb mierzenia (Assisted/Standard/Realism) wybierany przy zakładaniu stołu; sędzia (link jednorazowy, poprawia
   wszystkie figurki, cofa dowolne kroki) i obserwatorzy (opcja założyciela, tylko podgląd), tabela `table_watchers`.
 - Nieuruchomione u mnie: `TableIntegrationTest` (Testcontainers), `next build`, UI w przeglądarce, V18 na Postgresie.
+
+## 6i. Drugi system gry: Bolt Action (listopad 2026)
+
+- **Przełącznik systemu** pod logo (`components/game-system-switcher.tsx`): ciasteczko `WB_SYSTEM`
+  (`ELDFALL` / `BOLT_ACTION`), czytane w `app/layout.tsx` (motyw bez mignięcia), kontekst `useGameSystem()`.
+  Listy turniejów, lig, ranking, kalendarz i profil gracza filtrują po systemie (`?system=`).
+- **Motyw Bolt Action** „Modern Wargame”: jasny (pergamin `#f4f2ea`, szałwia `#7d8b6c`, zieleń `#34483c`,
+  terakota `#c0825f`) – `:root[data-system="bolt-action"]` w `globals.css`; html bez klasy `dark`.
+  Eldfall bez zmian. Nagłówek/stopka używają `--chrome`.
+- **Bez modułów informacyjnych** w Bolt Action: scenariusze, sezony, gry własne, Moje rozpiski, stoły online,
+  raporty wydawcy (menu je chowa, przełączenie z takiej strony przenosi na /tournaments). Brak turniejów
+  drużynowych i formatu Roster (`BOLT_ACTION_NO_TEAMS`, `BOLT_ACTION_NO_ROSTER`), brak trybu tura po turze
+  i losowania scheme (`TournamentGuard.requireEldfall` → `NOT_AVAILABLE_FOR_GAME_SYSTEM`).
+- **Wynik meczu** tylko na koniec gry. Organizator wybiera: jeden slot punktów albo dwa (scenariusz + cele
+  dodatkowe), każdy z opcjonalnym limitem (`SCORE_OVER_LIMIT`, `SECONDARY_OVER_LIMIT`, `SECONDARY_REQUIRED`).
+  O wyniku decyduje suma punktów scenariusza, przy remisie cele dodatkowe (`TournamentSettings.outcome`).
+  Punkty turniejowe W/D/L ustawia organizator. **Tabela BA:** punkty turniejowe (minus kary) → punkty scenariusza
+  → cele dodatkowe (`Standings.order`, `pointsFirst()`). Eldfall bez zmian. Testy: `BoltActionScoringTest`.
+- **Rozpiski BA** (pakiet `boltaction`, `/api/tournaments/{id}/ba-lists`): nacja (lista w `BoltAction.NATIONS`),
+  deklarowane punkty / kości rozkazów / plutony (limity organizatora: `pointsLimit`, `maxOrderDice`,
+  `maxPlatoons`), tekst (do 20 000 znaków) i/lub PDF (do 5 MB, rozpoznawany po sygnaturze `%PDF-`, pobierany
+  jako załącznik z `nosniff` i CSP `sandbox`; bajty w osobnej tabeli `ba_list_pdfs`). Statusy jak w Eldfall
+  (zatwierdzona / do poprawy). Widoczność dla innych graczy: po 1. parowaniach / po terminie / zawsze / ukryte
+  (`listVisibility`). Strony `/tournaments/{id}/warband` i `/warbands/{userId}` wybierają edytor po systemie.
+- **Zatwierdzanie zgłoszeń** (`requireApproval`, oba systemy): zapis trafia na listę oczekujących, organizator
+  klika „Zatwierdź” (PATCH participant `status: REGISTERED`, `TOURNAMENT_FULL` przy braku miejsc) lub cofa
+  przed 1. rundą. Opłata i status rozpiski – jak dotąd.
+- **ELO osobno dla każdego systemu** (`RatingService.games(system)` / `ratings(system)`; bez argumentu = Eldfall,
+  więc raporty i sezony liczą tylko Eldfall). Ligi mają `game_system` (stały od utworzenia), przyjmują tylko
+  turnieje swojego systemu (`LEAGUE_GAME_SYSTEM_MISMATCH`); ligi BA liczą tylko turnieje (bez gier własnych).
+  Program oficjalny (sezony, oficjalne turnieje) – tylko Eldfall.
+- Migracja `V22__game_systems.sql`. Sprawdzone u mnie: składnia i spójność wywołań Javy (javac bez zależności),
+  logika punktacji/tabeli/ELO na harnessie, `tsc --noEmit`, eslint, parytet PL/EN.
+  **Nieuruchomione:** `./gradlew build` (testy JUnit i integracyjne), migracja V22 na Postgresie, `next build`,
+  UI w przeglądarce.
 
 ## 7. Dokumentacja w repo
 

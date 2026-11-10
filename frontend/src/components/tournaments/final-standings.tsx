@@ -14,8 +14,11 @@ const PODIUM = ["text-amber-500", "text-slate-400", "text-orange-700"];
  * Final classification of a finished tournament. Singles: podium + full table. Teams: every team in final order
  * with its players and what each of them scored individually.
  */
-export function FinalStandings({ standings, teamStandings, teams, meId, myTeamId }: {
+export function FinalStandings({ standings, teamStandings, teams, meId, myTeamId, pointsFirst = false, secondary = false }: {
   standings: StandingsData;
+  /** Bolt Action table (tournament points → scenario → secondary). */
+  pointsFirst?: boolean;
+  secondary?: boolean;
   teamStandings: TeamStandingRow[] | null;
   teams: TeamsData | null;
   meId?: string;
@@ -86,7 +89,7 @@ export function FinalStandings({ standings, teamStandings, teams, meId, myTeamId
             })}
           </ol>
         ) : (
-          <StandingsTable data={standings} highlight={meId} />
+          <StandingsTable data={standings} highlight={meId} pointsFirst={pointsFirst} secondary={secondary} />
         )}
       </CardContent>
     </Card>

@@ -12,6 +12,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { OfficialBadge, RankBadge } from "@/components/tournaments/status-badge";
 import { api } from "@/lib/api";
+import { useGameSystem } from "@/components/game-system-provider";
 import type { TournamentRank, TournamentStatus } from "@/lib/tournaments";
 
 type CalendarEvent = {
@@ -52,7 +53,8 @@ export function CalendarView() {
 
   const from = monthStart(offset);
   const to = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + MONTHS_SHOWN, 0));
-  const params = new URLSearchParams({ from: iso(from), to: iso(to) });
+  const { system } = useGameSystem();
+  const params = new URLSearchParams({ from: iso(from), to: iso(to), system });
   if (country) params.set("country", country);
   if (official) params.set("official", "true");
   const key = params.toString();

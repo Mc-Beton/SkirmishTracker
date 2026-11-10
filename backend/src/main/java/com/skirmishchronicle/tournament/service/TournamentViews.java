@@ -27,7 +27,8 @@ public final class TournamentViews {
     public record Summary(UUID id, String name, Instant startsAt, String city, String venueName,
                           TournamentRank rank, TournamentFormat format, TournamentStatus status,
                           Integer maxPlayers, long registeredCount, Integer pointsLimit, String organizerName,
-                          boolean official, ListFormat listFormat, Integer partyLimit) {
+                          boolean official, ListFormat listFormat, Integer partyLimit,
+                          com.skirmishchronicle.common.GameSystem gameSystem) {
     }
 
     public record Detail(UUID id, String name, String description, Instant startsAt, Instant endsAt,
@@ -45,7 +46,13 @@ public final class TournamentViews {
                          boolean official,
                          ListFormat listFormat,
                          Integer partyLimit,
-                         boolean hiddenRosters) {
+                         boolean hiddenRosters,
+                         com.skirmishchronicle.common.GameSystem gameSystem,
+                         /** Bolt Action list limits (points limit: pointsLimit). */
+                         Integer maxOrderDice,
+                         Integer maxPlatoons,
+                         com.skirmishchronicle.tournament.domain.ListVisibility listVisibility,
+                         boolean requireApproval) {
     }
 
     /** pairing / softPreferences null = default for that round. */

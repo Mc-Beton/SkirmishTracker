@@ -15,9 +15,14 @@ public interface MatchRepository extends JpaRepository<TournamentMatch, UUID> {
 
     List<TournamentMatch> findByRoundIdOrderByTableNumberAsc(UUID roundId);
 
-    /** Rows [matchId, playerA, playerB, smallA, smallB, roundStartedAt, tournamentId] of played, confirmed games. */
-    @Query("select m.id, m.playerA, m.playerB, m.smallA, m.smallB, r.startedAt, m.tournamentId "
-            + "from TournamentMatch m, TournamentRound r where r.id = m.roundId and m.status = :status "
+    /**
+     * Rows [matchId, playerA, playerB, smallA, smallB, roundStartedAt, tournamentId, secondaryA, secondaryB,
+     * gameSystem] of played, confirmed games.
+     */
+    @Query("select m.id, m.playerA, m.playerB, m.smallA, m.smallB, r.startedAt, m.tournamentId, "
+            + "m.secondaryA, m.secondaryB, t.gameSystem "
+            + "from TournamentMatch m, TournamentRound r, Tournament t where r.id = m.roundId "
+            + "and t.id = m.tournamentId and m.status = :status "
             + "and m.resultType = :type and m.playerB is not null")
     List<Object[]> playedGames(MatchStatus status, MatchResultType type);
 

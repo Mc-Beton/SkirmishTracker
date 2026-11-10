@@ -1,5 +1,6 @@
 package com.skirmishchronicle.profile;
 
+import com.skirmishchronicle.common.GameSystem;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,18 +24,19 @@ public class ProfileController {
     }
 
     @GetMapping("/api/players/{id}")
-    public ProfileService.Profile profile(@PathVariable UUID id) {
-        return profiles.profile(id);
+    public ProfileService.Profile profile(@PathVariable UUID id, @RequestParam(required = false) String system) {
+        return profiles.profile(id, GameSystem.parse(system));
     }
 
     /** Public: head-to-head record of {@code id} against {@code opponentId}. */
     @GetMapping("/api/players/{id}/versus/{opponentId}")
-    public ProfileService.Versus versus(@PathVariable UUID id, @PathVariable UUID opponentId) {
-        return profiles.versus(id, opponentId);
+    public ProfileService.Versus versus(@PathVariable UUID id, @PathVariable UUID opponentId,
+                                        @RequestParam(required = false) String system) {
+        return profiles.versus(id, opponentId, GameSystem.parse(system));
     }
 
     @GetMapping("/api/ranking")
-    public List<ProfileService.RankingRow> ranking() {
-        return profiles.ranking(200);
+    public List<ProfileService.RankingRow> ranking(@RequestParam(required = false) String system) {
+        return profiles.ranking(200, GameSystem.parse(system));
     }
 }

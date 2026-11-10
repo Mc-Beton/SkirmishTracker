@@ -11,6 +11,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { api } from "@/lib/api";
 import type { LeagueSummary } from "@/lib/leagues";
+import { useGameSystem } from "@/components/game-system-provider";
 
 export function LeagueList() {
   const t = useTranslations("leagues");
@@ -18,17 +19,18 @@ export function LeagueList() {
   const errorMessage = useErrorMessage();
   const { me } = useAuth();
   const [items, setItems] = useState<LeagueSummary[] | null>(null);
+  const { system } = useGameSystem();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    api<LeagueSummary[]>("GET", "/api/leagues")
+    api<LeagueSummary[]>("GET", `/api/leagues?system=${system}`)
       .then((l) => active && setItems(l))
       .catch((err) => active && setError(errorMessage(err)));
     return () => {
       active = false;
     };
-  }, [errorMessage]);
+  }, [system, errorMessage]);
 
   const date = (d: string) => format.dateTime(new Date(`${d}T00:00:00`), { dateStyle: "medium" });
 

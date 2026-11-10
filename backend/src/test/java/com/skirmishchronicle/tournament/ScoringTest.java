@@ -14,7 +14,8 @@ class ScoringTest {
 
     private static TournamentSettings settings(ScoringMode mode, String table) {
         return new TournamentSettings(FirstRoundMode.RANDOM, false, true, false, false, false, false, mode,
-                3, 1, 0, 2, 3, 0, 1, 0, DifferenceRow.parse(table), 0, null, false);
+                3, 1, 0, 2, 3, 0, 1, 0, DifferenceRow.parse(table), 0, null, false,
+                com.skirmishchronicle.common.GameSystem.ELDFALL, false, null, null);
     }
 
     @Test

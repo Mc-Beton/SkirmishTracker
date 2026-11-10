@@ -1,4 +1,5 @@
 import type { TournamentRank, TournamentStatus } from "@/lib/tournaments";
+import type { GameSystem } from "@/lib/game-system";
 
 export type LeagueScoringMode = "PLACE_POINTS" | "BIG_POINTS" | "ELO";
 export const LEAGUE_SCORING_MODES: LeagueScoringMode[] = ["PLACE_POINTS", "BIG_POINTS", "ELO"];
@@ -22,6 +23,8 @@ export type LeagueSettings = {
   gameWinPoints: number;
   gameDrawPoints: number;
   gameLossPoints: number;
+  /** Fixed at creation. */
+  gameSystem: GameSystem;
 };
 
 export type LeagueSummary = {
@@ -34,6 +37,7 @@ export type LeagueSummary = {
   owner: Ref;
   members: number;
   tournaments: number;
+  gameSystem: GameSystem;
   active: boolean;
 };
 
@@ -91,4 +95,5 @@ export const DEFAULT_LEAGUE: LeagueSettings = {
   gameWinPoints: 3,
   gameDrawPoints: 1,
   gameLossPoints: 0,
+  gameSystem: "ELDFALL",
 };

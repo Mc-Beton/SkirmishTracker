@@ -5,7 +5,13 @@ import { useTranslations } from "next-intl";
 import type { StandingsData } from "@/lib/tournaments";
 import { cn } from "@/lib/utils";
 
-export function StandingsTable({ data, highlight, showPenalties = true }: { data: StandingsData; highlight?: string; showPenalties?: boolean }) {
+/**
+ * `pointsFirst` (Bolt Action): the table is ordered by tournament points, then scenario points, then secondary
+ * points – the columns are labelled that way and wins are not emphasised.
+ */
+export function StandingsTable({ data, highlight, showPenalties = true, pointsFirst = false, secondary = false }: {
+  data: StandingsData; highlight?: string; showPenalties?: boolean; pointsFirst?: boolean; secondary?: boolean;
+}) {
   const t = useTranslations("tournaments.standings");
   if (data.rows.every((r) => r.played === 0)) {
     return <p className="text-sm text-muted-foreground">{t("empty")}</p>;
@@ -22,9 +28,10 @@ export function StandingsTable({ data, highlight, showPenalties = true }: { data
               <th className="hidden py-2 pr-2 text-right font-medium sm:table-cell" title="W">{t("wins")}</th>
               <th className="hidden py-2 pr-2 text-right font-medium sm:table-cell">{t("draws")}</th>
               <th className="hidden py-2 pr-2 text-right font-medium sm:table-cell">{t("losses")}</th>
-              <th className="py-2 pr-2 text-right font-medium">{t("big")}</th>
+              <th className="py-2 pr-2 text-right font-medium">{pointsFirst ? t("tp") : t("big")}</th>
               <th className="hidden py-2 pr-2 text-right font-medium sm:table-cell">{t("penalty")}</th>
-              <th className="py-2 pr-2 text-right font-medium sm:pr-2">{t("small")}</th>
+              <th className="py-2 pr-2 text-right font-medium sm:pr-2">{pointsFirst ? t("scenario") : t("small")}</th>
+              {secondary && <th className="py-2 pr-2 text-right font-medium">{t("secondary")}</th>}
               <th className="hidden py-2 text-right font-medium sm:table-cell">{t("played")}</th>
             </tr>
           </thead>
@@ -47,12 +54,13 @@ export function StandingsTable({ data, highlight, showPenalties = true }: { data
                     {r.penaltyPoints > 0 && <span className="text-destructive"> · {t("penaltyShort", { n: r.penaltyPoints })}</span>}
                   </span>
                 </td>
-                <td className="hidden py-2 pr-2 text-right font-semibold sm:table-cell">{r.wins}</td>
+                <td className={cn("hidden py-2 pr-2 text-right sm:table-cell", !pointsFirst && "font-semibold")}>{r.wins}</td>
                 <td className="hidden py-2 pr-2 text-right sm:table-cell">{r.draws}</td>
                 <td className="hidden py-2 pr-2 text-right sm:table-cell">{r.losses}</td>
                 <td className="py-2 pr-2 text-right font-semibold">{r.totalBigPoints}</td>
                 <td className="hidden py-2 pr-2 text-right text-destructive sm:table-cell">{r.penaltyPoints ? `−${r.penaltyPoints}` : ""}</td>
-                <td className="py-2 text-right sm:pr-2">{r.smallPoints}</td>
+                <td className="py-2 pr-2 text-right sm:pr-2">{r.smallPoints}</td>
+                {secondary && <td className="py-2 pr-2 text-right">{r.secondaryPoints}</td>}
                 <td className="hidden py-2 text-right sm:table-cell">{r.played}</td>
               </tr>
             ))}

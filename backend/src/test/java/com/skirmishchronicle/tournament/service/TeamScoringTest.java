@@ -26,7 +26,8 @@ class TeamScoringTest {
 
     private final TournamentSettings s = new TournamentSettings(FirstRoundMode.RANDOM, false, true, false, false,
             false, false, ScoringMode.WIN_DRAW_LOSS, 3, 1, 0, 2, 3, 0, 1, 0, DifferenceRow.parse(DifferenceRow.DEFAULT),
-            0, 3, false);
+            0, 3, false,
+            com.skirmishchronicle.common.GameSystem.ELDFALL, false, null, null);
     private final UUID tid = UUID.randomUUID();
     private final UUID red = UUID.randomUUID();
     private final UUID blue = UUID.randomUUID();

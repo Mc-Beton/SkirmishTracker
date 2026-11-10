@@ -15,6 +15,7 @@ import { PlayStatsSection } from "@/components/players/play-stats";
 import { Badges } from "@/components/players/badges";
 import { StatusBadge } from "@/components/tournaments/status-badge";
 import { api } from "@/lib/api";
+import { useGameSystem } from "@/components/game-system-provider";
 import type { Versus, PlayerProfile } from "@/lib/players";
 import { factionName, useArmies } from "@/lib/warbands";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,10 @@ export function PlayerProfileView({ id }: { id: string }) {
   const armies = useArmies();
   const { me } = useAuth();
   const [p, setP] = useState<PlayerProfile | null>(null);
+  // ELO, games, tournaments and leagues of the game system chosen under the logo.
+  const { system } = useGameSystem();
+  const ba = system === "BOLT_ACTION";
+  const tn = useTranslations("boltAction.nations");
   const [error, setError] = useState<string | null>(null);
 
   // Head-to-head of the signed-in player against this one.
@@ -36,23 +41,23 @@ export function PlayerProfileView({ id }: { id: string }) {
   useEffect(() => {
     if (!meId || meId === id) return;
     let active = true;
-    api<Versus>("GET", `/api/players/${meId}/versus/${id}`)
+    api<Versus>("GET", `/api/players/${meId}/versus/${id}?system=${system}`)
       .then((v) => active && setVersus(v))
       .catch(() => active && setVersus(null));
     return () => {
       active = false;
     };
-  }, [meId, id]);
+  }, [meId, id, system]);
 
   useEffect(() => {
     let active = true;
-    api<PlayerProfile>("GET", `/api/players/${id}`)
+    api<PlayerProfile>("GET", `/api/players/${id}?system=${system}`)
       .then((x) => active && setP(x))
       .catch((err) => active && setError(errorMessage(err)));
     return () => {
       active = false;
     };
-  }, [id, errorMessage]);
+  }, [id, system, errorMessage]);
 
   if (!p) {
     return <div className="mx-auto w-full max-w-5xl px-4 py-10">{error && <Alert variant="destructive">{error}</Alert>}</div>;
@@ -140,7 +145,7 @@ export function PlayerProfileView({ id }: { id: string }) {
         </Card>
       )}
 
-      {p.playStats && <PlayStatsSection stats={p.playStats} armies={armies} />}
+      {!ba && p.playStats && <PlayStatsSection stats={p.playStats} armies={armies} />}
 
       <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
@@ -229,13 +234,13 @@ export function PlayerProfileView({ id }: { id: string }) {
         )}
 
         <Card>
-          <CardHeader><CardTitle className="text-xl">{t("factions")}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-xl">{ba ? t("nations") : t("factions")}</CardTitle></CardHeader>
           <CardContent>
-            {p.factions.length === 0 ? <p className="text-sm text-muted-foreground">{t("noFactions")}</p> : (
+            {p.factions.length === 0 ? <p className="text-sm text-muted-foreground">{(ba ? t("noNations") : t("noFactions"))}</p> : (
               <ul className="grid gap-1 text-sm">
                 {p.factions.map((f) => (
                   <li key={f.faction} className="flex justify-between">
-                    <span>{factionName(armies, f.faction)}</span>
+                    <span>{ba ? (tn.has(f.faction) ? tn(f.faction) : f.faction) : factionName(armies, f.faction)}</span>
                     <span className="tabular-nums text-muted-foreground">{t("lists", { n: f.count })}</span>
                   </li>
                 ))}

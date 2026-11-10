@@ -74,7 +74,9 @@ public class RoundService {
     public record MatchView(UUID id, int table, PlayerRef playerA, PlayerRef playerB, MatchStatus status,
                             MatchResultType resultType, Integer smallA, Integer smallB, Integer bigA, Integer bigB,
                             UUID reportedBy, boolean rematch, boolean canReport, boolean canConfirm,
-                            Integer seedA, Integer seedB, UUID advancing, boolean judgeCalled, UUID teamMatchId) {
+                            Integer seedA, Integer seedB, UUID advancing, boolean judgeCalled, UUID teamMatchId,
+                            /** Second score slot (two-slot scoring only). */
+                            Integer secondaryA, Integer secondaryB) {
     }
 
     /** stage: FINAL, SEMIFINAL, QUARTERFINAL, ROUND_OF_16… for knockout rounds, otherwise null. */
@@ -94,7 +96,7 @@ public class RoundService {
      */
     public record StandingRow(int position, UUID userId, String displayName, int wins, int draws, int losses,
                               int bigPoints, int penaltyPoints, int totalBigPoints, int smallPoints, int played,
-                              boolean dropped, boolean knockout, boolean eliminated) {
+                              boolean dropped, boolean knockout, boolean eliminated, int secondaryPoints) {
     }
 
     public record PenaltyView(UUID id, UUID userId, String displayName, int bigPoints, String reason) {
@@ -408,9 +410,9 @@ public class RoundService {
         }
         KnockoutBracket.Seeded a = new KnockoutBracket.Seeded(m.getPlayerA(), seedOr(m.getSeedA()));
         KnockoutBracket.Seeded b = new KnockoutBracket.Seeded(m.getPlayerB(), seedOr(m.getSeedB()));
-        int sa = m.getSmallA() == null ? 0 : m.getSmallA();
-        int sb = m.getSmallB() == null ? 0 : m.getSmallB();
-        return KnockoutBracket.winner(a, b, sa, sb);
+        // Scenario points decide; secondary points (two-slot scoring) break a tie; then the higher seed.
+        int outcome = m.getResultType() == MatchResultType.PLAYED ? m.outcomeA() : 0;
+        return KnockoutBracket.winner(a, b, Math.max(outcome, 0), Math.max(-outcome, 0));
     }
 
     /** Seeds for round robin / elimination: random, or by ELO when the first-round mode uses ELO. */
@@ -418,7 +420,8 @@ public class RoundService {
         List<TournamentParticipant> order = new ArrayList<>(active);
         Collections.shuffle(order, random);
         if (settings.firstRoundMode() != PairingModels.FirstRoundMode.RANDOM) {
-            Map<UUID, Integer> elo = ratings.current(order.stream().map(TournamentParticipant::getUserId).toList());
+            Map<UUID, Integer> elo = ratings.current(order.stream().map(TournamentParticipant::getUserId).toList(),
+                    settings.gameSystem());
             order.sort(Comparator.comparingInt((TournamentParticipant p) ->
                     elo.getOrDefault(p.getUserId(), RatingService.START)).reversed());
         }
@@ -567,8 +570,23 @@ public class RoundService {
     /** A player enters the score of their own game. Same score from both players confirms it. */
     @Transactional
     public void report(CurrentUser actor, UUID tournamentId, UUID matchId, int smallA, int smallB) {
-        guard.lock(tournamentId);
-        validateScore(smallA, smallB);
+        report(actor, tournamentId, matchId, smallA, smallB, null, null);
+    }
+
+    /**
+     * A player enters the final score of their own game: scenario points and – with two-slot scoring – secondary
+     * points. Same score from both players confirms it.
+     */
+    @Transactional
+    public void report(CurrentUser actor, UUID tournamentId, UUID matchId, int smallA, int smallB,
+                       Integer secondaryA, Integer secondaryB) {
+        Tournament locked = guard.lock(tournamentId);
+        TournamentSettings st = locked.settings();
+        validateScore(st, smallA, smallB, secondaryA, secondaryB);
+        if (!st.secondarySlot()) {
+            secondaryA = null;
+            secondaryB = null;
+        }
         TournamentMatch m = matchOf(tournamentId, matchId);
         requireRoundInProgress(m);
         if (m.isBye() || !m.involves(actor.id())) {
@@ -579,12 +597,14 @@ public class RoundService {
         }
         boolean opponentReportedSame = m.getStatus() == MatchStatus.REPORTED
                 && !actor.id().equals(m.getReportedBy())
-                && Integer.valueOf(smallA).equals(m.getSmallA()) && Integer.valueOf(smallB).equals(m.getSmallB());
+                && Integer.valueOf(smallA).equals(m.getSmallA()) && Integer.valueOf(smallB).equals(m.getSmallB())
+                && java.util.Objects.equals(secondaryA, m.getSecondaryA())
+                && java.util.Objects.equals(secondaryB, m.getSecondaryB());
         if (opponentReportedSame) {
             m.confirm(actor.id());
             return;
         }
-        m.report(actor.id(), smallA, smallB);
+        m.report(actor.id(), smallA, smallB, secondaryA, secondaryB);
         Tournament t = guard.visible(actor, tournamentId);
         UUID opponent = m.opponentOf(actor.id());
         // The opponent's own setting decides whether they confirm; by default the entered result is final.
@@ -594,7 +614,8 @@ public class RoundService {
         }
         notifications.notify(opponent, opponentConfirms ? NotificationType.RESULT_TO_CONFIRM
                 : NotificationType.RESULT_RECORDED, Map.of("tournament", t.getName(),
-                "opponent", name(actor.id()), "score", m.smallFor(opponent) + ":" + m.smallAgainst(opponent)),
+                "opponent", name(actor.id()), "score", scoreText(m.smallFor(opponent), m.smallAgainst(opponent),
+                        m.secondaryFor(opponent), m.secondaryFor(actor.id()))),
                 "/tournaments/" + tournamentId);
     }
 
@@ -624,7 +645,17 @@ public class RoundService {
     @Transactional
     public void setResult(CurrentUser actor, UUID tournamentId, UUID matchId, MatchResultType type,
                           Integer smallA, Integer smallB) {
-        guard.lockManaged(actor, tournamentId);
+        setResult(actor, tournamentId, matchId, type, smallA, smallB, null, null);
+    }
+
+    @Transactional
+    public void setResult(CurrentUser actor, UUID tournamentId, UUID matchId, MatchResultType type,
+                          Integer smallA, Integer smallB, Integer secondaryA, Integer secondaryB) {
+        TournamentSettings st = guard.lockManaged(actor, tournamentId).settings();
+        if (!st.secondarySlot()) {
+            secondaryA = null;
+            secondaryB = null;
+        }
         TournamentMatch m = matchOf(tournamentId, matchId);
         TournamentRound round = rounds.findById(m.getRoundId()).orElseThrow();
         if (round.getStatus() == RoundStatus.PAIRED) {
@@ -640,13 +671,13 @@ public class RoundService {
             if (smallA == null || smallB == null) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "SCORE_REQUIRED");
             }
-            validateScore(smallA, smallB);
-            m.setResult(actor.id(), type, smallA, smallB);
+            validateScore(st, smallA, smallB, secondaryA, secondaryB);
+            m.setResult(actor.id(), type, smallA, smallB, secondaryA, secondaryB);
         } else {
             m.setResult(actor.id(), MatchResultType.SPLIT, null, null);
         }
         Tournament tr = guard.visible(actor, tournamentId);
-        String score = type == MatchResultType.SPLIT ? "SPLIT" : smallA + ":" + smallB;
+        String score = type == MatchResultType.SPLIT ? "SPLIT" : scoreText(smallA, smallB, secondaryA, secondaryB);
         for (UUID p : List.of(m.getPlayerA(), m.getPlayerB())) {
             if (!p.equals(actor.id())) {
                 notifications.notify(p, NotificationType.RESULT_SET_BY_ORGANIZER, Map.of("tournament", tr.getName(),
@@ -655,7 +686,7 @@ public class RoundService {
         }
         audit.record(actor.id(), AUDIT_TYPE, tournamentId, "RESULT_SET",
                 "#" + round.getNumber() + " " + name(m.getPlayerA()) + " vs " + name(m.getPlayerB()) + ": "
-                        + (type == MatchResultType.SPLIT ? "SPLIT" : smallA + ":" + smallB));
+                        + (type == MatchResultType.SPLIT ? "SPLIT" : scoreText(smallA, smallB, secondaryA, secondaryB)));
     }
 
     // ------------------------------------------------------------------ penalties
@@ -770,7 +801,7 @@ public class RoundService {
             }
             out.add(new StandingRow(p.position(), r.userId, names.getOrDefault(r.userId, "?"), r.wins, r.draws,
                     r.losses, r.bigPoints, r.penaltyPoints, r.totalBig(), r.smallPoints, r.played,
-                    dropped.getOrDefault(r.userId, true), p.knockout(), p.eliminated()));
+                    dropped.getOrDefault(r.userId, true), p.knockout(), p.eliminated(), r.secondaryPoints));
         }
         List<PenaltyView> pv = pens.stream().map(p -> new PenaltyView(p.getId(), p.getUserId(),
                 names.getOrDefault(p.getUserId(), name(p.getUserId())), p.getBigPoints(), p.getReason())).toList();
@@ -853,7 +884,7 @@ public class RoundService {
             stats.put(r.userId, r);
         }
         Map<UUID, Integer> elo = !needElo ? Map.<UUID, Integer>of()
-                : ratings.current(active.stream().map(TournamentParticipant::getUserId).toList());
+                : ratings.current(active.stream().map(TournamentParticipant::getUserId).toList(), settings.gameSystem());
         List<Player> players = new ArrayList<>();
         for (TournamentParticipant p : active) {
             Standings.Row r = stats.get(p.getUserId());
@@ -884,8 +915,9 @@ public class RoundService {
                     bigB = s.splitBigPoints();
                 }
                 case PLAYED -> {
-                    bigA = s.bigPointsForGame(m.getSmallA(), m.getSmallB());
-                    bigB = s.bigPointsForGame(m.getSmallB(), m.getSmallA());
+                    int outcome = m.outcomeA();
+                    bigA = s.bigPointsForResult(m.getSmallA(), m.getSmallB(), outcome);
+                    bigB = s.bigPointsForResult(m.getSmallB(), m.getSmallA(), -outcome);
                 }
                 default -> { }
             }
@@ -905,7 +937,9 @@ public class RoundService {
                 m.getStatus(), m.getResultType(), smallA, smallB, bigA, bigB, m.getReportedBy(), rematch,
                 canReport, canConfirm, m.getSeedA(), m.getSeedB(),
                 r.getPhase() == RoundPhase.KNOCKOUT && m.getTeamMatchId() == null ? knockoutWinner(m) : null,
-                openCalls.contains(m.getId()), m.getTeamMatchId());
+                openCalls.contains(m.getId()), m.getTeamMatchId(),
+                m.getResultType() == MatchResultType.PLAYED ? m.getSecondaryA() : null,
+                m.getResultType() == MatchResultType.PLAYED ? m.getSecondaryB() : null);
     }
 
     private TournamentRound round(UUID tournamentId, int number) {
@@ -939,6 +973,32 @@ public class RoundService {
         if (a < 0 || b < 0 || a > MAX_SMALL_POINTS || b > MAX_SMALL_POINTS) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_SCORE");
         }
+    }
+
+    /** Range checks plus the organizer's slot limits; secondary points are required with two-slot scoring. */
+    static void validateScore(TournamentSettings s, int a, int b, Integer secA, Integer secB) {
+        validateScore(a, b);
+        if (s.maxPrimaryPoints() != null && (a > s.maxPrimaryPoints() || b > s.maxPrimaryPoints())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "SCORE_OVER_LIMIT");
+        }
+        if (!s.secondarySlot()) {
+            return;
+        }
+        if (secA == null || secB == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "SECONDARY_REQUIRED");
+        }
+        validateScore(secA, secB);
+        if (s.maxSecondaryPoints() != null && (secA > s.maxSecondaryPoints() || secB > s.maxSecondaryPoints())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "SECONDARY_OVER_LIMIT");
+        }
+    }
+
+    /** "8:5" or, with secondary points, "8 (+2) : 5 (+3)". */
+    static String scoreText(Integer a, Integer b, Integer secA, Integer secB) {
+        if (secA == null || secB == null) {
+            return a + ":" + b;
+        }
+        return a + " (+" + secA + ") : " + b + " (+" + secB + ")";
     }
 
     private Map<UUID, String> names(Collection<UUID> ids) {

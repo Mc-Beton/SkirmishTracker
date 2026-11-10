@@ -96,6 +96,7 @@ public class GameService {
     @Transactional(readOnly = true)
     public GameView view(CurrentUser viewer, UUID tournamentId, UUID matchId) {
         Tournament t = guard.visible(viewer, tournamentId);
+        TournamentGuard.requireEldfall(t);
         TournamentMatch m = matchOf(tournamentId, matchId);
         TournamentRound r = rounds.findById(m.getRoundId()).orElseThrow();
         boolean manager = TournamentGuard.canManage(viewer, t);
@@ -148,8 +149,11 @@ public class GameService {
 
     @Transactional
     public void setRoundScenario(CurrentUser actor, UUID tournamentId, int number, String scenarioCode) {
-        guard.lockManaged(actor, tournamentId);
-        if (scenarioCode != null && content.quest(scenarioCode).isEmpty()) {
+        Tournament t = guard.lockManaged(actor, tournamentId);
+        boolean known = scenarioCode == null || (t.isBoltAction()
+                ? com.skirmishchronicle.boltaction.BoltAction.isScenario(scenarioCode)
+                : content.quest(scenarioCode).isPresent());
+        if (!known) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "SCENARIO_NOT_FOUND");
         }
         TournamentRound r = rounds.findByTournamentIdAndNumber(tournamentId, number)
@@ -164,7 +168,7 @@ public class GameService {
 
     @Transactional
     public void resetDraw(CurrentUser actor, UUID tournamentId, UUID matchId, UUID userId) {
-        guard.lockManaged(actor, tournamentId);
+        TournamentGuard.requireEldfall(guard.lockManaged(actor, tournamentId));
         TournamentMatch m = matchOf(tournamentId, matchId);
         draws.findByMatchIdAndUserId(m.getId(), userId).ifPresent(d -> {
             draws.delete(d);
@@ -178,6 +182,7 @@ public class GameService {
     public void drawSchemes(CurrentUser actor, UUID tournamentId, UUID matchId, String requestedFaction,
                             Integer requestedInt) {
         Tournament t = guard.lock(tournamentId);
+        TournamentGuard.requireEldfall(t);
         TournamentMatch m = editableMatch(tournamentId, matchId);
         requireParticipant(actor, m);
         // A submitted warband decides faction and leader INT; manual values are only a fallback.
@@ -213,7 +218,7 @@ public class GameService {
 
     @Transactional
     public void keepScheme(CurrentUser actor, UUID tournamentId, UUID matchId, String schemeCode) {
-        guard.lock(tournamentId);
+        TournamentGuard.requireEldfall(guard.lock(tournamentId));
         TournamentMatch m = editableMatch(tournamentId, matchId);
         requireParticipant(actor, m);
         MatchSchemeDraw d = draws.findByMatchIdAndUserId(matchId, actor.id())
@@ -233,6 +238,7 @@ public class GameService {
     public void saveTurn(CurrentUser actor, UUID tournamentId, UUID matchId, UUID playerId, int turn,
                          int scenarioVp, int schemeVp) {
         Tournament t = guard.lock(tournamentId);
+        TournamentGuard.requireEldfall(t);
         TournamentMatch m = editableMatch(tournamentId, matchId);
         if (m.isBye() || !m.involves(playerId)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "PLAYER_NOT_IN_MATCH");
@@ -262,6 +268,7 @@ public class GameService {
     /** Ends the detailed game: the per-turn totals are reported as the result; the opponent confirms as usual. */
     @Transactional
     public void finish(CurrentUser actor, UUID tournamentId, UUID matchId) {
+        TournamentGuard.requireEldfall(guard.lock(tournamentId));
         TournamentMatch m = editableMatch(tournamentId, matchId);
         requireParticipant(actor, m);
         List<MatchTurnScore> all = turns.findByMatchId(matchId);

@@ -337,7 +337,26 @@
     "TABLE_TOO_MANY_MODELS": "Too many models on the table (max 40).",
     "TABLE_BAD_BACKGROUND": "Invalid mat.",
     "TABLE_UNKNOWN_SCHEME": "Unknown Scheme.",
-    "TABLE_LIST_REQUIRED": "Choose a list – without one you can only join a free game."
+    "TABLE_LIST_REQUIRED": "Choose a list – without one you can only join a free game.",
+    "GAME_SYSTEM_LOCKED": "The game system cannot be changed.",
+    "BOLT_ACTION_NO_TEAMS": "Team tournaments are Eldfall-only for now.",
+    "BOLT_ACTION_NO_ROSTER": "The Roster format is Eldfall-only.",
+    "BOLT_ACTION_WDL_ONLY": "Bolt Action tournament points are given for a win, draw and loss.",
+    "SECONDARY_SLOT_BOLT_ACTION_ONLY": "Two score slots are available in Bolt Action only.",
+    "NOT_AVAILABLE_FOR_GAME_SYSTEM": "This feature is not available in this game system.",
+    "SCORE_OVER_LIMIT": "The score is over the organizer's points limit.",
+    "SECONDARY_REQUIRED": "Enter both players' secondary objective points.",
+    "SECONDARY_OVER_LIMIT": "Secondary objectives are over the organizer's limit.",
+    "TOURNAMENT_FULL": "No free places – raise the player limit.",
+    "NATION_NOT_FOUND": "Pick a nation from the list.",
+    "LIST_TEXT_TOO_LONG": "The list is too long.",
+    "POINTS_OVER_LIMIT": "The list is over the points limit.",
+    "ORDER_DICE_OVER_LIMIT": "Too many order dice.",
+    "PLATOONS_OVER_LIMIT": "Too many platoons.",
+    "PDF_INVALID": "This is not a valid PDF file.",
+    "PDF_TOO_LARGE": "The PDF is too large (max 5 MB).",
+    "BA_LIST_SAVE_FIRST": "Save the list (nation and declarations) first.",
+    "LEAGUE_GAME_SYSTEM_MISMATCH": "The league is for a different game system than the tournament."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -395,7 +414,15 @@
       "noParticipants": "Nobody has registered yet.",
       "listFormat": "List format",
       "rosterFormat": "Roster {roster} pts → party {party} pts per game",
-      "hiddenRosters": "rosters hidden"
+      "hiddenRosters": "rosters hidden",
+      "listLimits": "List limits",
+      "scoring": "Game score",
+      "scoringTwoSlots": "Scenario (max {scenario}) + secondaries (max {secondary})",
+      "scoringOneSlot": "One slot (max {max})",
+      "tournamentPoints": "Tournament points",
+      "wdl": "Win {w} · draw {d} · loss {l}",
+      "listVisibility": "List visibility",
+      "pending": "Waiting for approval"
     },
     "join": "Register",
     "leave": "Withdraw",
@@ -497,7 +524,39 @@
       "partyLimit": "Party limit per game (pts)",
       "partyLimitHint": "Recommended: roster 125, party 85.",
       "hiddenRosters": "Hidden rosters",
-      "hiddenRostersHint": "Opponents do not see each other's rosters until the event ends (only the organizer does)."
+      "hiddenRostersHint": "Opponents do not see each other's rosters until the event ends (only the organizer does).",
+      "maxOrderDice": "Max order dice",
+      "maxOrderDiceHint": "Empty = no limit. Usually 18–20.",
+      "maxPlatoons": "Max platoons",
+      "maxPlatoonsHint": "Empty = no limit.",
+      "listVisibility": "List visibility",
+      "listVisibilityHint": {
+        "AFTER_FIRST_PAIRINGS": "Players see other lists once round 1 pairings are published.",
+        "AFTER_DEADLINE": "After the list deadline or once the event starts.",
+        "PUBLIC": "Lists are visible right away.",
+        "HIDDEN": "Only the organizer (and the owner) sees a list."
+      },
+      "listVisibilities": {
+        "AFTER_FIRST_PAIRINGS": "After round 1 pairings",
+        "AFTER_DEADLINE": "After the list deadline",
+        "PUBLIC": "Always visible",
+        "HIDDEN": "Hidden"
+      },
+      "requireApproval": "Organizer approves registrations",
+      "requireApprovalHint": "New players land on the waiting list; you move them to approved in the organizer panel.",
+      "avoidSameNation": "Same nation",
+      "scoreSlots": "Game score",
+      "scoreSlotsHint": {
+        "1": "One score per player – it decides the winner.",
+        "2": "Scenario points decide; secondary objectives break a tie."
+      },
+      "scoreSlotsOne": "One slot",
+      "scoreSlotsTwo": "Two slots: scenario + secondaries",
+      "maxScenarioPoints": "Scenario points limit",
+      "maxGamePoints": "Points limit per game",
+      "maxSecondaryPoints": "Secondary objectives limit",
+      "maxPointsHint": "Per player and game; empty = no limit.",
+      "tournamentPointsHint": "Set the tournament points for a win, draw and loss below. Table order: tournament points → scenario points → secondaries."
     },
     "manageView": {
       "title": "Organizer panel",
@@ -551,7 +610,10 @@
       "judgeResolve": "Resolved",
       "lineupHint": "Captains (and you) can change the board order until the round starts.",
       "teamPlayersHint": "Players join through teams – add them in the Teams section.",
-      "paidShort": "Paid"
+      "paidShort": "Paid",
+      "pending": "pending",
+      "approve": "Approve",
+      "unapprove": "Undo approval"
     },
     "listStatus": {
       "NOT_SUBMITTED": "None",
@@ -669,7 +731,9 @@
       },
       "judgeCalled": "Judge called",
       "callJudge": "Call a judge",
-      "callJudgeConfirm": "Call a judge to your table?"
+      "callJudgeConfirm": "Call a judge to your table?",
+      "scenarioPoints": "Scenario points",
+      "secondaryPoints": "Secondary objectives"
     },
     "standings": {
       "pos": "#",
@@ -688,7 +752,10 @@
       "eliminated": "out",
       "wdlShort": "{w}–{d}–{l}",
       "gamesShort": "{n, plural, one {# game} other {# games}}",
-      "penaltyShort": "penalty −{n}"
+      "penaltyShort": "penalty −{n}",
+      "tp": "TP",
+      "scenario": "Scen.",
+      "secondary": "Sec."
     },
     "inLeague": "League: {name}",
     "plan": {
@@ -793,7 +860,12 @@
     },
     "calendar": "Calendar",
     "addToCalendar": "Add to calendar",
-    "rosterShort": "Roster {roster}/{party}"
+    "rosterShort": "Roster {roster}/{party}",
+    "pendingMsg": "Your registration is waiting for the organizer's approval.",
+    "system": {
+      "ELDFALL": "Eldfall",
+      "BOLT_ACTION": "Bolt Action"
+    }
   },
   "game": {
     "back": "Back to tournament",
@@ -1136,7 +1208,9 @@
         "name": "Organizer",
         "hint": "Run a tournament to the end."
       }
-    }
+    },
+    "nations": "Nations",
+    "noNations": "No lists yet."
   },
   "games": {
     "title": "My games",
@@ -1269,7 +1343,8 @@
   "footer": {
     "disclaimer": "Unofficial fan-made project, created by a fan of the game. Eldfall Chronicles and its related elements belong to their respective owners.",
     "support": "Support",
-    "terms": "Terms and conditions of use"
+    "terms": "Terms and conditions of use",
+    "disclaimerBoltAction": "Unofficial fan project. Bolt Action is a trademark of Warlord Games; this app is not affiliated with them."
   },
   "support": {
     "title": "Support",
@@ -2215,5 +2290,84 @@
     "terrainLocked": "Terrain locked",
     "dragToBoard": "Drag onto the board, or click it and click on the board",
     "moveHelp": "Click the target – the model goes as far as the rules allow (click an enemy: into base contact). Shift + click adds a waypoint. The mouse wheel or the handle in front of the model turns it."
+  },
+  "system": {
+    "label": "Game system",
+    "name": {
+      "ELDFALL": "Eldfall Chronicles",
+      "BOLT_ACTION": "Bolt Action"
+    }
+  },
+  "boltAction": {
+    "nations": {
+      "GERMANY": "Germany",
+      "UNITED_STATES": "United States",
+      "GREAT_BRITAIN": "Great Britain",
+      "BRITISH_COMMONWEALTH": "British Commonwealth",
+      "SOVIET_UNION": "Soviet Union",
+      "IMPERIAL_JAPAN": "Imperial Japan",
+      "ITALY": "Italy",
+      "FRANCE": "France",
+      "POLAND": "Poland",
+      "FINLAND": "Finland",
+      "HUNGARY": "Hungary",
+      "ROMANIA": "Romania",
+      "BULGARIA": "Bulgaria",
+      "GREECE": "Greece",
+      "NORWAY": "Norway",
+      "BELGIUM": "Belgium",
+      "NETHERLANDS": "The Netherlands",
+      "PARTISANS": "Partisans",
+      "OTHER": "Other"
+    },
+    "scenarios": {
+      "BA_SEEK_AND_DESTROY": "Seek & Destroy",
+      "BA_KEY_POSITIONS": "Key Positions",
+      "BA_BREAKTHROUGH": "Breakthrough",
+      "BA_TOP_SECRET": "Top Secret",
+      "BA_DEMOLITION": "Demolition",
+      "BA_HOLD_UNTIL_RELIEVED": "Hold Until Relieved"
+    }
+  },
+  "baLists": {
+    "myList": "My list",
+    "pts": "pts",
+    "diceN": "{n} dice",
+    "platoonsN": "{n} plt.",
+    "notYet": "No list added yet.",
+    "none": "No list.",
+    "edit": "Edit list",
+    "add": "Add list",
+    "view": "View list",
+    "noLists": "No lists submitted.",
+    "hasText": "Text list",
+    "hasPdf": "PDF attached",
+    "tab": "Lists",
+    "backToTournament": "Back to the tournament",
+    "listOf": "List: {name}",
+    "limits": "Limits",
+    "limitPoints": "{n} pts",
+    "limitDice": "max {n} dice",
+    "limitPlatoons": "max {n} platoons",
+    "deadline": "Deadline: {at}",
+    "locked": "The list can no longer be changed.",
+    "nation": "Nation",
+    "pickNation": "Pick a nation",
+    "points": "Points",
+    "orderDice": "Order dice",
+    "platoons": "Platoons",
+    "text": "List",
+    "textPlaceholder": "Paste your list (e.g. an export from the Warlord Games app)…",
+    "textHint": "Text or a PDF is enough – you can add both.",
+    "pdf": "List as PDF",
+    "removePdf": "Remove PDF",
+    "pdfReplaceHint": "Pick a new file to replace the current one (max 5 MB).",
+    "pdfHint": "PDF file, max 5 MB.",
+    "save": "Save list",
+    "saved": "List saved – the organizer will review it.",
+    "downloadPdf": "Download {name}",
+    "confirmRemovePdf": "Remove the attached PDF?",
+    "pdfTooLarge": "The file is too large (max 5 MB).",
+    "needTextOrPdf": "Paste the list or attach a PDF."
   }
 }

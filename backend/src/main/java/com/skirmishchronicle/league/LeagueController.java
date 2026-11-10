@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -45,7 +46,8 @@ public class LeagueController {
                                 @DecimalMin("0") @DecimalMax("100") @Digits(integer = 3, fraction = 2) BigDecimal bigPointsMultiplier,
                                 @Min(0) @Max(1000) Integer gameWinPoints,
                                 @Min(0) @Max(1000) Integer gameDrawPoints,
-                                @Min(0) @Max(1000) Integer gameLossPoints) {
+                                @Min(0) @Max(1000) Integer gameLossPoints,
+                                com.skirmishchronicle.common.GameSystem gameSystem) {
 
         League.Settings toSettings() {
             return new League.Settings(name, blank(description), blank(city), startsOn, endsOn, scoringMode,
@@ -54,7 +56,7 @@ public class LeagueController {
                     or(participationPoints, 1), or(multiplierLocal, BigDecimal.ONE),
                     or(multiplierMaster, new BigDecimal("1.5")), or(multiplierInternational, new BigDecimal("2")),
                     or(bigPointsMultiplier, BigDecimal.ONE), or(gameWinPoints, 3), or(gameDrawPoints, 1),
-                    or(gameLossPoints, 0));
+                    or(gameLossPoints, 0), gameSystem);
         }
 
         private static <T> T or(T value, T fallback) {
@@ -79,8 +81,8 @@ public class LeagueController {
     }
 
     @GetMapping("/api/leagues")
-    public List<LeagueService.Summary> list() {
-        return leagues.list();
+    public List<LeagueService.Summary> list(@RequestParam(required = false) String system) {
+        return leagues.list(com.skirmishchronicle.common.GameSystem.parse(system));
     }
 
     @PostMapping("/api/leagues")

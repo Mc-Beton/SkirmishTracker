@@ -146,7 +146,7 @@ public class RoundController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void report(@PathVariable UUID id, @PathVariable UUID matchId, @AuthenticationPrincipal Jwt jwt,
                        @Valid @RequestBody ScoreRequest body) {
-        rounds.report(user(jwt), id, matchId, body.smallA(), body.smallB());
+        rounds.report(user(jwt), id, matchId, body.smallA(), body.smallB(), body.secondaryA(), body.secondaryB());
     }
 
     @PostMapping("/matches/{matchId}/confirm")
@@ -165,7 +165,8 @@ public class RoundController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void setResult(@PathVariable UUID id, @PathVariable UUID matchId, @AuthenticationPrincipal Jwt jwt,
                           @Valid @RequestBody ResultRequest body) {
-        rounds.setResult(user(jwt), id, matchId, body.type(), body.smallA(), body.smallB());
+        rounds.setResult(user(jwt), id, matchId, body.type(), body.smallA(), body.smallB(), body.secondaryA(),
+                body.secondaryB());
     }
 
     // ------------------------------------------------ standings & penalties

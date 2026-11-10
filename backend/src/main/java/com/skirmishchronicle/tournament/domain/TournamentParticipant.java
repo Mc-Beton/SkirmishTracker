@@ -106,6 +106,11 @@ public class TournamentParticipant extends AbstractEntity {
         this.status = ParticipantStatus.REGISTERED;
     }
 
+    /** Organizer takes back an approval (registration with approval, before round 1). */
+    public void moveToWaitlist() {
+        this.status = ParticipantStatus.WAITLIST;
+    }
+
     public void setPaid(boolean paid) {
         this.paid = paid;
     }
