@@ -2379,6 +2379,14 @@
     "downloadPdf": "Pobierz {name}",
     "confirmRemovePdf": "Usunąć załączony PDF?",
     "pdfTooLarge": "Plik jest za duży (maks. 5 MB).",
-    "needTextOrPdf": "Wklej treść rozpiski albo dołącz PDF."
+    "needTextOrPdf": "Wklej treść rozpiski albo dołącz PDF.",
+    "showPreview": "Podgląd",
+    "hidePreview": "Ukryj podgląd",
+    "pdfLoading": "Wczytuję PDF…",
+    "pdfPreviewFailed": "Nie udało się wyświetlić podglądu – pobierz plik.",
+    "pdfPage": "Strona {n} z {of}",
+    "pdfTruncated": "Pokazano {n} z {of} stron – resztę zobaczysz po pobraniu.",
+    "zoomIn": "Powiększ",
+    "zoomOut": "Pomniejsz"
   }
 }

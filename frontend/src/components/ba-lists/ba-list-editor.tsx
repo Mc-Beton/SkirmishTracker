@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { ArrowLeft, Download, Lock, Paperclip, Trash2 } from "lucide-react";
+import { ArrowLeft, Eye, Lock, Paperclip, Trash2 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import { BA_NATIONS } from "@/lib/game-system";
 import { baListPath, MAX_LIST_TEXT, MAX_PDF_BYTES, type BaList, type BaListInput, type MyBaList } from "@/lib/ba-lists";
 import type { TournamentDetail } from "@/lib/tournaments";
 import { useNationName } from "./nation-name";
+import { PdfViewer } from "./pdf-viewer";
 
 type Loaded = {
   tournament: TournamentDetail;
@@ -53,6 +54,7 @@ export function BaListEditor({ tournamentId, userId }: { tournamentId: string; u
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState(false);
   const who = userId ?? "me";
 
   useEffect(() => {
@@ -198,11 +200,17 @@ export function BaListEditor({ tournamentId, userId }: { tournamentId: string; u
                     <Paperclip className="size-4" aria-hidden />
                     {pdfHref ? <a href={pdfHref} className="text-primary hover:underline" download>{list.pdfName}</a> : list.pdfName}
                     {list.pdfSize != null && <span className="text-muted-foreground">({Math.ceil(list.pdfSize / 1024)} KB)</span>}
+                    {pdfHref && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setPreview((v) => !v)}>
+                        <Eye aria-hidden /> {preview ? t("hidePreview") : t("showPreview")}
+                      </Button>
+                    )}
                     <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={removePdf}>
                       <Trash2 aria-hidden /> {t("removePdf")}
                     </Button>
                   </div>
                 )}
+                {preview && pdfHref && <PdfViewer key={list?.updatedAt} src={pdfHref} fileName={list?.pdfName ?? null} />}
                 <Input id="pdf" type="file" accept="application/pdf,.pdf"
                   onChange={(e) => setPdf(e.target.files?.[0] ?? null)} />
                 <p className="text-xs text-muted-foreground">{list?.pdfName ? t("pdfReplaceHint") : t("pdfHint")}</p>
@@ -222,11 +230,8 @@ export function BaListEditor({ tournamentId, userId }: { tournamentId: string; u
             </dl>
             {/* Plain text only: rendered as text, never as HTML. */}
             {list.text && <pre className="overflow-x-auto rounded-md bg-muted p-3 text-sm whitespace-pre-wrap">{list.text}</pre>}
-            {pdfHref && (
-              <Button variant="outline" asChild className="justify-self-start">
-                <a href={pdfHref} download><Download aria-hidden /> {t("downloadPdf", { name: list.pdfName ?? "" })}</a>
-              </Button>
-            )}
+            {/* Organizer review / opponents: the PDF is shown right here (download button inside). */}
+            {pdfHref && <PdfViewer key={list.updatedAt} src={pdfHref} fileName={list.pdfName} />}
           </CardContent>
         </Card>
       )}

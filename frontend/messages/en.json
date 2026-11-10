@@ -2379,6 +2379,14 @@
     "downloadPdf": "Download {name}",
     "confirmRemovePdf": "Remove the attached PDF?",
     "pdfTooLarge": "The file is too large (max 5 MB).",
-    "needTextOrPdf": "Paste the list or attach a PDF."
+    "needTextOrPdf": "Paste the list or attach a PDF.",
+    "showPreview": "Preview",
+    "hidePreview": "Hide preview",
+    "pdfLoading": "Loading PDF…",
+    "pdfPreviewFailed": "The preview could not be shown – download the file.",
+    "pdfPage": "Page {n} of {of}",
+    "pdfTruncated": "Showing {n} of {of} pages – download the file for the rest.",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out"
   }
 }
