@@ -188,15 +188,10 @@ export function TournamentView({ id }: { id: string }) {
   const dt = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "full", timeStyle: "short" });
   const registered = players.filter((p) => p.status === "REGISTERED");
   const waitlist = players.filter((p) => p.status === "WAITLIST");
-  const fee =
-    tournament.entryFeeAmount != null
-      ? format.number(tournament.entryFeeAmount, { style: "currency", currency: tournament.entryFeeCurrency ?? "PLN" })
-      : t("details.free");
 
   const facts: [string, string][] = [
     [t("details.when"), tournament.endsAt ? `${dt(tournament.startsAt)} – ${dt(tournament.endsAt)}` : dt(tournament.startsAt)],
     [t("details.where"), [tournament.venueName, tournament.address, tournament.city].filter(Boolean).join(", ")],
-    [t("details.fee"), fee],
     [t("details.format"), t(`format.${tournament.format}`)],
     ...(tournament.listFormat === "ROSTER"
       ? [[t("details.listFormat"), t("details.rosterFormat", { roster: tournament.pointsLimit ?? "–", party: tournament.partyLimit ?? "–" })

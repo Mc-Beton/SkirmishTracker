@@ -436,7 +436,7 @@
       "basics": "Podstawowe informacje",
       "name": "Nazwa",
       "description": "Opis",
-      "descriptionHint": "Zasady, harmonogram, nagrody. Zwykły tekst.",
+      "descriptionHint": "Zasady, harmonogram, nagrody, wpisowe i sposób płatności. Zwykły tekst.",
       "startsAt": "Początek",
       "endsAt": "Koniec (opcjonalnie)",
       "venueName": "Nazwa miejsca",

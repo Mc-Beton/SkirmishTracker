@@ -51,8 +51,6 @@ type FormState = {
   hiddenRosters: boolean;
   roundsPlanned: string;
   listDeadline: string;
-  entryFeeAmount: string;
-  entryFeeCurrency: string;
   maxOrderDice: string;
   maxPlatoons: string;
   listVisibility: ListVisibility;
@@ -77,8 +75,6 @@ function initialState(t: TournamentDetail | undefined, boltAction: boolean): For
     hiddenRosters: t?.hiddenRosters ?? false,
     roundsPlanned: t?.roundsPlanned?.toString() ?? "",
     listDeadline: toLocalInput(t?.listDeadline ?? null),
-    entryFeeAmount: t?.entryFeeAmount?.toString() ?? "",
-    entryFeeCurrency: t?.entryFeeCurrency ?? "PLN",
     maxOrderDice: t?.maxOrderDice?.toString() ?? "",
     maxPlatoons: t?.maxPlatoons?.toString() ?? "",
     listVisibility: t?.listVisibility ?? (boltAction ? "AFTER_FIRST_PAIRINGS" : "AFTER_DEADLINE"),
@@ -164,8 +160,9 @@ export function TournamentForm({
         address: form.address || null,
         city: form.city,
         country: "PL",
-        entryFeeAmount: form.entryFeeAmount.trim() === "" ? null : Number(form.entryFeeAmount.replace(",", ".")),
-        entryFeeCurrency: form.entryFeeAmount.trim() === "" ? null : form.entryFeeCurrency,
+        // Fees and payment details go into the description; the organizer only ticks who has paid.
+        entryFeeAmount: null,
+        entryFeeCurrency: null,
         rank: form.rank,
         format: form.format,
         maxPlayers: int(form.maxPlayers),
@@ -336,16 +333,6 @@ export function TournamentForm({
         <div className="grid gap-4 sm:grid-cols-3">
           <Field id="listDeadline" label={t("form.listDeadline")}>
             <Input id="listDeadline" type="datetime-local" value={form.listDeadline} onChange={set("listDeadline")} />
-          </Field>
-          <Field id="entryFeeAmount" label={`${t("form.fee")} – ${t("form.feeAmount")}`}>
-            <Input id="entryFeeAmount" inputMode="decimal" value={form.entryFeeAmount} onChange={set("entryFeeAmount")} />
-          </Field>
-          <Field id="entryFeeCurrency" label={t("form.currency")}>
-            <NativeSelect id="entryFeeCurrency" value={form.entryFeeCurrency} onChange={set("entryFeeCurrency")}>
-              {["PLN", "EUR", "USD", "GBP", "CZK"].map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </NativeSelect>
           </Field>
         </div>
       </fieldset>

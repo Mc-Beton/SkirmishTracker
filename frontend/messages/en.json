@@ -436,7 +436,7 @@
       "basics": "Basics",
       "name": "Name",
       "description": "Description",
-      "descriptionHint": "Rules, schedule, prizes. Plain text.",
+      "descriptionHint": "Rules, schedule, prizes, entry fee and how to pay. Plain text.",
       "startsAt": "Start",
       "endsAt": "End (optional)",
       "venueName": "Venue name",
