@@ -87,7 +87,9 @@ public final class TournamentRequests {
             @Min(1) @Max(100) Integer maxOrderDice,
             @Min(1) @Max(20) Integer maxPlatoons,
             ListVisibility listVisibility,
-            Boolean requireApproval) {
+            Boolean requireApproval,
+            /** Co-organizers (organizer / judge); null = keep the current list. Owner / admin only. */
+            @Size(max = 10) List<@NotNull UUID> organizerIds) {
 
         public GameSystem system() {
             return gameSystem == null ? GameSystem.ELDFALL : gameSystem;

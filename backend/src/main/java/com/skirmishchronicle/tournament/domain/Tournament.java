@@ -3,7 +3,14 @@ package com.skirmishchronicle.tournament.domain;
 import com.skirmishchronicle.common.AbstractEntity;
 import com.skirmishchronicle.common.GameSystem;
 import com.skirmishchronicle.pairing.PairingModels.FirstRoundMode;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import org.hibernate.annotations.BatchSize;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -194,6 +201,13 @@ public class Tournament extends AbstractEntity {
     @Column(name = "require_approval", nullable = false)
     private boolean requireApproval;
 
+    /** Co-organizers (organizer / judge): same rights as the owner except editing this list. */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "tournament_organizers", joinColumns = @JoinColumn(name = "tournament_id"))
+    @Column(name = "user_id", nullable = false)
+    @BatchSize(size = 50)
+    private Set<UUID> coOrganizers = new LinkedHashSet<>();
+
     @Version
     private Long version;
 
@@ -299,6 +313,28 @@ public class Tournament extends AbstractEntity {
 
     public boolean isOwnedBy(UUID userId) {
         return ownerId.equals(userId);
+    }
+
+    /** Owner or co-organizer. */
+    public boolean isManagedBy(UUID userId) {
+        return userId != null && (ownerId.equals(userId) || coOrganizers.contains(userId));
+    }
+
+    /** Owner first, then co-organizers (notification recipients). */
+    public Set<UUID> managerIds() {
+        Set<UUID> out = new LinkedHashSet<>();
+        out.add(ownerId);
+        out.addAll(coOrganizers);
+        return out;
+    }
+
+    public Set<UUID> getCoOrganizers() {
+        return Set.copyOf(coOrganizers);
+    }
+
+    public void setCoOrganizers(Set<UUID> ids) {
+        coOrganizers.clear();
+        ids.stream().filter(id -> !id.equals(ownerId)).forEach(coOrganizers::add);
     }
 
     @Override

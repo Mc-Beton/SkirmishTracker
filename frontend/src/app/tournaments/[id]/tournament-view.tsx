@@ -189,7 +189,13 @@ export function TournamentView({ id }: { id: string }) {
   const registered = players.filter((p) => p.status === "REGISTERED");
   const waitlist = players.filter((p) => p.status === "WAITLIST");
 
-  const facts: [string, string][] = [
+  const organizerLinks = [tournament.organizer, ...tournament.coOrganizers].map((o, i) => (
+    <span key={o.id}>
+      {i > 0 && ", "}
+      <Link href={`/players/${o.id}`} className="text-primary hover:underline">{o.displayName}</Link>
+    </span>
+  ));
+  const facts: [string, React.ReactNode][] = [
     [t("details.when"), tournament.endsAt ? `${dt(tournament.startsAt)} – ${dt(tournament.endsAt)}` : dt(tournament.startsAt)],
     [t("details.where"), [tournament.venueName, tournament.address, tournament.city].filter(Boolean).join(", ")],
     [t("details.format"), t(`format.${tournament.format}`)],
@@ -210,7 +216,7 @@ export function TournamentView({ id }: { id: string }) {
     ] : []),
     ...(tournament.roundsPlanned ? [[t("details.rounds"), String(tournament.roundsPlanned)] as [string, string]] : []),
     ...(tournament.listDeadline ? [[t("details.listDeadline"), dt(tournament.listDeadline)] as [string, string]] : []),
-    [t("organizer"), tournament.organizer.displayName],
+    [t("organizerJudge"), organizerLinks],
   ];
 
   return (
@@ -460,6 +466,7 @@ export function TournamentView({ id }: { id: string }) {
                     <li key={p.id} className={cn(p.dropped && "text-muted-foreground line-through")}>
                       <Link href={`/players/${p.userId}`} className="hover:underline">{p.displayName}</Link>
                       {p.club && <span className="text-muted-foreground"> · {p.club}</span>}
+                      {p.city && <span className="text-muted-foreground"> · {p.city}</span>}
                     </li>
                   ))}
                 </ol>

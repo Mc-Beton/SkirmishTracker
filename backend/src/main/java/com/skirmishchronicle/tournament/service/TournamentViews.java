@@ -52,7 +52,11 @@ public final class TournamentViews {
                          Integer maxOrderDice,
                          Integer maxPlatoons,
                          com.skirmishchronicle.tournament.domain.ListVisibility listVisibility,
-                         boolean requireApproval) {
+                         boolean requireApproval,
+                         /** Co-organizers (organizer / judge) besides {@code organizer}. */
+                         List<Organizer> coOrganizers,
+                         /** The caller may change the co-organizers (owner or admin). */
+                         boolean canEditOrganizers) {
     }
 
     /** pairing / softPreferences null = default for that round. */

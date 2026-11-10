@@ -19,7 +19,7 @@ public class TournamentGuard {
     }
 
     public static boolean canManage(CurrentUser viewer, Tournament t) {
-        return viewer != null && (viewer.admin() || t.isOwnedBy(viewer.id()));
+        return viewer != null && (viewer.admin() || t.isManagedBy(viewer.id()));
     }
 
     /** Public read: drafts only exist for the organizer. */

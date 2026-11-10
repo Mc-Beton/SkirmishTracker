@@ -87,6 +87,12 @@ public class TournamentService {
     @Transactional
     public UUID create(CurrentUser actor, TournamentDetails details, TournamentSettings settings,
                        List<TournamentViews.RoundPlan> plans) {
+        return create(actor, details, settings, plans, null);
+    }
+
+    @Transactional
+    public UUID create(CurrentUser actor, TournamentDetails details, TournamentSettings settings,
+                       List<TournamentViews.RoundPlan> plans, List<UUID> organizerIds) {
         GameSystem system = settings.gameSystem() == null ? GameSystem.ELDFALL : settings.gameSystem();
         validate(details);
         validate(settings, details, system);
@@ -94,6 +100,9 @@ public class TournamentService {
         Tournament t = new Tournament(actor.id(), system);
         t.updateDetails(details);
         t.updateSettings(settings);
+        if (organizerIds != null) {
+            t.setCoOrganizers(existingUsers(organizerIds));
+        }
         tournaments.save(t);
         savePlans(t.getId(), plans, 0);
         audit.record(actor.id(), AUDIT_TYPE, t.getId(), "CREATED", t.getName());
@@ -103,6 +112,12 @@ public class TournamentService {
     @Transactional
     public void update(CurrentUser actor, UUID id, TournamentDetails details, TournamentSettings settings,
                        List<TournamentViews.RoundPlan> plans) {
+        update(actor, id, details, settings, plans, null);
+    }
+
+    @Transactional
+    public void update(CurrentUser actor, UUID id, TournamentDetails details, TournamentSettings settings,
+                       List<TournamentViews.RoundPlan> plans, List<UUID> organizerIds) {
         Tournament t = lockManaged(actor, id);
         if (settings.gameSystem() != null && settings.gameSystem() != t.getGameSystem()) {
             throw new ApiException(HttpStatus.CONFLICT, "GAME_SYSTEM_LOCKED");
@@ -130,6 +145,19 @@ public class TournamentService {
         }
         t.updateDetails(details);
         t.updateSettings(settings);
+        if (organizerIds != null) {
+            Set<UUID> wanted = existingUsers(organizerIds);
+            wanted.remove(t.getOwnerId());
+            if (!wanted.equals(t.getCoOrganizers())) {
+                // Co-organizers manage the event, but only the owner (or an admin) decides who they are.
+                if (!actor.admin() && !t.isOwnedBy(actor.id())) {
+                    throw new ApiException(HttpStatus.FORBIDDEN, "ORGANIZERS_OWNER_ONLY");
+                }
+                t.setCoOrganizers(wanted);
+                audit.record(actor.id(), AUDIT_TYPE, id, "ORGANIZERS_CHANGED",
+                        String.join(", ", displayNames(wanted).values()));
+            }
+        }
         if (plans != null) {
             // Rounds already generated keep their plan; the rest is replaced.
             savePlans(id, plans, (int) rounds.countByTournamentId(id));
@@ -219,6 +247,7 @@ public class TournamentService {
     public TournamentViews.Detail detail(CurrentUser viewer, UUID id) {
         Tournament t = visible(viewer, id);
         User owner = users.findById(t.getOwnerId()).orElseThrow();
+        Map<UUID, String> coNames = displayNames(t.getCoOrganizers());
         ParticipantStatus mine = viewer == null ? null
                 : participants.findByTournamentIdAndUserId(id, viewer.id())
                         .map(TournamentParticipant::getStatus).orElse(null);
@@ -234,7 +263,11 @@ public class TournamentService {
                         .map(p -> new TournamentViews.RoundPlan(p.getNumber(), p.getScenarioCode(), p.getPairing(),
                                 p.getTableOrder(), p.getSoftPreferences(), p.getDurationMinutes())).toList(),
                 t.isOfficial(), t.getListFormat(), t.getPartyLimit(), t.isHiddenRosters(), t.getGameSystem(),
-                t.getMaxOrderDice(), t.getMaxPlatoons(), t.getListVisibility(), t.isRequireApproval());
+                t.getMaxOrderDice(), t.getMaxPlatoons(), t.getListVisibility(), t.isRequireApproval(),
+                coNames.entrySet().stream().map(e -> new TournamentViews.Organizer(e.getKey(), e.getValue()))
+                        .sorted(Comparator.comparing(TournamentViews.Organizer::displayName, String.CASE_INSENSITIVE_ORDER))
+                        .toList(),
+                viewer != null && (viewer.admin() || t.isOwnedBy(viewer.id())));
     }
 
     @Transactional(readOnly = true)
@@ -246,7 +279,8 @@ public class TournamentService {
         return rows.stream().map(p -> new TournamentViews.Participant(p.getId(), p.getUserId(),
                 names.getOrDefault(p.getUserId(), "?"), p.getStatus(), p.getRegisteredAt(),
                 manager ? p.isPaid() : null, manager ? p.getListStatus() : null, p.getClub(),
-                manager ? p.getCity() : null, p.isDropped())).toList();
+                // City (from the public profile) is shown in the participant list.
+                p.getCity(), p.isDropped())).toList();
     }
 
     @Transactional(readOnly = true)
@@ -261,7 +295,9 @@ public class TournamentService {
 
     @Transactional(readOnly = true)
     public TournamentViews.MyTournaments mine(CurrentUser actor) {
-        List<Tournament> organized = tournaments.findByOwnerIdOrderByStartsAtDesc(actor.id());
+        List<Tournament> organized = new java.util.ArrayList<>(tournaments.findByOwnerIdOrderByStartsAtDesc(actor.id()));
+        organized.addAll(tournaments.findCoOrganized(actor.id()));
+        organized.sort(Comparator.comparing(Tournament::getStartsAt).reversed());
         Set<UUID> joinedIds = participants.findByUserId(actor.id()).stream()
                 .map(TournamentParticipant::getTournamentId).collect(Collectors.toSet());
         List<Tournament> joined = tournaments.findAllById(joinedIds).stream()
@@ -292,7 +328,7 @@ public class TournamentService {
         TournamentParticipant p = new TournamentParticipant(id, actor.id(), status);
         p.snapshotProfile(user.getClub(), user.getHomeCity());
         participants.save(p);
-        notifications.notify(t.getOwnerId(), NotificationType.NEW_REGISTRATION, Map.of("tournament", t.getName(),
+        notifications.notifyAll(t.managerIds(), NotificationType.NEW_REGISTRATION, Map.of("tournament", t.getName(),
                 "player", user.getDisplayName(), "waitlist", status == ParticipantStatus.WAITLIST),
                 "/tournaments/" + id + "/manage");
         return status;
@@ -516,7 +552,7 @@ public class TournamentService {
     }
 
     private static boolean canManage(CurrentUser viewer, Tournament t) {
-        return viewer != null && (viewer.admin() || t.isOwnedBy(viewer.id()));
+        return viewer != null && (viewer.admin() || t.isManagedBy(viewer.id()));
     }
 
     private static void requireManager(CurrentUser actor, Tournament t) {
@@ -548,6 +584,18 @@ public class TournamentService {
                 counts.getOrDefault(t.getId(), 0L), t.getPointsLimit(),
                 owners.getOrDefault(t.getOwnerId(), "?"), t.isOfficial(), t.getListFormat(),
                 t.getPartyLimit(), t.getGameSystem())).toList();
+    }
+
+    /** Ids of existing accounts (unknown ids are an error, not silently dropped). */
+    private Set<UUID> existingUsers(List<UUID> ids) {
+        Set<UUID> wanted = new java.util.LinkedHashSet<>(ids);
+        if (wanted.size() > 10) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "TOO_MANY_ORGANIZERS");
+        }
+        if (users.findAllById(wanted).size() != wanted.size()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "PLAYER_NOT_FOUND");
+        }
+        return wanted;
     }
 
     private Map<UUID, String> displayNames(Collection<UUID> ids) {

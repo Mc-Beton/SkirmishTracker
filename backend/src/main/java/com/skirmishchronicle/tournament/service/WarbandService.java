@@ -236,7 +236,7 @@ public class WarbandService {
             p.setListStatus(ListStatus.SUBMITTED);
         }
         if (own && !manager) {
-            notifications.notify(t.getOwnerId(), NotificationType.WARBAND_SUBMITTED, Map.of("tournament", t.getName(),
+            notifications.notifyAll(t.managerIds(), NotificationType.WARBAND_SUBMITTED, Map.of("tournament", t.getName(),
                     "player", name(userId)), "/tournaments/" + tournamentId + "/warbands/" + userId);
         }
         audit.record(actor.id(), AUDIT_TYPE, tournamentId, own ? "WARBAND_SAVED" : "WARBAND_EDITED_BY_ORGANIZER",

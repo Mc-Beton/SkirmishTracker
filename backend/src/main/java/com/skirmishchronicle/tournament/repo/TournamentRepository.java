@@ -19,6 +19,10 @@ public interface TournamentRepository extends JpaRepository<Tournament, UUID>, J
 
     List<Tournament> findByOwnerIdOrderByStartsAtDesc(UUID ownerId);
 
+    /** Tournaments where the user is a co-organizer. */
+    @Query("select t from Tournament t join t.coOrganizers c where c = :userId order by t.startsAt desc")
+    List<Tournament> findCoOrganized(UUID userId);
+
     List<Tournament> findByStartsAtGreaterThanEqualAndStartsAtLessThanOrderByStartsAtAsc(java.time.Instant from,
                                                                                          java.time.Instant to);
 }

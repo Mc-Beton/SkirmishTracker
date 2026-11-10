@@ -14,6 +14,9 @@ import { defaultPlan, RoundPlanEditor } from "@/components/tournaments/round-pla
 import { useScenarios } from "@/components/use-scenarios";
 import { useGameSystem } from "@/components/game-system-provider";
 import { LIST_VISIBILITIES, type ListVisibility } from "@/lib/game-system";
+import { X } from "lucide-react";
+import { PlayerSearch } from "@/components/table/player-search";
+import type { SearchHit } from "@/lib/players";
 import {
   BOLT_ACTION_SETTINGS,
   DEFAULT_SETTINGS,
@@ -112,6 +115,16 @@ export function TournamentForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const scenarios = useScenarios(system);
+  // Co-organizers (organizer / judge): picked by name; only the owner (or an admin) changes them.
+  const canEditOrganizers = !tournament || tournament.canEditOrganizers;
+  const [organizers, setOrganizers] = useState<{ id: string; displayName: string }[]>(() => tournament?.coOrganizers ?? []);
+  const [searchKey, setSearchKey] = useState(0);
+  const addOrganizer = (h: SearchHit | null) => {
+    if (!h) return;
+    setOrganizers((list) => (list.some((o) => o.id === h.id) || h.id === tournament?.organizer.id || list.length >= 10
+      ? list : [...list, { id: h.id, displayName: h.displayName }]));
+    setSearchKey((k) => k + 1);
+  };
   const optInt = (key: "maxPrimaryPoints" | "maxSecondaryPoints") => (e: React.ChangeEvent<HTMLInputElement>) =>
     setSettings((st) => ({ ...st, [key]: e.target.value === "" ? null : Number.parseInt(e.target.value, 10) }));
   const lockedUpTo = tournament?.roundsCount ?? 0;
@@ -152,6 +165,7 @@ export function TournamentForm({
         maxPlatoons: ba ? int(form.maxPlatoons) : null,
         listVisibility: ba ? form.listVisibility : "AFTER_DEADLINE",
         requireApproval: form.requireApproval,
+        ...(canEditOrganizers ? { organizerIds: organizers.map((o) => o.id) } : {}),
         name: form.name,
         description: form.description || null,
         startsAt: fromLocalInput(form.startsAt) ?? "",
@@ -213,6 +227,31 @@ export function TournamentForm({
           <Field id="address" label={t("form.address")}>
             <Input id="address" maxLength={200} value={form.address} onChange={set("address")} />
           </Field>
+        </div>
+        <div className="grid gap-2">
+          <span className="text-sm font-medium">{t("form.coOrganizers")}</span>
+          {organizers.length > 0 && (
+            <ul className="flex flex-wrap gap-2">
+              {organizers.map((o) => (
+                <li key={o.id} className="flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-sm">
+                  {o.displayName}
+                  {canEditOrganizers && (
+                    <button type="button" aria-label={t("form.removeCoOrganizer", { name: o.displayName })}
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => setOrganizers((list) => list.filter((x) => x.id !== o.id))}>
+                      <X className="size-3.5" aria-hidden />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {canEditOrganizers && organizers.length < 10 && (
+            <PlayerSearch key={searchKey} id="coOrganizers" value={null} onChange={addOrganizer} />
+          )}
+          <p className="text-xs text-muted-foreground">
+            {canEditOrganizers ? t("form.coOrganizersHint") : t("form.coOrganizersOwnerOnly")}
+          </p>
         </div>
         <Field id="description" label={t("form.description")} hint={t("form.descriptionHint")}>
           <Textarea id="description" rows={8} maxLength={10000} value={form.description}

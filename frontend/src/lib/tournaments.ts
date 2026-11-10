@@ -366,6 +366,10 @@ export type TournamentDetail = {
   listVisibility: ListVisibility;
   /** Registrations wait for the organizer's approval. */
   requireApproval: boolean;
+  /** Co-organizers (organizer / judge) besides the owner. */
+  coOrganizers: { id: string; displayName: string }[];
+  /** The caller may change the co-organizers (owner or admin). */
+  canEditOrganizers: boolean;
 };
 
 export type Participant = {
@@ -407,6 +411,8 @@ export type TournamentInput = TournamentSettings & {
   maxPlatoons?: number | null;
   listVisibility?: ListVisibility;
   requireApproval?: boolean;
+  /** Co-organizers; omitted = keep the current list. */
+  organizerIds?: string[];
   roundsPlanned: number | null;
   listDeadline: string | null;
   roundPlans: RoundPlan[];

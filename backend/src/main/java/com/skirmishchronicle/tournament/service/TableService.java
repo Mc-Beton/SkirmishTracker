@@ -120,7 +120,7 @@ public class TableService {
                     people.add(m.getPlayerB());
                 }
             }
-            people.add(t.getOwnerId());
+            people.addAll(t.managerIds());
             notifications.notifyAll(people, NotificationType.TIME_UP,
                     Map.of("tournament", t.getName(), "round", r.getNumber()), "/tournaments/" + t.getId());
         }
@@ -145,7 +145,7 @@ public class TableService {
         }
         String clean = note == null || note.isBlank() ? null : note.strip();
         calls.save(new JudgeCall(tournamentId, matchId, actor.id(), clean));
-        notifications.notify(t.getOwnerId(), NotificationType.JUDGE_CALL, Map.of("tournament", t.getName(),
+        notifications.notifyAll(t.managerIds(), NotificationType.JUDGE_CALL, Map.of("tournament", t.getName(),
                 "round", r.getNumber(), "table", m.getTableNumber(),
                 "players", name(m.getPlayerA()) + " – " + name(m.getPlayerB()), "note", clean == null ? "" : clean),
                 "/tournaments/" + tournamentId + "/manage");

@@ -238,7 +238,7 @@ public class BaListService {
             p.setListStatus(ListStatus.SUBMITTED);
         }
         if (c.own() && l.isComplete()) {
-            notifications.notify(t.getOwnerId(), NotificationType.WARBAND_SUBMITTED, Map.of("tournament", t.getName(),
+            notifications.notifyAll(t.managerIds(), NotificationType.WARBAND_SUBMITTED, Map.of("tournament", t.getName(),
                     "player", name(l.getUserId())), "/tournaments/" + t.getId() + "/warbands/" + l.getUserId());
         }
         audit.record(actor.id(), AUDIT_TYPE, t.getId(), action,

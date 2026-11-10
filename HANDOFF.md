@@ -86,7 +86,7 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   (tylko za frontendem / reverse proxy).
 - **Błędy API:** `throw new ApiException(status, "KOD")`, a kod dopisujemy do `errors` w `pl.json` i `en.json`.
 - **Baza:** zmiany wyłącznie nowymi migracjami `V<n>__opis.sql` (Hibernate ma `ddl-auto=validate`).
-  Następna wolna: **V23**.
+  Następna wolna: **V24**.
 - **Teksty UI:** zawsze w obu plikach `messages/pl.json` i `messages/en.json`.
 - **Mobile first:** żaden widok nie może przewijać się na boki na telefonie (~390 px). Tabele na telefonie
   chowają kolumny (`hidden sm:table-cell`) i pokazują skrót pod nazwą.
@@ -279,6 +279,11 @@ Pełny opis: `docs/online-play.md`. W skrócie:
   logika punktacji/tabeli/ELO na harnessie, `tsc --noEmit`, eslint, parytet PL/EN.
   **Nieuruchomione:** `./gradlew build` (testy JUnit i integracyjne), migracja V22 na Postgresie, `next build`,
   UI w przeglądarce.
+- **Współorganizatorzy / sędziowie** (V23, tabela `tournament_organizers`): wybierani w formularzu turnieju
+  wyszukiwarką graczy (do 10). Mają prawa twórcy (`Tournament.isManagedBy`), poza zmianą tej listy
+  (`ORGANIZERS_OWNER_ONLY`). Dostają powiadomienia o zapisach, rozpiskach, sporach, wezwaniach sędziego i końcu
+  czasu. Na stronie turnieju wiersz „Organizator/sędzia” z linkami do profili; w Uczestnikach widać miejscowość.
+  Pola wpisowego usunięte z formularza (opłaty w opisie, „Opłacone” zostaje w panelu).
 
 ## 7. Dokumentacja w repo
 

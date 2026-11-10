@@ -73,7 +73,8 @@ public class TournamentController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, UUID> create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody TournamentRequest body) {
-        return Map.of("id", service.create(CurrentUser.from(jwt), body.toDetails(), body.toSettings(), body.toPlans()));
+        return Map.of("id", service.create(CurrentUser.from(jwt), body.toDetails(), body.toSettings(), body.toPlans(),
+                body.organizerIds()));
     }
 
     @PostMapping("/{id}/registration")
@@ -93,7 +94,8 @@ public class TournamentController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void update(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt,
                        @Valid @RequestBody TournamentRequest body) {
-        service.update(CurrentUser.from(jwt), id, body.toDetails(), body.toSettings(), body.toPlans());
+        service.update(CurrentUser.from(jwt), id, body.toDetails(), body.toSettings(), body.toPlans(),
+                body.organizerIds());
     }
 
     @PostMapping("/{id}/publish")

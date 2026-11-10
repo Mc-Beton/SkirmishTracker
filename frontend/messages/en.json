@@ -356,7 +356,9 @@
     "PDF_INVALID": "This is not a valid PDF file.",
     "PDF_TOO_LARGE": "The PDF is too large (max 5 MB).",
     "BA_LIST_SAVE_FIRST": "Save the list (nation and declarations) first.",
-    "LEAGUE_GAME_SYSTEM_MISMATCH": "The league is for a different game system than the tournament."
+    "LEAGUE_GAME_SYSTEM_MISMATCH": "The league is for a different game system than the tournament.",
+    "ORGANIZERS_OWNER_ONLY": "Only the tournament's creator can change the co-organizers.",
+    "TOO_MANY_ORGANIZERS": "At most 10 co-organizers."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -556,7 +558,11 @@
       "maxGamePoints": "Points limit per game",
       "maxSecondaryPoints": "Secondary objectives limit",
       "maxPointsHint": "Per player and game; empty = no limit.",
-      "tournamentPointsHint": "Set the tournament points for a win, draw and loss below. Table order: tournament points → scenario points → secondaries."
+      "tournamentPointsHint": "Set the tournament points for a win, draw and loss below. Table order: tournament points → scenario points → secondaries.",
+      "coOrganizers": "Co-organizers / judges",
+      "coOrganizersHint": "Type at least 2 letters of a nickname and pick from the list (up to 10 people). They have your rights except changing this list.",
+      "coOrganizersOwnerOnly": "Only the tournament's creator changes the co-organizers.",
+      "removeCoOrganizer": "Remove: {name}"
     },
     "manageView": {
       "title": "Organizer panel",
@@ -865,7 +871,8 @@
     "system": {
       "ELDFALL": "Eldfall",
       "BOLT_ACTION": "Bolt Action"
-    }
+    },
+    "organizerJudge": "Organizer/judge"
   },
   "game": {
     "back": "Back to tournament",

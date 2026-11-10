@@ -636,7 +636,7 @@ public class RoundService {
         requireOpponentOfReporter(actor, m);
         m.dispute();
         Tournament t = guard.visible(actor, tournamentId);
-        notifications.notify(t.getOwnerId(), NotificationType.RESULT_DISPUTED, Map.of("tournament", t.getName(),
+        notifications.notifyAll(t.managerIds(), NotificationType.RESULT_DISPUTED, Map.of("tournament", t.getName(),
                 "table", m.getTableNumber(), "players", name(m.getPlayerA()) + " – " + name(m.getPlayerB())),
                 "/tournaments/" + tournamentId + "/manage");
     }
