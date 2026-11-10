@@ -41,12 +41,13 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b-2 border-primary/70 bg-[var(--chrome)] shadow-[0_2px_12px_-4px_var(--chrome-glow)] backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-1 px-3 sm:gap-3 sm:px-4">
-        <div className="flex items-center gap-2">
+        {/* Phones: logo with the game-system picker stacked under it (keeps the row narrow, so nothing
+            overlaps the menu button); from sm up: logo, then the name with the picker under it. */}
+        <div className="flex shrink-0 flex-col items-start sm:flex-row sm:items-center sm:gap-2">
           <Link href="/" aria-label={t("app.name")} className="shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element -- tiny static logo, no optimisation needed */}
-            <img src="/logo.png?v=2" alt="" width={32} height={32} className="size-8" />
+            <img src="/logo.png?v=2" alt="" width={32} height={32} className="size-7 sm:size-8" />
           </Link>
-          {/* Name with the game-system picker right under it. */}
           <div className="grid leading-none">
             <Link href="/" className="hidden font-display text-lg leading-6 tracking-wide sm:inline">{t("app.name")}</Link>
             <GameSystemSwitcher />
@@ -64,7 +65,7 @@ export function SiteHeader() {
           aria-label={t("nav.menu")} onClick={() => { setOpenedAt(pathname); setOpen((o) => !o); }}>
           {open ? <X aria-hidden /> : <Menu aria-hidden />}
         </Button>
-        <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
           <LanguageSwitcher />
           {!loading &&
             (me ? (

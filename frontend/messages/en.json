@@ -2296,6 +2296,10 @@
     "name": {
       "ELDFALL": "Eldfall Chronicles",
       "BOLT_ACTION": "Bolt Action"
+    },
+    "short": {
+      "ELDFALL": "Eldfall",
+      "BOLT_ACTION": "Bolt Action"
     }
   },
   "boltAction": {
