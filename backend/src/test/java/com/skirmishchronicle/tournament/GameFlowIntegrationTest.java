@@ -134,6 +134,22 @@ class GameFlowIntegrationTest {
         assertThat(distinct).hasSize(3);
         mvc.perform(as(a, post(game + "/schemes/keep")).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"scheme\":\"" + cards.get(0).get("scheme").asText() + "\"}")).andExpect(status().isNoContent());
+        // The Scheme is secret: the opponent sees only that it was chosen, until A reveals it.
+        JsonNode hiddenView = read(b, game + "/game");
+        JsonNode hidden = (hiddenView.get("players").get(0).get("userId").asText().equals(a.toString())
+                ? hiddenView.get("players").get(0) : hiddenView.get("players").get(1)).get("draw");
+        assertThat(hidden.get("hidden").asBoolean()).isTrue();
+        assertThat(hidden.get("cards").size()).isZero();
+        assertThat(hidden.get("kept").isNull()).isTrue();
+        assertThat(hidden.get("chosen").asBoolean()).isTrue();
+        assertThat(hidden.get("cardCount").asInt()).isEqualTo(3);
+        mvc.perform(as(b, post(game + "/schemes/reveal"))).andExpect(status().isConflict());
+        mvc.perform(as(a, post(game + "/schemes/reveal"))).andExpect(status().isNoContent());
+        JsonNode shownView = read(b, game + "/game");
+        JsonNode shown = (shownView.get("players").get(0).get("userId").asText().equals(a.toString())
+                ? shownView.get("players").get(0) : shownView.get("players").get(1)).get("draw");
+        assertThat(shown.get("hidden").asBoolean()).isFalse();
+        assertThat(shown.get("kept").asText()).isEqualTo(cards.get(0).get("scheme").asText());
 
         // Turn scores: A 2+1 in turn 2 and 4+0 in turn 4 = 7; B 2 in turn 2 = 2.
         mvc.perform(as(a, put(game + "/turns/2")).contentType(MediaType.APPLICATION_JSON)

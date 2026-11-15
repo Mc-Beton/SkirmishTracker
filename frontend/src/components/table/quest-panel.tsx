@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Dices, Flag, Send } from "lucide-react";
+import { Dices, Eye, Flag, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { QuestView } from "@/components/game/quest-view";
 import { SchemeCard } from "@/components/game/scheme-card";
 import { cardsFor, useGameContent } from "@/lib/content";
-import type { TableCommand, TableView } from "@/lib/table/api";
+import type { PartyView, TableCommand, TableView } from "@/lib/table/api";
 
 type Props = {
   view: TableView;
@@ -49,18 +49,48 @@ export function QuestCard({ view, busy, run }: { view: TableView; busy?: boolean
 }
 
 /** Free game: each side picks its Scheme from the list (alone you pick both). */
+/** Secrecy of one side's Scheme: badge for the owner, "Reveal" button, or what the opponent is told meanwhile. */
+function SchemeSecrecy({ view, party, side, busy, run }: Props & { party: PartyView | undefined; side: number }) {
+  const tg = useTranslations("game");
+  if (!party || view.solo || view.status === "FINISHED") return null;
+  if (party.hidden) {
+    return (
+      <span className="text-xs text-muted-foreground">
+        {party.chosen ? tg("hiddenChosen") : tg("hiddenDrawn", { n: party.cardCount })}
+      </span>
+    );
+  }
+  if (party.revealed) return <Badge variant="secondary" className="w-fit">{tg("revealed")}</Badge>;
+  if (view.you !== side || !party.kept) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge variant="outline">{tg("secret")}</Badge>
+      <Button size="sm" variant="outline" disabled={busy}
+        onClick={() => window.confirm(tg("revealConfirm")) && void run({ type: "REVEAL_SCHEME" })}>
+        <Eye aria-hidden /> {tg("reveal")}
+      </Button>
+    </div>
+  );
+}
+
+function schemeSummary(view: TableView, side: number, label: (code: string) => string, secret: string) {
+  const party = view.parties.find((p) => p.side === side);
+  return party?.kept ? label(party.kept) : party?.hidden ? secret : "—";
+}
+
 function SandboxSchemes({ view, busy, run }: Props) {
   const t = useTranslations("table");
   const content = useGameContent();
   const schemeOf = (code: string) => content?.schemes.find((s) => s.code === code);
   const name = (side: number) => view.players.find((p) => p.side === side)?.name ?? t("sideB");
   const keptOf = (side: number) => view.parties.find((p) => p.side === side)?.kept ?? null;
-  const summary = [0, 1].map((s) => `${name(s)}: ${keptOf(s) ? schemeOf(keptOf(s)!)?.name ?? keptOf(s) : "—"}`).join(" · ");
+  const summary = [0, 1].map((s) => `${name(s)}: ${schemeSummary(view, s, (c) => schemeOf(c)?.name ?? c, t("schemeSecret"))}`).join(" · ");
   return (
     <CollapsibleCard title={t("schemes")} meta={summary} defaultOpen={false} contentClassName="grid gap-3 text-sm">
       {[0, 1].map((side) => {
         const kept = keptOf(side);
         const sc = kept ? schemeOf(kept) : null;
+        const party = view.parties.find((p) => p.side === side);
         const mayPick = canSet(view) && view.status !== "FINISHED" && (view.solo || view.you === side);
         return (
           <div key={side} className="grid gap-2">
@@ -72,7 +102,9 @@ function SandboxSchemes({ view, busy, run }: Props) {
                 {(content?.schemes ?? []).map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
               </NativeSelect>
             )}
-            {sc ? <SchemeCard scheme={sc} highlight /> : !mayPick && <span className="text-xs text-muted-foreground">{t("noSchemeYet")}</span>}
+            {sc ? <SchemeCard scheme={sc} highlight />
+              : !mayPick && !party?.hidden && <span className="text-xs text-muted-foreground">{t("noSchemeYet")}</span>}
+            <SchemeSecrecy view={view} busy={busy} run={run} party={party} side={side} />
           </div>
         );
       })}
@@ -81,8 +113,8 @@ function SandboxSchemes({ view, busy, run }: Props) {
 }
 
 /**
- * Scheme cards (drawn with server dice, one kept – public as in the rules). Folded once the player has kept one;
- * open while they still have to draw or choose.
+ * Scheme cards (drawn with server dice, one kept). Secret: the opponent sees them only after the owner reveals the
+ * kept one or when the game ends. Folded once the player has kept one; open while they still have to draw or choose.
  */
 export function SchemesCard({ view, busy, run }: Props) {
   if (view.mode === "SANDBOX") return <SandboxSchemes view={view} busy={busy} run={run} />;
@@ -97,7 +129,8 @@ function DrawnSchemes({ view, busy, run }: Props) {
   const schemeOf = (code: string) => content?.schemes.find((s) => s.code === code);
   const myParty = view.parties.find((p) => p.side === you);
   const canDraw = view.game.status === "SETUP" || (view.game.status === "PLAYING" && view.game.round <= 1);
-  const summary = view.parties.map((p) => `${name(p.side)}: ${p.kept ? schemeOf(p.kept)?.name ?? p.kept : "—"}`).join(" · ");
+  const summary = view.parties
+    .map((p) => `${name(p.side)}: ${schemeSummary(view, p.side, (c) => schemeOf(c)?.name ?? c, t("schemeSecret"))}`).join(" · ");
 
   return (
     <CollapsibleCard title={t("schemes")} meta={summary} defaultOpen={!!myParty && !myParty.kept}
@@ -114,7 +147,8 @@ function DrawnSchemes({ view, busy, run }: Props) {
                   <span className="text-xs text-muted-foreground">{t("leaderInt", { int: party.leaderInt })}
                     {content ? ` · ${t("cardsToDraw", { n: cardsFor(content, party.leaderInt) })}` : ""}</span>
                 </div>
-                {kept ? (
+                <SchemeSecrecy view={view} busy={busy} run={run} party={party} side={side} />
+                {party.hidden ? null : kept ? (
                   <SchemeCard scheme={kept} highlight />
                 ) : party.drawn.length > 0 ? (
                   <div className="grid gap-2">

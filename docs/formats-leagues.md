@@ -47,3 +47,18 @@
 - `tools/seed/test1_games.sql` – 4 przeciwników (Aldric, Brena, Cador, Dara) i 18 potwierdzonych gier własnych z rozpiskami dla istniejącego konta **test1**. Można uruchamiać wielokrotnie (usuwa wcześniejsze gry oznaczone `[seed]`).
 - Uruchomienie (po starcie backendu, żeby weszły migracje): `docker compose exec -T postgres psql -U skirmish -d skirmish < tools/seed/test1_games.sql`
 - Generator: `python3 tools/seed/make_test1_games.py`.
+
+## Tajne scheme, rozpiska każdego gracza, szkice rozstawień (14.11.2026)
+
+- **Scheme są tajne** w grach turniejowych i w grach własnych rozgrywanych w aplikacji: wylosowane karty i wybrany
+  scheme widzi tylko właściciel (w turnieju także organizator). Przeciwnik widzi jedynie etap („wylosowano N kart” /
+  „scheme wybrany”). „Ujawnij scheme” (`POST …/schemes/reveal`) pokazuje go przeciwnikowi i jest nieodwracalne;
+  po potwierdzeniu wyniku scheme obu graczy są jawne. Migracja `V24`: `match_scheme_draws.revealed` (stare losowania
+  zostają jawne) i tabela `friendly_scheme_draws`.
+- **Gry własne:** `POST /api/games/{id}/schemes/draw {leaderInt, faction?}` (frakcja z gry gracza, inaczej z żądania;
+  raz na gracza i grę), `…/keep {scheme}`, `…/reveal`. Wspólny komponent `components/game/schemes-panel.tsx`.
+- **Rozpiska przeciwnika:** każdy gracz dodaje własną rozpiskę z „Moich rozpisek” na stronie gry
+  (`PUT /api/games/{id}/list`, w trakcie gry i do potwierdzenia wyniku; kopia, nie odnośnik). Po losowaniu scheme
+  rozpiska nie może zmienić frakcji.
+- **Szkic stref rozstawienia** (`DeploymentPreview`, ten sam co w grze online) jest w karcie scenariusza wszędzie:
+  zakładka Scenariusze, gra turniejowa, gra własna, formularz nowej gry.

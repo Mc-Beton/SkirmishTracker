@@ -311,6 +311,8 @@
     "TABLE_SCHEMES_ALREADY_DRAWN": "Schemes have already been drawn.",
     "TABLE_SCHEMES_NOT_DRAWN": "Draw the schemes first.",
     "TABLE_SCHEME_ALREADY_KEPT": "A scheme is already kept.",
+    "TABLE_SCHEME_NOT_CHOSEN": "Choose a scheme first.",
+    "TABLE_SCHEME_ALREADY_REVEALED": "The scheme is already revealed.",
     "TABLE_SCHEME_NOT_DRAWN": "That scheme was not drawn.",
     "TABLE_BAD_TOKEN": "Unknown token type.",
     "TABLE_TOO_MANY_TOKENS": "The table can hold 60 tokens at most.",
@@ -358,7 +360,8 @@
     "BA_LIST_SAVE_FIRST": "Save the list (nation and declarations) first.",
     "LEAGUE_GAME_SYSTEM_MISMATCH": "The league is for a different game system than the tournament.",
     "ORGANIZERS_OWNER_ONLY": "Only the tournament's creator can change the co-organizers.",
-    "TOO_MANY_ORGANIZERS": "At most 10 co-organizers."
+    "TOO_MANY_ORGANIZERS": "At most 10 co-organizers.",
+    "SCHEME_NOT_CHOSEN": "Choose a Scheme first."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -924,7 +927,14 @@
     "fromWarband": "Faction and leader INT come from your warband.",
     "noSchemeTable": "This faction's scheme table is not available yet – drawing will be possible once it is added.",
     "bothCanEdit": "Both of you can fill in points for either side.",
-    "partyFirst": "Pick your party for this game first (above) – schemes are drawn for its leader."
+    "partyFirst": "Pick your party for this game first (above) – schemes are drawn for its leader.",
+    "hiddenDrawn": "{n, plural, one {# card} other {# cards}} drawn – choosing. The Scheme is secret until revealed.",
+    "hiddenChosen": "Scheme chosen – secret until the player reveals it.",
+    "reveal": "Reveal Scheme",
+    "revealConfirm": "Reveal your Scheme to the opponent? This cannot be undone.",
+    "secret": "Only you see this",
+    "revealed": "Revealed",
+    "secretHint": "Only you see the drawn cards and the kept Scheme until you press “Reveal Scheme”."
   },
   "scenarios": {
     "title": "Scenarios and schemes",
@@ -1261,7 +1271,12 @@
       "total": "{points} pts",
       "show": "Show lists",
       "mineTitle": "My list",
-      "opponentTitle": "Opponent's list"
+      "opponentTitle": "Opponent's list",
+      "attachMine": "Add your list",
+      "attachPlaceholder": "Pick from My lists…",
+      "attachEmpty": "You have no saved lists – add them in <link>My lists</link>.",
+      "attachHint": "Each player adds their own list. The game gets a copy – it can be replaced until the result is confirmed.",
+      "opponentHint": "You need not enter the opponent's list – once the game starts they add it themselves from their saved lists."
     },
     "details": "Details",
     "status": {
@@ -1979,6 +1994,7 @@
       "PARTY_INFO": "{who}: list ready",
       "SCHEMES_DRAWN": "{who} draws schemes ({n})",
       "SCHEME_KEPT": "{who} keeps a scheme",
+      "SCHEME_REVEALED": "{who} reveals their scheme",
       "TOKEN_PLACED": "{who} puts down a token: {token}",
       "TOKEN_MOVED": "{who} moves a token",
       "TOKEN_REMOVED": "{who} removes a token",
@@ -2105,6 +2121,7 @@
     "keepScheme": "Keep",
     "drawSchemes": "Draw schemes (d20)",
     "noSchemeYet": "Not drawn yet.",
+    "schemeSecret": "secret",
     "victoryPoints": "Victory Points",
     "roundShort": "Round",
     "total": "Total",
@@ -2296,7 +2313,29 @@
     "lockTerrain": "Lock terrain",
     "terrainLocked": "Terrain locked",
     "dragToBoard": "Drag onto the board, or click it and click on the board",
-    "moveHelp": "Click the target – the model goes as far as the rules allow (click an enemy: into base contact). Shift + click adds a waypoint. The mouse wheel or the handle in front of the model turns it."
+    "moveHelp": "Click the target – the model goes as far as the rules allow (click an enemy: into base contact). Shift + click adds a waypoint. The mouse wheel or the handle in front of the model turns it.",
+    "hud": {
+      "desktopOnlyTitle": "The online table works on a computer",
+      "desktopOnly": "The game panel needs a larger screen. Open this page on a computer or widen the browser window.",
+      "back": "Back to the tables",
+      "scoreHint": "Victory Points – click to enter them",
+      "turnOf": "Turn: {name}",
+      "invite": "Invite / links",
+      "tabRoster": "Parties",
+      "tabTable": "Table and terrain",
+      "tabModel": "Model",
+      "tabQuest": "Quest and points",
+      "tabShare": "Links",
+      "tools": "Board tools",
+      "toolSelect": "Select and move",
+      "noModels": "No models.",
+      "tagActive": "active",
+      "tagNotDeployed": "to deploy",
+      "tagLeader": "leader",
+      "hintSetup": "Deployment: pick a model from the list and click inside your zone. Agree who goes first and confirm you are ready.",
+      "hintYourTurn": "Your turn: pick a model and press “Activate” in the model card.",
+      "rollOn": "Set {stat} as the dice target"
+    }
   },
   "system": {
     "label": "Game system",

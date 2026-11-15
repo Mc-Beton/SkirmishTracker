@@ -213,6 +213,22 @@ class TableIntegrationTest {
         assertThat(error(a, table, "{\"type\":\"DRAW_SCHEMES\"}")).isEqualTo("TABLE_SCHEMES_ALREADY_DRAWN");
         view = cmd(a, table, "{\"type\":\"KEEP_SCHEME\",\"scheme\":\"%s\"}".formatted(drawn.get(0).get("scheme").asText()));
         assertThat(view.get("parties").get(0).get("kept").asText()).isEqualTo(drawn.get(0).get("scheme").asText());
+        // Schemes are secret: the opponent sees neither the cards nor the kept one (also not in the log) until revealed
+        String keptA = drawn.get(0).get("scheme").asText();
+        JsonNode seenByB = call(b, get("/api/tables/" + table), null, status().isOk());
+        JsonNode partyA = seenByB.get("parties").get(0);
+        assertThat(partyA.get("hidden").asBoolean()).isTrue();
+        assertThat(partyA.get("chosen").asBoolean()).isTrue();
+        assertThat(partyA.get("cardCount").asInt()).isEqualTo(3);
+        assertThat(partyA.get("drawn").size()).isZero();
+        assertThat(partyA.get("kept").isNull()).isTrue();
+        assertThat(seenByB.get("log").toString()).doesNotContain(keptA);
+        assertThat(error(b, table, "{\"type\":\"REVEAL_SCHEME\"}")).isEqualTo("TABLE_SCHEME_NOT_CHOSEN");
+        cmd(a, table, "{\"type\":\"REVEAL_SCHEME\"}");
+        partyA = call(b, get("/api/tables/" + table), null, status().isOk()).get("parties").get(0);
+        assertThat(partyA.get("revealed").asBoolean()).isTrue();
+        assertThat(partyA.get("hidden").asBoolean()).isFalse();
+        assertThat(partyA.get("kept").asText()).isEqualTo(keptA);
         view = cmd(b, table, "{\"type\":\"PLACE_TOKEN\",\"kind\":\"INTRIGUE\",\"x\":18,\"y\":18}");
         assertThat(view.get("tokens").size()).isEqualTo(1);
 

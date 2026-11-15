@@ -169,6 +169,32 @@ class ArmyListAndLiveGameIntegrationTest {
         assertThat(view.get("status").asText()).isEqualTo("IN_PROGRESS");
         assertThat(view.get("canFinish").asBoolean()).isTrue();
 
+        // Each player attaches their own list; Schemes are drawn in secret and revealed by their owner.
+        mvc.perform(as(b, put(game + "/list")).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"faction\":\"ONI_CLANS\",\"units\":[{\"unit\":\"RED_RASETSU\",\"leader\":true}]}"))
+                .andExpect(status().isNoContent());
+        mvc.perform(as(outsider, put(game + "/list")).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"faction\":\"ONI_CLANS\",\"units\":[{\"unit\":\"RED_RASETSU\",\"leader\":true}]}"))
+                .andExpect(status().isNotFound());
+        assertThat(read(a, game).get("players").get(1).get("list").get("units").size()).isEqualTo(1);
+        mvc.perform(as(a, post(game + "/schemes/draw")).contentType(MediaType.APPLICATION_JSON).content("{\"leaderInt\":14}"))
+                .andExpect(status().isNoContent());
+        mvc.perform(as(a, post(game + "/schemes/draw")).contentType(MediaType.APPLICATION_JSON).content("{\"leaderInt\":14}"))
+                .andExpect(status().isConflict());
+        JsonNode mine = read(a, game).get("players").get(0).get("draw");
+        assertThat(mine.get("cards").size()).isEqualTo(3);
+        JsonNode theirs = read(b, game).get("players").get(0).get("draw");
+        assertThat(theirs.get("hidden").asBoolean()).isTrue();
+        assertThat(theirs.get("cards").size()).isZero();
+        mvc.perform(as(a, post(game + "/schemes/reveal"))).andExpect(status().isConflict());
+        mvc.perform(as(a, post(game + "/schemes/keep")).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"scheme\":\"%s\"}".formatted(mine.get("cards").get(0).get("scheme").asText())))
+                .andExpect(status().isNoContent());
+        assertThat(read(b, game).get("players").get(0).get("draw").get("kept").isNull()).isTrue();
+        mvc.perform(as(a, post(game + "/schemes/reveal"))).andExpect(status().isNoContent());
+        assertThat(read(b, game).get("players").get(0).get("draw").get("kept").asText())
+                .isEqualTo(mine.get("cards").get(0).get("scheme").asText());
+
         // Both players enter points for either side.
         mvc.perform(as(a, put(game + "/turns/1")).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"playerId\":\"%s\",\"scenarioVp\":2,\"schemeVp\":1}".formatted(a)))

@@ -195,7 +195,14 @@ export type Round = {
 };
 
 export type GameCard = { scheme: string; roll: number };
-export type GameDraw = { faction: string; leaderInt: number; cards: GameCard[]; kept: string | null };
+/**
+ * A Scheme draw. Secret until its owner reveals it: for others `hidden` is true, `cards` is empty and `kept` null –
+ * only `cardCount` and `chosen` say how far the player is.
+ */
+export type GameDraw = {
+  faction: string; leaderInt: number; cards: GameCard[]; kept: string | null;
+  revealed: boolean; hidden: boolean; cardCount: number; chosen: boolean;
+};
 export type GameTurn = { turn: number; scenarioVp: number; schemeVp: number };
 export type GamePlayer = {
   userId: string;

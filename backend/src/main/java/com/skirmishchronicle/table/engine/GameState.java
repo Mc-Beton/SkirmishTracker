@@ -132,6 +132,8 @@ public final class GameState {
     public final Party[] parties = new Party[2];
     public final Map<Integer, List<GameEvent.SchemeCard>> schemesDrawn = new java.util.HashMap<>();
     public final Map<Integer, String> schemeKept = new java.util.HashMap<>();
+    /** Sides whose kept Scheme was revealed; a newly kept Scheme is secret again. */
+    public final Set<Integer> schemeRevealed = new HashSet<>();
     public final Map<String, Token> tokens = new LinkedHashMap<>();
     public final Map<String, Template> templates = new LinkedHashMap<>();
     /** vp[side][round] = {scenario, scheme}; round 1..MAX_ROUNDS. */
@@ -308,7 +310,11 @@ public final class GameState {
             }
             case GameEvent.PartyInfo p -> parties[p.side()] = new Party(p.faction(), p.alliedFaction(), p.leaderInt(), p.leaderId());
             case GameEvent.SchemesDrawn d -> schemesDrawn.put(d.side(), List.copyOf(d.cards()));
-            case GameEvent.SchemeKept k -> schemeKept.put(k.side(), k.scheme());
+            case GameEvent.SchemeKept k -> {
+                schemeKept.put(k.side(), k.scheme());
+                schemeRevealed.remove(k.side());
+            }
+            case GameEvent.SchemeRevealed sr -> schemeRevealed.add(sr.side());
             case GameEvent.TokenPlaced tp -> {
                 tokenCounter++;
                 tokens.put(tp.id(), new Token(tp.id(), tp.kind(), new Vec(tp.x(), tp.y()), tp.label()));

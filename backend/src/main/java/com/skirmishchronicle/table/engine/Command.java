@@ -70,6 +70,10 @@ public sealed interface Command {
     record KeepScheme(String scheme) implements Command {
     }
 
+    /** Shows the kept Scheme to the opponent (Schemes are secret until their owner reveals them). */
+    record RevealScheme() implements Command {
+    }
+
     record PlaceToken(String kind, Vec pos, String label) implements Command {
     }
 

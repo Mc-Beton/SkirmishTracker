@@ -75,6 +75,12 @@ public class GameController {
         games.keepScheme(CurrentUser.from(jwt), id, matchId, body.scheme());
     }
 
+    @PostMapping("/matches/{matchId}/schemes/reveal")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reveal(@PathVariable UUID id, @PathVariable UUID matchId, @AuthenticationPrincipal Jwt jwt) {
+        games.revealScheme(CurrentUser.from(jwt), id, matchId);
+    }
+
     @DeleteMapping("/matches/{matchId}/schemes/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void resetDraw(@PathVariable UUID id, @PathVariable UUID matchId, @PathVariable UUID userId,

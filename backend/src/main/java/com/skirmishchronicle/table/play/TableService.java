@@ -642,6 +642,20 @@ public class TableService {
         };
     }
 
+    /** Log payload; Scheme cards of a side the viewer may not see yet are blanked (only their number stays). */
+    private com.fasterxml.jackson.databind.JsonNode logData(GameEvent e, java.util.function.IntPredicate schemeVisible) {
+        if (e instanceof GameEvent.SchemesDrawn d && !schemeVisible.test(d.side())) {
+            var node = json.createObjectNode().put("type", "SCHEMES_DRAWN").put("side", d.side());
+            var cards = node.putArray("cards");
+            d.cards().forEach(c -> cards.addObject());
+            return node;
+        }
+        if (e instanceof GameEvent.SchemeKept k && !schemeVisible.test(k.side())) {
+            return json.createObjectNode().put("type", "SCHEME_KEPT").put("side", k.side());
+        }
+        return json.valueToTree(e);
+    }
+
     /** A player whose faction has a Scheme table keeps a Scheme before "Ready". */
     private boolean needsScheme(GameState s, int side) {
         GameState.Party party = s.parties[side];
@@ -783,8 +797,12 @@ public class TableService {
                 new boolean[] {s.ready[0], s.ready[1]}, act, s.winner, s.endReason);
         java.util.Set<Long> undone = GameState.undoneSeqs(log);
         List<Recorded> tail = log.size() > LOG_LIMIT ? log.subList(log.size() - LOG_LIMIT, log.size()) : log;
+        // Schemes are secret: a side's cards are shown to its player, the judge and, once revealed or after the game, to all
+        boolean seesAll = solo || role == GameTable.Role.JUDGE || s.status == GameState.Status.FINISHED;
+        java.util.function.IntPredicate schemeVisible = side -> seesAll || side == you
+                || (s.schemeRevealed.contains(side) && s.schemeKept.containsKey(side));
         List<TableView.LogEntry> entries = tail.stream().map(r -> new TableView.LogEntry(r.seq(), r.side(),
-                TableEventStore.typeName(r.event()), json.valueToTree(r.event()), r.at(), undone.contains(r.seq()))).toList();
+                TableEventStore.typeName(r.event()), logData(r.event(), schemeVisible), r.at(), undone.contains(r.seq()))).toList();
         boolean canUndo = false;
         int undoSide = role == GameTable.Role.JUDGE || solo ? TableEngine.JUDGE : you;
         if (undoSide >= 0 && (s.status != GameState.Status.FINISHED || role == GameTable.Role.JUDGE)) {
@@ -805,8 +823,11 @@ public class TableService {
             }
             List<TableView.SchemeCard> drawn = s.schemesDrawn.getOrDefault(side, List.of()).stream()
                     .map(c -> new TableView.SchemeCard(c.scheme(), c.roll())).toList();
+            boolean visible = schemeVisible.test(side);
+            boolean chosen = s.schemeKept.containsKey(side);
             parties.add(new TableView.PartyView(side, p == null ? null : p.faction(), p == null ? 0 : p.leaderInt(),
-                    p == null ? null : p.leaderId(), drawn, s.schemeKept.get(side)));
+                    p == null ? null : p.leaderId(), visible ? drawn : List.of(), visible ? s.schemeKept.get(side) : null,
+                    chosen && s.schemeRevealed.contains(side), !visible && (chosen || !drawn.isEmpty()), drawn.size(), chosen));
         }
         List<TableView.VpRow> vp = new ArrayList<>();
         for (int side = 0; side < 2; side++) {

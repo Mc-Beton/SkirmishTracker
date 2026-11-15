@@ -20,8 +20,13 @@ public record TableView(UUID id, String status, String mapName, String questCode
                         boolean canUndo, long seq, String measureMode, String role, boolean observersAllowed,
                         Player judge, boolean creator, Player invited, String mode, boolean solo, String backgroundId) {
 
-    /** A player's list: faction, Leader and Scheme cards (drawn and kept – public, as in the rules). */
-    public record PartyView(int side, String faction, int leaderInt, String leaderId, List<SchemeCard> drawn, String kept) {
+    /**
+     * A player's list: faction, Leader and Scheme cards. Schemes are secret: the opponent and observers get the cards
+     * and the kept Scheme only after the owner reveals it or the game ends ({@code hidden} – nothing shown yet);
+     * {@code cardCount} and {@code chosen} say how far the player is.
+     */
+    public record PartyView(int side, String faction, int leaderInt, String leaderId, List<SchemeCard> drawn, String kept,
+                            boolean revealed, boolean hidden, int cardCount, boolean chosen) {
     }
 
     public record SchemeCard(String scheme, int roll) {

@@ -29,6 +29,7 @@ class EventJsonTest {
                 new GameEvent.ActivationEnded(), new GameEvent.TurnEnded(), new GameEvent.GameEnded("CONCEDED", 1),
                 new GameEvent.Undone(List.of(7L, 8L)), new GameEvent.PartyInfo(0, "HELIAN_LEAGUE", null, 15, "a1"),
                 new GameEvent.SchemesDrawn(0, List.of(new GameEvent.SchemeCard("X", 4))), new GameEvent.SchemeKept(0, "X"),
+                new GameEvent.SchemeRevealed(0),
                 new GameEvent.TokenPlaced("t1", "CACHE", 3, 4, null), new GameEvent.TokenMoved("t1", 5, 6),
                 new GameEvent.TokenRemoved("t1"), new GameEvent.VpSet(1, 2, 3, 1),
                 new GameEvent.TemplatePlaced("s1", "SPRAY_L", 1, 2, 90, "a1", "Breath"), new GameEvent.TemplateRemoved("s1"),

@@ -40,6 +40,10 @@ public class MatchSchemeDraw extends AbstractEntity {
     @Column(name = "kept_code", length = 60)
     private String keptCode;
 
+    /** Secret until the owner reveals it (or the game's result is confirmed). */
+    @Column(nullable = false)
+    private boolean revealed;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -88,6 +92,14 @@ public class MatchSchemeDraw extends AbstractEntity {
 
     public int getLeaderInt() {
         return leaderInt;
+    }
+
+    public void reveal() {
+        this.revealed = true;
+    }
+
+    public boolean isRevealed() {
+        return revealed;
     }
 
     public String getKeptCode() {

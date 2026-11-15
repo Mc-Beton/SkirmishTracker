@@ -18,6 +18,7 @@ import { api } from "@/lib/api";
 import { useLiveRefresh } from "@/lib/live";
 import { useGameContent } from "@/lib/content";
 import type { FriendlyGame, GameReport, GameStart } from "@/lib/games";
+import { DeploymentPreview } from "@/components/table/deployment-preview";
 import { listLabel, toGameList, type ArmyList, type ArmyListSummary } from "@/lib/army-lists";
 import type { PlayerProfile, SearchHit } from "@/lib/players";
 import { factionName, useArmies, type Armies } from "@/lib/warbands";
@@ -451,6 +452,7 @@ function ReportForm({ leagues, onSaved }: { leagues: PlayerProfile["leagues"]; o
         <div className="grid gap-3">
           <ListToggle label={t("list.mine")} title={t("list.mineTitle")} armies={armies} value={myList} onChange={setMyList} fallback={myFaction} id="my-list" library={library} />
           <ListToggle label={t("list.opponent")} title={t("list.opponentTitle")} armies={armies} value={oppList} onChange={setOppList} fallback={oppFaction} id="opp-list" />
+          <p className="text-xs text-muted-foreground">{t("list.opponentHint")}</p>
         </div>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
@@ -460,6 +462,7 @@ function ReportForm({ leagues, onSaved }: { leagues: PlayerProfile["leagues"]; o
             <option value="">–</option>
             {content?.quests.map((q) => <option key={q.code} value={q.code}>{q.name}</option>)}
           </NativeSelect>
+          {scenario && <DeploymentPreview quest={content?.quests.find((q) => q.code === scenario) ?? null} />}
         </div>
         <div className="grid gap-2">
           <Label htmlFor="league">{t("league")}</Label>

@@ -370,6 +370,13 @@ class TableEngineTest {
         GameState s = state();
         assertEquals("PEACEKEEPING_PARAGON", s.schemeKept.get(0));
         assertEquals("a1", s.parties[0].leaderId());
+        // secret until the owner reveals it; only a kept Scheme can be revealed, once
+        assertTrue(s.schemeRevealed.isEmpty());
+        assertEquals("TABLE_SCHEME_NOT_CHOSEN", code(1, new Command.RevealScheme()));
+        run(0, new Command.RevealScheme());
+        assertEquals("TABLE_SCHEME_ALREADY_REVEALED", code(0, new Command.RevealScheme()));
+        assertTrue(state().schemeRevealed.contains(0));
+        assertFalse(state().schemeRevealed.contains(1));
         deployAndStart();
         // a player who missed it may still draw in the first round
         run(1, new Command.DrawSchemes(cards));

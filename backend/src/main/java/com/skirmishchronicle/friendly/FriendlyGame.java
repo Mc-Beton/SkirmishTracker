@@ -125,6 +125,17 @@ public class FriendlyGame extends AbstractEntity {
         this.listB = listB;
     }
 
+    /** One player's own faction and list (each player attaches their own). */
+    public void setSide(UUID userId, String faction, String list) {
+        if (playerA.equals(userId)) {
+            this.factionA = faction;
+            this.listA = list;
+        } else {
+            this.factionB = faction;
+            this.listB = list;
+        }
+    }
+
     public String getListA() {
         return listA;
     }

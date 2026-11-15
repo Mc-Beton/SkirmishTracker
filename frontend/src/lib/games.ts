@@ -59,6 +59,7 @@ export type OwnGamePlayer = {
   totalScheme: number;
   total: number;
   canEdit: boolean;
+  draw: import("@/lib/tournaments").GameDraw | null;
 };
 
 /** One own game for its players (GET /api/games/{id}). */
@@ -79,4 +80,6 @@ export type OwnGame = {
   canCancel: boolean;
   canConfirm: boolean;
   canWithdraw: boolean;
+  /** Each player may attach (or replace) their own list. */
+  canSetList: boolean;
 };

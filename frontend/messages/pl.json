@@ -311,6 +311,8 @@
     "TABLE_SCHEMES_ALREADY_DRAWN": "Scheme zostały już wylosowane.",
     "TABLE_SCHEMES_NOT_DRAWN": "Najpierw wylosuj scheme.",
     "TABLE_SCHEME_ALREADY_KEPT": "Scheme jest już wybrany.",
+    "TABLE_SCHEME_NOT_CHOSEN": "Najpierw wybierz scheme.",
+    "TABLE_SCHEME_ALREADY_REVEALED": "Scheme jest już ujawniony.",
     "TABLE_SCHEME_NOT_DRAWN": "Tego scheme nie wylosowano.",
     "TABLE_BAD_TOKEN": "Nieznany rodzaj żetonu.",
     "TABLE_TOO_MANY_TOKENS": "Na stole może być najwyżej 60 żetonów.",
@@ -358,7 +360,8 @@
     "BA_LIST_SAVE_FIRST": "Najpierw zapisz rozpiskę (nacja i deklaracje).",
     "LEAGUE_GAME_SYSTEM_MISMATCH": "Liga dotyczy innego systemu gry niż turniej.",
     "ORGANIZERS_OWNER_ONLY": "Współorganizatorów może zmieniać tylko twórca turnieju.",
-    "TOO_MANY_ORGANIZERS": "Maksymalnie 10 współorganizatorów."
+    "TOO_MANY_ORGANIZERS": "Maksymalnie 10 współorganizatorów.",
+    "SCHEME_NOT_CHOSEN": "Najpierw wybierz scheme."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -924,7 +927,14 @@
     "fromWarband": "Frakcja i INT lidera pochodzą z Twojej rozpiski.",
     "noSchemeTable": "Tabela schematów tej frakcji nie jest jeszcze dostępna – losowanie będzie możliwe po jej dodaniu.",
     "bothCanEdit": "Oboje możecie uzupełniać punkty obu stron.",
-    "partyFirst": "Najpierw wybierz drużynę na tę grę (powyżej) – schematy losuje się dla jej lidera."
+    "partyFirst": "Najpierw wybierz drużynę na tę grę (powyżej) – schematy losuje się dla jej lidera.",
+    "hiddenDrawn": "Wylosowano {n, plural, one {# kartę} few {# karty} other {# kart}} – wybór w toku. Scheme jest tajny do ujawnienia.",
+    "hiddenChosen": "Scheme wybrany – tajny, dopóki gracz go nie ujawni.",
+    "reveal": "Ujawnij scheme",
+    "revealConfirm": "Ujawnić scheme przeciwnikowi? Tego nie da się cofnąć.",
+    "secret": "Widzisz tylko Ty",
+    "revealed": "Ujawniony",
+    "secretHint": "Wylosowane karty i wybrany scheme widzisz tylko Ty, dopóki nie klikniesz „Ujawnij scheme”."
   },
   "scenarios": {
     "title": "Scenariusze i scheme",
@@ -1261,7 +1271,12 @@
       "total": "{points} pkt",
       "show": "Pokaż rozpiski",
       "mineTitle": "Moja rozpiska",
-      "opponentTitle": "Rozpiska przeciwnika"
+      "opponentTitle": "Rozpiska przeciwnika",
+      "attachMine": "Dodaj swoją rozpiskę",
+      "attachPlaceholder": "Wybierz z Moich rozpisek…",
+      "attachEmpty": "Nie masz zapisanych rozpisek – dodaj je w <link>Moich rozpiskach</link>.",
+      "attachHint": "Każdy gracz dodaje własną rozpiskę. Do gry trafia kopia – można ją podmienić do potwierdzenia wyniku.",
+      "opponentHint": "Nie musisz wpisywać rozpiski przeciwnika – po rozpoczęciu gry doda ją sam ze swoich zapisanych rozpisek."
     },
     "details": "Szczegóły",
     "status": {
@@ -1979,6 +1994,7 @@
       "PARTY_INFO": "{who}: rozpiska gotowa",
       "SCHEMES_DRAWN": "{who} losuje scheme ({n})",
       "SCHEME_KEPT": "{who} wybiera scheme",
+      "SCHEME_REVEALED": "{who} ujawnia scheme",
       "TOKEN_PLACED": "{who} kładzie żeton: {token}",
       "TOKEN_MOVED": "{who} przesuwa żeton",
       "TOKEN_REMOVED": "{who} zdejmuje żeton",
@@ -2105,6 +2121,7 @@
     "keepScheme": "Zatrzymaj",
     "drawSchemes": "Losuj scheme (k20)",
     "noSchemeYet": "Jeszcze nie wylosowano.",
+    "schemeSecret": "tajny",
     "victoryPoints": "Punkty zwycięstwa",
     "roundShort": "Runda",
     "total": "Suma",
@@ -2296,7 +2313,29 @@
     "lockTerrain": "Zablokuj teren",
     "terrainLocked": "Teren zablokowany",
     "dragToBoard": "Przeciągnij na planszę albo kliknij i kliknij na planszy",
-    "moveHelp": "Kliknij cel – model idzie tak daleko, jak pozwalają zasady (klik na wroga = do kontaktu). Shift + klik dodaje punkt trasy. Kółko myszy lub uchwyt przed modelem obraca."
+    "moveHelp": "Kliknij cel – model idzie tak daleko, jak pozwalają zasady (klik na wroga = do kontaktu). Shift + klik dodaje punkt trasy. Kółko myszy lub uchwyt przed modelem obraca.",
+    "hud": {
+      "desktopOnlyTitle": "Stół online działa na komputerze",
+      "desktopOnly": "Panel rozgrywki wymaga większego ekranu. Otwórz tę stronę na komputerze albo poszerz okno przeglądarki.",
+      "back": "Wróć do listy stołów",
+      "scoreHint": "Punkty zwycięstwa – kliknij, aby wpisać",
+      "turnOf": "Tura: {name}",
+      "invite": "Zaproś / linki",
+      "tabRoster": "Oddziały",
+      "tabTable": "Stół i teren",
+      "tabModel": "Model",
+      "tabQuest": "Misja i punkty",
+      "tabShare": "Linki",
+      "tools": "Narzędzia planszy",
+      "toolSelect": "Wybór i ruch",
+      "noModels": "Brak modeli.",
+      "tagActive": "aktywny",
+      "tagNotDeployed": "do rozstawienia",
+      "tagLeader": "lider",
+      "hintSetup": "Rozstawienie: wybierz model z listy i kliknij w swojej strefie. Ustalcie, kto zaczyna, i potwierdźcie gotowość.",
+      "hintYourTurn": "Twoja tura: wybierz model i kliknij „Aktywuj” w karcie modelu.",
+      "rollOn": "Ustaw {stat} jako cel rzutu"
+    }
   },
   "system": {
     "label": "System gry",

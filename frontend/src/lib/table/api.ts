@@ -135,6 +135,8 @@ export type TableTemplate = {
 export type PartyView = {
   side: 0 | 1; faction: string; leaderInt: number; leaderId: string | null;
   drawn: { scheme: string; roll: number }[]; kept: string | null;
+  /** Schemes are secret: `hidden` – this side has cards the viewer may not see yet (drawn/kept come empty). */
+  revealed: boolean; hidden: boolean; cardCount: number; chosen: boolean;
 };
 
 export type TableView = {
@@ -254,6 +256,7 @@ export type TableCommand =
   | { type: "CONCEDE" }
   | { type: "DRAW_SCHEMES" }
   | { type: "KEEP_SCHEME"; scheme: string }
+  | { type: "REVEAL_SCHEME" }
   | { type: "PLACE_TOKEN"; kind: TokenKind; x: number; y: number; label?: string }
   | { type: "MOVE_TOKEN"; id: string; x: number; y: number }
   | { type: "REMOVE_TOKEN"; id: string }

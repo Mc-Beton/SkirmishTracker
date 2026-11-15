@@ -107,7 +107,10 @@ Komendy (`type`): `FIRST_PLAYER`, `DEPLOY`, `READY`, `ACTIVATE`, `MOVE`, `FREE_M
   Na planszy strefy są delikatnie podświetlone (przycisk „Strefy rozstawienia” obok Awareness), przy zakładaniu
   stołu pod wyborem scenariusza jest szkic stref.
 - **Scheme:** każdy gracz losuje karty kośćmi serwera (liczba kart z INT lidera, jak w zwykłej grze), jedną
-  zatrzymuje. Zgodnie z zasadami scheme są jawne – widzą je obaj gracze.
+  zatrzymuje. Scheme są **tajne** (jak w „Moich grach” i turniejach): przeciwnik i obserwatorzy widzą tylko, że
+  karty wylosowano / scheme wybrano (`hidden`, `cardCount`, `chosen`), także w dzienniku. Właściciel ujawnia go
+  komendą `REVEAL_SCHEME` (nie da się cofnąć, nie blokuje cofania innych kroków); po zakończeniu gry jawne są oba.
+  Sędzia i gra solo widzą wszystko. Nowo wybrany scheme (gra swobodna) jest znów tajny.
   „Gotowy” wymaga zatrzymanego scheme (`TABLE_SCHEME_FIRST`, gdy frakcja ma tabelę); gracz, który go pominął
   w starszych stołach, może jeszcze losować w 1. rundzie.
 - **Żetony** (Intrigue, Cache, Sigil, Cel, Skarb, własny znacznik z opisem): kładzenie, przesuwanie, zdejmowanie –
@@ -169,6 +172,21 @@ Komendy (`type`): `FIRST_PLAYER`, `DEPLOY`, `READY`, `ACTIVATE`, `MOVE`, `FREE_M
   cali, reakcja, ruch swobodny, obrót (Q/E), linia wzroku (L), kości, dziennik, cofanie, poddanie.
 - `/maps`, `/maps/new`, `/maps/{id}` – przeglądanie i edytor map.
 - `/admin/table` – biblioteka terenu i teł (wgrywanie grafiki, rysowanie kształtów).
+
+### Panel rozgrywki (PC first)
+
+Strona `/tables/{id}` to pełnoekranowy panel od szerokości `lg` (1024 px); na węższych ekranach pokazuje komunikat
+„Stół online działa na komputerze” (pozostałe strony bez zmian). Układ (`table-play.tsx`):
+
+- **Górny pasek:** powrót do listy stołów, mapa · scenariusz, runda (w grze swobodnej z −/+), wynik PZ (klik otwiera
+  „Misja i punkty”), czyja tura, Cofnij, Zaproś / linki, Poddaj.
+- **Lewy panel:** „Oddziały” – modele obu stron z HP, AP, stanami i scheme (klik zaznacza model); w grze swobodnej
+  druga zakładka „Stół i teren” (mata, teren, postacie).
+- **Pasek narzędzi:** wybór i ruch, LoS, linijka, Awareness, żetony, szablony AoE, strefy, teren według zasad, blokada terenu.
+- **Plansza** skaluje się do dostępnego miejsca z zachowaniem proporcji; pod nią podpowiedź i przyciski fazy
+  (pierwszy gracz / Gotowe, Zakończ aktywację, Koniec tury).
+- **Prawy panel:** zakładki Model (karta, akcje, LoS, opcje żetonów i szablonów), Misja i punkty, Dziennik, Linki;
+  na dole stale kości (klik w cechę na karcie ustawia cel rzutu).
 
 ### Sterowanie na planszy
 

@@ -57,15 +57,23 @@ public class FriendlyGameService {
     public record TurnView(int turn, int scenarioVp, int schemeVp) {
     }
 
+    public record CardView(String scheme, int roll) {
+    }
+
+    /** As in tournament games: secret for the opponent until revealed (or the game is confirmed). */
+    public record DrawView(String faction, int leaderInt, List<CardView> cards, String kept, boolean revealed,
+                           boolean hidden, int cardCount, boolean chosen) {
+    }
+
     public record LivePlayer(UUID userId, String displayName, String faction, GameList list, List<TurnView> turns,
-                             int totalScenario, int totalScheme, int total, boolean canEdit) {
+                             int totalScenario, int totalScheme, int total, boolean canEdit, DrawView draw) {
     }
 
     /** One own game for its players: header, lists and the points of every turn. */
     public record LiveView(UUID id, FriendlyGameStatus status, LocalDate playedOn, String scenario, LeagueRef league,
                            String notes, int turns, List<LivePlayer> players, UUID reportedBy, int smallA, int smallB,
                            boolean canFinish, boolean canReopen, boolean canCancel, boolean canConfirm,
-                           boolean canWithdraw) {
+                           boolean canWithdraw, boolean canSetList) {
     }
 
     public record PlayerRef(UUID id, String displayName) {
@@ -90,12 +98,15 @@ public class FriendlyGameService {
     private final ObjectMapper mapper;
     private final FriendlyTurnScoreRepository turnScores;
     private final com.skirmishchronicle.live.LiveEventService live;
+    private final FriendlySchemeDrawRepository schemeDraws;
+    private final java.security.SecureRandom random = new java.security.SecureRandom();
 
     public FriendlyGameService(FriendlyGameRepository games, UserRepository users, LeagueRepository leagues,
                                LeagueMemberRepository members, ContentService content, AuditService audit,
                                ObjectMapper mapper,
             NotificationService notifications, FriendlyTurnScoreRepository turnScores,
-            com.skirmishchronicle.live.LiveEventService live) {
+            com.skirmishchronicle.live.LiveEventService live, FriendlySchemeDrawRepository schemeDraws) {
+        this.schemeDraws = schemeDraws;
         this.turnScores = turnScores;
         this.live = live;
         this.notifications = notifications;
@@ -176,7 +187,13 @@ public class FriendlyGameService {
         boolean live = g.getStatus() == FriendlyGameStatus.IN_PROGRESS;
         boolean pending = g.getStatus() == FriendlyGameStatus.PENDING;
         List<LivePlayer> players = new java.util.ArrayList<>();
+        List<FriendlySchemeDraw> draws = schemeDraws.findByGameId(gameId);
         for (UUID p : List.of(g.getPlayerA(), g.getPlayerB())) {
+            FriendlySchemeDraw d = draws.stream().filter(x -> x.getUserId().equals(p)).findFirst().orElse(null);
+            boolean open = d != null && (d.isRevealed() || p.equals(actor.id()) || g.getStatus() == FriendlyGameStatus.CONFIRMED);
+            DrawView dv = d == null ? null : new DrawView(d.getFaction(), d.getLeaderInt(),
+                    open ? d.getCards().stream().map(c -> new CardView(c.scheme(), c.roll())).toList() : List.of(),
+                    open ? d.getKeptCode() : null, d.isRevealed(), !open, d.getCards().size(), d.getKeptCode() != null);
             List<TurnView> tv = new java.util.ArrayList<>();
             int sc = 0;
             int sh = 0;
@@ -192,14 +209,97 @@ public class FriendlyGameService {
             }
             boolean isA = p.equals(g.getPlayerA());
             players.add(new LivePlayer(p, userName(p), isA ? g.getFactionA() : g.getFactionB(),
-                    readList(isA ? g.getListA() : g.getListB()), tv, sc, sh, sc + sh, live));
+                    readList(isA ? g.getListA() : g.getListB()), tv, sc, sh, sc + sh, live, dv));
         }
         League league = g.getLeagueId() == null ? null : leagues.findById(g.getLeagueId()).orElse(null);
         boolean reporter = g.getReportedBy().equals(actor.id());
         return new LiveView(g.getId(), g.getStatus(), g.getPlayedOn(), g.getScenarioCode(),
                 league == null ? null : new LeagueRef(league.getId(), league.getName()), g.getNotes(), content.turns(),
                 players, g.getReportedBy(), g.getSmallA(), g.getSmallB(), live, pending && !all.isEmpty(), live,
-                pending && !reporter, pending && reporter);
+                pending && !reporter, pending && reporter, live || pending);
+    }
+
+    // ------------------------------------------------------------------ own list, Schemes
+
+    /** Each player attaches (or replaces) their own list while the game is played or waits for confirmation. */
+    @Transactional
+    public void setMyList(CurrentUser actor, UUID gameId, GameList list) {
+        FriendlyGame g = games.findById(gameId).filter(x -> x.involves(actor.id()))
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "GAME_NOT_FOUND"));
+        if (g.getStatus() != FriendlyGameStatus.IN_PROGRESS && g.getStatus() != FriendlyGameStatus.PENDING) {
+            throw new ApiException(HttpStatus.CONFLICT, "GAME_NOT_IN_PROGRESS");
+        }
+        GameList valid = validateList(list);
+        if (valid == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "FACTION_NOT_FOUND");
+        }
+        // Schemes were drawn on a faction's table: the list cannot move to another faction afterwards.
+        schemeDraws.findByGameIdAndUserId(gameId, actor.id()).ifPresent(d -> {
+            if (!d.getFaction().equals(valid.faction())) {
+                throw new ApiException(HttpStatus.CONFLICT, "SCHEMES_ALREADY_DRAWN");
+            }
+        });
+        g.setSide(actor.id(), valid.faction(), write(valid));
+        audit.record(actor.id(), AUDIT_TYPE, g.getId(), "LIST_SET", null);
+        live.notificationsChangedAfterCommit(g.opponentOf(actor.id()));
+    }
+
+    /**
+     * Server dice on the faction's Scheme table, as many cards as the Leader's INT allows; once per player and game.
+     * The faction is the player's faction in this game (from the list or chosen at the start), else the given one.
+     */
+    @Transactional
+    public void drawSchemes(CurrentUser actor, UUID gameId, String requestedFaction, int leaderInt) {
+        FriendlyGame g = liveGame(actor, gameId);
+        String own = g.getPlayerA().equals(actor.id()) ? g.getFactionA() : g.getFactionB();
+        String faction = own != null ? own : requestedFaction;
+        if (faction == null || faction.isBlank() || content.faction(faction).isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "FACTION_NOT_FOUND");
+        }
+        if (!content.hasSchemeTable(faction)) {
+            throw new ApiException(HttpStatus.CONFLICT, "SCHEME_TABLE_MISSING");
+        }
+        if (leaderInt < 1 || leaderInt > 30) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_LEADER_INT");
+        }
+        if (schemeDraws.findByGameIdAndUserId(gameId, actor.id()).isPresent()) {
+            throw new ApiException(HttpStatus.CONFLICT, "SCHEMES_ALREADY_DRAWN");
+        }
+        List<FriendlySchemeDraw.Card> cards = content.drawSchemes(faction, leaderInt, random).stream()
+                .map(c -> new FriendlySchemeDraw.Card(c.scheme(), c.roll())).toList();
+        schemeDraws.save(new FriendlySchemeDraw(gameId, actor.id(), faction, leaderInt, cards));
+        if (own == null) {
+            g.setSide(actor.id(), faction, g.getPlayerA().equals(actor.id()) ? g.getListA() : g.getListB());
+        }
+        live.notificationsChangedAfterCommit(g.opponentOf(actor.id()));
+    }
+
+    @Transactional
+    public void keepScheme(CurrentUser actor, UUID gameId, String schemeCode) {
+        FriendlyGame g = liveGame(actor, gameId);
+        FriendlySchemeDraw d = schemeDraws.findByGameIdAndUserId(gameId, actor.id())
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "SCHEMES_NOT_DRAWN"));
+        if (d.getKeptCode() != null) {
+            throw new ApiException(HttpStatus.CONFLICT, "SCHEME_ALREADY_CHOSEN");
+        }
+        if (d.getCards().stream().noneMatch(c -> c.scheme().equals(schemeCode))) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "SCHEME_NOT_DRAWN");
+        }
+        d.keep(schemeCode);
+        live.notificationsChangedAfterCommit(g.opponentOf(actor.id()));
+    }
+
+    /** Shows the kept Scheme to the opponent; it cannot be hidden again. */
+    @Transactional
+    public void revealScheme(CurrentUser actor, UUID gameId) {
+        FriendlyGame g = liveGame(actor, gameId);
+        FriendlySchemeDraw d = schemeDraws.findByGameIdAndUserId(gameId, actor.id())
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "SCHEMES_NOT_DRAWN"));
+        if (d.getKeptCode() == null) {
+            throw new ApiException(HttpStatus.CONFLICT, "SCHEME_NOT_CHOSEN");
+        }
+        d.reveal();
+        live.notificationsChangedAfterCommit(g.opponentOf(actor.id()));
     }
 
     /** Either player enters (or corrects) a turn of either side while the game is played. */

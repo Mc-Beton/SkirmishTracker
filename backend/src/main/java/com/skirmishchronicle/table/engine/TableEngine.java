@@ -247,6 +247,15 @@ public final class TableEngine {
                 }
                 yield List.of(new GameEvent.SchemeKept(side, k.scheme()));
             }
+            case Command.RevealScheme r -> {
+                if (!s.schemeKept.containsKey(side)) {
+                    throw new RuleViolation("TABLE_SCHEME_NOT_CHOSEN");
+                }
+                if (s.schemeRevealed.contains(side)) {
+                    throw new RuleViolation("TABLE_SCHEME_ALREADY_REVEALED");
+                }
+                yield List.of(new GameEvent.SchemeRevealed(side));
+            }
             case Command.PlaceToken tp -> {
                 if (!TOKEN_KINDS.contains(tp.kind())) {
                     throw new RuleViolation("TABLE_BAD_TOKEN");
@@ -554,6 +563,9 @@ public final class TableEngine {
             if (r.side() == side && UNDOABLE.contains(r.event().getClass())) {
                 List<Long> seqs = new ArrayList<>();
                 for (int k = i; k < live.size(); k++) {
+                    if (live.get(k).event() instanceof GameEvent.SchemeRevealed) {
+                        continue; // a reveal is never taken back and does not block undoing other steps
+                    }
                     if (!UNDOABLE.contains(live.get(k).event().getClass())) {
                         throw new RuleViolation("TABLE_NOTHING_TO_UNDO");
                     }

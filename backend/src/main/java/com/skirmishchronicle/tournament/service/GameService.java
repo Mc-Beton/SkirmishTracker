@@ -41,7 +41,13 @@ public class GameService {
     public record CardView(String scheme, int roll) {
     }
 
-    public record DrawView(String faction, int leaderInt, List<CardView> cards, String kept) {
+    /**
+     * A player's Scheme draw. It is secret: until its owner reveals the kept Scheme (or the result is confirmed)
+     * others get {@code hidden} with no cards and no kept code – only how far the player is ({@code cardCount},
+     * {@code chosen}). The owner and the organizer always see everything.
+     */
+    public record DrawView(String faction, int leaderInt, List<CardView> cards, String kept, boolean revealed,
+                           boolean hidden, int cardCount, boolean chosen) {
     }
 
     public record TurnView(int turn, int scenarioVp, int schemeVp) {
@@ -72,11 +78,14 @@ public class GameService {
     private final AuditService audit;
     private final SecureRandom random = new SecureRandom();
     private final com.skirmishchronicle.tournament.repo.MatchPartyRepository parties;
+    private final com.skirmishchronicle.live.LiveEventService live;
 
     public GameService(MatchRepository matches, RoundRepository rounds, SchemeDrawRepository draws,
                        TurnScoreRepository turns, WarbandRepository warbands, UserRepository users, ContentService content,
                        RoundService roundService, TournamentGuard guard, AuditService audit,
-            JudgeCallRepository judgeCalls, com.skirmishchronicle.tournament.repo.MatchPartyRepository parties) {
+            JudgeCallRepository judgeCalls, com.skirmishchronicle.tournament.repo.MatchPartyRepository parties,
+            com.skirmishchronicle.live.LiveEventService live) {
+        this.live = live;
         this.parties = parties;
         this.judgeCalls = judgeCalls;
         this.matches = matches;
@@ -109,8 +118,11 @@ public class GameService {
         List<PlayerGame> players = new ArrayList<>();
         for (UUID player : m.isBye() ? List.of(m.getPlayerA()) : List.of(m.getPlayerA(), m.getPlayerB())) {
             MatchSchemeDraw d = matchDraws.stream().filter(x -> x.getUserId().equals(player)).findFirst().orElse(null);
+            boolean open = d != null && (d.isRevealed() || m.getStatus() == MatchStatus.CONFIRMED || manager
+                    || (viewer != null && viewer.id().equals(player)));
             DrawView dv = d == null ? null : new DrawView(d.getFaction(), d.getLeaderInt(),
-                    d.getCards().stream().map(c -> new CardView(c.scheme(), c.roll())).toList(), d.getKeptCode());
+                    open ? d.getCards().stream().map(c -> new CardView(c.scheme(), c.roll())).toList() : List.of(),
+                    open ? d.getKeptCode() : null, d.isRevealed(), !open, d.getCards().size(), d.getKeptCode() != null);
             List<TurnView> tv = new ArrayList<>();
             int sc = 0;
             int sh = 0;
@@ -214,6 +226,7 @@ public class GameService {
         List<MatchSchemeDraw.Card> cards = content.drawSchemes(faction, leaderInt, random).stream()
                 .map(c -> new MatchSchemeDraw.Card(c.scheme(), c.roll())).toList();
         draws.save(new MatchSchemeDraw(matchId, actor.id(), faction, leaderInt, cards));
+        live.tournamentChangedAfterCommit(tournamentId, "game");
     }
 
     @Transactional
@@ -231,6 +244,22 @@ public class GameService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "SCHEME_NOT_DRAWN");
         }
         d.keep(schemeCode);
+        live.tournamentChangedAfterCommit(tournamentId, "game");
+    }
+
+    /** Shows the kept Scheme to the opponent (and everybody watching); it cannot be hidden again. */
+    @Transactional
+    public void revealScheme(CurrentUser actor, UUID tournamentId, UUID matchId) {
+        TournamentGuard.requireEldfall(guard.lock(tournamentId));
+        TournamentMatch m = editableMatch(tournamentId, matchId);
+        requireParticipant(actor, m);
+        MatchSchemeDraw d = draws.findByMatchIdAndUserId(matchId, actor.id())
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "SCHEMES_NOT_DRAWN"));
+        if (d.getKeptCode() == null) {
+            throw new ApiException(HttpStatus.CONFLICT, "SCHEME_NOT_CHOSEN");
+        }
+        d.reveal();
+        live.tournamentChangedAfterCommit(tournamentId, "game");
     }
 
     /** Either player of the game (or the organizer) edits a turn of either side. Earlier turns stay editable. */

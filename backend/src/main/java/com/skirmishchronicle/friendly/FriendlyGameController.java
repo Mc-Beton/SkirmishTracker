@@ -69,6 +69,12 @@ public class FriendlyGameController {
                                @Valid ListRequest opponentList) {
     }
 
+    public record DrawRequest(@Size(max = 60) String faction, @NotNull @Min(1) @Max(30) Integer leaderInt) {
+    }
+
+    public record KeepRequest(@NotNull @Size(min = 1, max = 60) String scheme) {
+    }
+
     public record TurnRequest(@NotNull UUID playerId,
                               @NotNull @Min(0) @Max(100) Integer scenarioVp,
                               @NotNull @Min(0) @Max(100) Integer schemeVp) {
@@ -117,6 +123,31 @@ public class FriendlyGameController {
     public void saveTurn(@PathVariable UUID id, @PathVariable int turn, @AuthenticationPrincipal Jwt jwt,
                          @Valid @RequestBody TurnRequest body) {
         games.saveTurn(CurrentUser.from(jwt), id, body.playerId(), turn, body.scenarioVp(), body.schemeVp());
+    }
+
+    /** The caller's own list for this game (from "My lists" or built by hand). */
+    @PutMapping("/{id}/list")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void setList(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ListRequest body) {
+        games.setMyList(CurrentUser.from(jwt), id, body.toList());
+    }
+
+    @PostMapping("/{id}/schemes/draw")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void drawSchemes(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody DrawRequest body) {
+        games.drawSchemes(CurrentUser.from(jwt), id, blank(body.faction()), body.leaderInt());
+    }
+
+    @PostMapping("/{id}/schemes/keep")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void keepScheme(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody KeepRequest body) {
+        games.keepScheme(CurrentUser.from(jwt), id, body.scheme());
+    }
+
+    @PostMapping("/{id}/schemes/reveal")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revealScheme(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        games.revealScheme(CurrentUser.from(jwt), id);
     }
 
     @PostMapping("/{id}/finish")

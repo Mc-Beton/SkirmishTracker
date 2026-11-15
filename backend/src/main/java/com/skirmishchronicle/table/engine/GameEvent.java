@@ -34,6 +34,7 @@ import java.util.List;
         @JsonSubTypes.Type(value = GameEvent.PartyInfo.class, name = "PARTY_INFO"),
         @JsonSubTypes.Type(value = GameEvent.SchemesDrawn.class, name = "SCHEMES_DRAWN"),
         @JsonSubTypes.Type(value = GameEvent.SchemeKept.class, name = "SCHEME_KEPT"),
+        @JsonSubTypes.Type(value = GameEvent.SchemeRevealed.class, name = "SCHEME_REVEALED"),
         @JsonSubTypes.Type(value = GameEvent.TokenPlaced.class, name = "TOKEN_PLACED"),
         @JsonSubTypes.Type(value = GameEvent.TokenMoved.class, name = "TOKEN_MOVED"),
         @JsonSubTypes.Type(value = GameEvent.TokenRemoved.class, name = "TOKEN_REMOVED"),
@@ -124,6 +125,10 @@ public sealed interface GameEvent {
     }
 
     record SchemeKept(int side, String scheme) implements GameEvent {
+    }
+
+    /** The owner showed the kept Scheme to everyone at the table (cannot be taken back). */
+    record SchemeRevealed(int side) implements GameEvent {
     }
 
     /** A Quest token on the field: INTRIGUE, CACHE, SIGIL, OBJECTIVE, TREASURE or MARKER (free label). */

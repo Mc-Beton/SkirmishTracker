@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { ArrowLeft, Check, Flag, RotateCcw, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Flag, Library, RotateCcw, Trash2, X } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { QuestView } from "@/components/game/quest-view";
+import { SchemesPanel } from "@/components/game/schemes-panel";
+import { NativeSelect } from "@/components/ui/native-select";
+import { listLabel, toGameList, type ArmyList, type ArmyListSummary } from "@/lib/army-lists";
 import { TurnGrid, withTurn } from "@/components/game/turn-grid";
 import { api } from "@/lib/api";
 import { useGameContent } from "@/lib/content";
@@ -49,6 +52,9 @@ export function OwnGameTracker({ gameId }: { gameId: string }) {
   const [game, setGame] = useState<OwnGame | null>(null);
   const [queued, setQueued] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [library, setLibrary] = useState<ArmyListSummary[]>([]);
+  /** Leader INT of the list just attached from "My lists" – suggested for the Scheme draw. */
+  const [listInt, setListInt] = useState<number | null>(null);
   const base = `/api/games/${gameId}`;
   const meId = me?.id;
 
@@ -83,6 +89,38 @@ export function OwnGameTracker({ gameId }: { gameId: string }) {
       active = false;
     };
   }, [fetchGame, meId, errorMessage]);
+
+  useEffect(() => {
+    if (!meId) return;
+    let active = true;
+    api<ArmyListSummary[]>("GET", "/api/army-lists").then((l) => active && setLibrary(l)).catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [meId]);
+
+  /** Attaches one of my saved lists to my side of this game (a copy, like everywhere else). */
+  async function attachList(listId: string) {
+    setError(null);
+    try {
+      const full = await api<ArmyList>("GET", `/api/army-lists/${listId}`);
+      await api("PUT", `${base}/list`, toGameList(full));
+      setListInt(full.leaderInt ?? null);
+      await load();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  async function scheme(path: string, body: unknown = {}) {
+    setError(null);
+    try {
+      await api("POST", `${base}/schemes/${path}`, body);
+      await load();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
 
   // The opponent enters points on their phone too: their changes arrive as a hint for this user.
   useLiveRefresh(null, () => void load().catch(() => undefined));
@@ -212,6 +250,17 @@ export function OwnGameTracker({ gameId }: { gameId: string }) {
             </div>
           )}
           {live && <p className="text-xs text-muted-foreground">{t("live.finishHint")}</p>}
+          {(live || game.players.some((p) => p.draw)) && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {game.players.map((p) => (
+                <SchemesPanel key={p.userId} player={p} content={content} faction={p.faction}
+                  suggestedInt={p.userId === meId ? listInt : null} isMe={p.userId === meId}
+                  onDraw={(faction, leaderInt) => scheme("draw", { faction, leaderInt })}
+                  onKeep={(code) => scheme("keep", { scheme: code })}
+                  onReveal={() => scheme("reveal")} />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="grid content-start gap-6">
@@ -221,13 +270,27 @@ export function OwnGameTracker({ gameId }: { gameId: string }) {
               {quest ? <QuestView quest={quest} compact /> : <p className="text-sm text-muted-foreground">{tg("noScenario")}</p>}
             </CardContent>
           </Card>
-          {game.players.some((p) => p.list || p.faction) && (
+          {(game.canSetList || game.players.some((p) => p.list || p.faction)) && (
             <Card>
               <CardHeader><CardTitle className="text-xl">{t("list.show")}</CardTitle></CardHeader>
               <CardContent className="grid gap-4 text-sm">
                 {game.players.map((p) => (
                   <PlayerList key={p.userId} name={p.displayName} faction={p.faction} list={p.list} armies={armies} />
                 ))}
+                {game.canSetList && (
+                  <div className="grid gap-1.5 border-t pt-3">
+                    <span className="flex items-center gap-1.5 font-medium"><Library className="size-4" aria-hidden /> {t("list.attachMine")}</span>
+                    {library.length > 0 ? (
+                      <NativeSelect aria-label={t("list.attachMine")} value="" onChange={(e) => e.target.value && void attachList(e.target.value)}>
+                        <option value="">{t("list.attachPlaceholder")}</option>
+                        {library.map((l) => <option key={l.id} value={l.id}>{listLabel(l)} · {factionName(armies, l.faction)} · {l.totalPoints}</option>)}
+                      </NativeSelect>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">{t.rich("list.attachEmpty", { link: (c) => <Link className="underline" href="/lists">{c}</Link> })}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">{t("list.attachHint")}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

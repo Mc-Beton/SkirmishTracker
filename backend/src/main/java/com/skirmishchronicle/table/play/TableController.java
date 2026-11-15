@@ -64,7 +64,7 @@ public class TableController {
     /**
      * One command, flat: {@code type} picks the command, the other fields are its arguments.
      * Types: FIRST_PLAYER, DEPLOY, READY, ACTIVATE, MOVE, FREE_MOVE, ROTATE, REACT, ROLL, HP, STATE, AP,
-     * END_ACTIVATION, END_TURN, UNDO, CONCEDE, DRAW_SCHEMES, KEEP_SCHEME, PLACE_TOKEN, MOVE_TOKEN, REMOVE_TOKEN, VP,
+     * END_ACTIVATION, END_TURN, UNDO, CONCEDE, DRAW_SCHEMES, KEEP_SCHEME, REVEAL_SCHEME, PLACE_TOKEN, MOVE_TOKEN, REMOVE_TOKEN, VP,
      * PLACE_TEMPLATE, REMOVE_TEMPLATE, END_GAME. Tokens and templates use {@code id} for their own id.
      */
     public record CommandRequest(@NotNull @Size(max = 20) String type, @Size(max = 10) String id, Double x, Double y,
@@ -94,6 +94,7 @@ public class TableController {
                 case "CONCEDE" -> new Command.Concede();
                 case "DRAW_SCHEMES" -> new Command.DrawSchemes(null);
                 case "KEEP_SCHEME" -> new Command.KeepScheme(text(scheme));
+                case "REVEAL_SCHEME" -> new Command.RevealScheme();
                 case "PLACE_TOKEN" -> new Command.PlaceToken(text(kind), point(x, y), label);
                 case "MOVE_TOKEN" -> new Command.MoveToken(modelId(), point(x, y));
                 case "REMOVE_TOKEN" -> new Command.RemoveToken(modelId());

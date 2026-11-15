@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
+import { DeploymentPreview } from "@/components/table/deployment-preview";
 import { loc, type Quest } from "@/lib/content";
 
 /** Summary of a scenario: setup, how to score, end conditions and special rules. */
@@ -24,10 +25,9 @@ export function QuestView({ quest, compact = false }: { quest: Quest; compact?: 
       </Section>
       <Section title={t("setup")}>
         <ul className="grid list-disc gap-1 pl-5">
-          <li>{loc(quest.deployment, locale)}</li>
           {quest.setup.map((s, i) => <li key={i}>{loc(s, locale)}</li>)}
         </ul>
-        <p className="mt-2 rounded-md border border-dashed p-3 text-xs text-muted-foreground">{t("map")}</p>
+        <div className="mt-3"><DeploymentPreview quest={quest} size={compact ? 96 : 128} /></div>
       </Section>
       {quest.important.length > 0 && (
         <Section title={t("important")}>
