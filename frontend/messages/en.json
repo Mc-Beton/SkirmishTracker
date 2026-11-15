@@ -361,7 +361,12 @@
     "LEAGUE_GAME_SYSTEM_MISMATCH": "The league is for a different game system than the tournament.",
     "ORGANIZERS_OWNER_ONLY": "Only the tournament's creator can change the co-organizers.",
     "TOO_MANY_ORGANIZERS": "At most 10 co-organizers.",
-    "SCHEME_NOT_CHOSEN": "Choose a Scheme first."
+    "SCHEME_NOT_CHOSEN": "Choose a Scheme first.",
+    "TEST_TOURNAMENT_INVITE_ONLY": "Players are added to a test tournament by its organizer.",
+    "NOT_A_TEST_TOURNAMENT": "Dummy players can only be added to a test tournament.",
+    "INVALID_DUMMY_COUNT": "Enter 1 to 64 players.",
+    "TOO_MANY_DUMMIES": "Too many participants (max 256).",
+    "TEST_TOURNAMENT_NOT_COUNTED": "A test tournament cannot belong to a league."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -565,7 +570,9 @@
       "coOrganizers": "Co-organizers / judges",
       "coOrganizersHint": "Type at least 2 letters of a nickname and pick from the list (up to 10 people). They have your rights except changing this list.",
       "coOrganizersOwnerOnly": "Only the tournament's creator changes the co-organizers.",
-      "removeCoOrganizer": "Remove: {name}"
+      "removeCoOrganizer": "Remove: {name}",
+      "test": "Test tournament",
+      "testHint": "A private tournament to rehearse the flow: add dummy players and invite other users by nickname, enter every result and generate rounds. Never public and never counted anywhere. Cannot be changed later."
     },
     "manageView": {
       "title": "Organizer panel",
@@ -622,7 +629,11 @@
       "paidShort": "Paid",
       "pending": "pending",
       "approve": "Approve",
-      "unapprove": "Undo approval"
+      "unapprove": "Undo approval",
+      "testInfo": "Test mode: add dummy players or invite other users by nickname. You enter the results of every game at its match and generate rounds as usual. Nothing goes to ELO, leagues or statistics.",
+      "dummyCount": "Number of dummy players",
+      "addDummies": "Add dummy players",
+      "dummiesHint": "Dummy players have no login – you enter their lists and results."
     },
     "listStatus": {
       "NOT_SUBMITTED": "None",
@@ -875,7 +886,9 @@
       "ELDFALL": "Eldfall",
       "BOLT_ACTION": "Bolt Action"
     },
-    "organizerJudge": "Organizer/judge"
+    "organizerJudge": "Organizer/judge",
+    "testBadge": "Test",
+    "testInfo": "Test tournament: only its organizers and invited testers see it. It never counts towards ELO, leagues, seasons or statistics."
   },
   "game": {
     "back": "Back to tournament",

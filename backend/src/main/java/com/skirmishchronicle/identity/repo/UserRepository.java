@@ -21,4 +21,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByIdForUpdate(UUID id);
 
     java.util.List<User> findTop10ByDisplayNameContainingIgnoreCaseOrderByDisplayNameAsc(String fragment);
+
+    /** Player search without test-tournament dummies. */
+    java.util.List<User> findTop10ByDummyFalseAndDisplayNameContainingIgnoreCaseOrderByDisplayNameAsc(String fragment);
 }

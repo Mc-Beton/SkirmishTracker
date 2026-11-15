@@ -123,6 +123,14 @@ public class TournamentController {
         service.addPlayer(CurrentUser.from(jwt), id, body.displayName());
     }
 
+    /** Test tournaments: adds placeholder players the organizer plays for. */
+    @PostMapping("/{id}/dummies")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void addDummies(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt,
+                           @Valid @RequestBody TournamentRequests.DummiesRequest body) {
+        service.addDummies(CurrentUser.from(jwt), id, body.count());
+    }
+
     @PatchMapping("/{id}/participants/{participantId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateParticipant(@PathVariable UUID id, @PathVariable UUID participantId,

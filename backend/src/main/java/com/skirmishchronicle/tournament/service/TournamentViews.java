@@ -28,7 +28,9 @@ public final class TournamentViews {
                           TournamentRank rank, TournamentFormat format, TournamentStatus status,
                           Integer maxPlayers, long registeredCount, Integer pointsLimit, String organizerName,
                           boolean official, ListFormat listFormat, Integer partyLimit,
-                          com.skirmishchronicle.common.GameSystem gameSystem) {
+                          com.skirmishchronicle.common.GameSystem gameSystem,
+                          /** Private test tournament (only in "my tournaments"). */
+                          boolean test) {
     }
 
     public record Detail(UUID id, String name, String description, Instant startsAt, Instant endsAt,
@@ -56,7 +58,9 @@ public final class TournamentViews {
                          /** Co-organizers (organizer / judge) besides {@code organizer}. */
                          List<Organizer> coOrganizers,
                          /** The caller may change the co-organizers (owner or admin). */
-                         boolean canEditOrganizers) {
+                         boolean canEditOrganizers,
+                         /** Private test tournament: never public, never counted. */
+                         boolean test) {
     }
 
     /** pairing / softPreferences null = default for that round. */

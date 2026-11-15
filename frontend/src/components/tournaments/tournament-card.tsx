@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { CalendarDays, MapPin, Users } from "lucide-react";
-import { OfficialBadge, RankBadge, StatusBadge } from "@/components/tournaments/status-badge";
+import { OfficialBadge, RankBadge, StatusBadge, TestBadge } from "@/components/tournaments/status-badge";
 import type { TournamentSummary } from "@/lib/tournaments";
 
 export function TournamentCard({ tournament: t }: { tournament: TournamentSummary }) {
@@ -18,6 +18,7 @@ export function TournamentCard({ tournament: t }: { tournament: TournamentSummar
         <RankBadge rank={t.rank} />
         <StatusBadge status={t.status} />
         {t.official && <OfficialBadge />}
+        {t.test && <TestBadge />}
         <span className="text-xs text-muted-foreground">{tr(`format.${t.format}`)}</span>
       </div>
       <h3 className="font-display text-lg leading-snug group-hover:text-primary">{t.name}</h3>

@@ -331,6 +331,8 @@ export type TournamentSummary = {
   listFormat: ListFormat;
   partyLimit: number | null;
   gameSystem: GameSystem;
+  /** Private test tournament. */
+  test: boolean;
 };
 
 export type TournamentDetail = {
@@ -377,6 +379,8 @@ export type TournamentDetail = {
   coOrganizers: { id: string; displayName: string }[];
   /** The caller may change the co-organizers (owner or admin). */
   canEditOrganizers: boolean;
+  /** Private test tournament: never public, never counted (ELO, leagues, statistics). */
+  test: boolean;
 };
 
 export type Participant = {
@@ -420,6 +424,8 @@ export type TournamentInput = TournamentSettings & {
   requireApproval?: boolean;
   /** Co-organizers; omitted = keep the current list. */
   organizerIds?: string[];
+  /** Create a private test tournament (ignored on update). */
+  test?: boolean;
   roundsPlanned: number | null;
   listDeadline: string | null;
   roundPlans: RoundPlan[];

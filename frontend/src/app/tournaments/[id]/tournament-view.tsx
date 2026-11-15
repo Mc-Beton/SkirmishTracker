@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useErrorMessage } from "@/components/auth/use-error-message";
-import { OfficialBadge, RankBadge, StatusBadge } from "@/components/tournaments/status-badge";
+import { OfficialBadge, RankBadge, StatusBadge, TestBadge } from "@/components/tournaments/status-badge";
 import { api } from "@/lib/api";
 import { useLiveRefresh } from "@/lib/live";
 import { sendOrQueue, type OutboxItem } from "@/lib/offline-queue";
@@ -226,6 +226,7 @@ export function TournamentView({ id }: { id: string }) {
           <RankBadge rank={tournament.rank} />
           <StatusBadge status={tournament.status} />
           {tournament.official && <OfficialBadge />}
+          {tournament.test && <TestBadge />}
           <span className="rounded-md border px-2 py-0.5 text-xs font-medium">{t(`system.${tournament.gameSystem}`)}</span>
           {leagues.map((l) => (
             <Link key={l.id} href={`/leagues/${l.id}`}
@@ -253,6 +254,7 @@ export function TournamentView({ id }: { id: string }) {
         </div>
       </header>
 
+      {tournament.test && <Alert variant="warning">{t("testInfo")}</Alert>}
       {error && <Alert variant="destructive">{error}</Alert>}
       {notice && <Alert>{notice}</Alert>}
 
@@ -411,7 +413,7 @@ export function TournamentView({ id }: { id: string }) {
                 <Button asChild>
                   <Link href="/login">{t("loginToJoin")}</Link>
                 </Button>
-              ) : teamEvent ? null : tournament.myStatus ? (
+              ) : teamEvent || tournament.test ? null : tournament.myStatus ? (
                 ["DRAFT", "PUBLISHED", "REGISTRATION_CLOSED"].includes(tournament.status) && (
                   <Button variant="outline" disabled={busy} onClick={() => act("DELETE")}>{t("leave")}</Button>
                 )

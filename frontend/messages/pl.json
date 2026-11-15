@@ -361,7 +361,12 @@
     "LEAGUE_GAME_SYSTEM_MISMATCH": "Liga dotyczy innego systemu gry niż turniej.",
     "ORGANIZERS_OWNER_ONLY": "Współorganizatorów może zmieniać tylko twórca turnieju.",
     "TOO_MANY_ORGANIZERS": "Maksymalnie 10 współorganizatorów.",
-    "SCHEME_NOT_CHOSEN": "Najpierw wybierz scheme."
+    "SCHEME_NOT_CHOSEN": "Najpierw wybierz scheme.",
+    "TEST_TOURNAMENT_INVITE_ONLY": "Do turnieju testowego dodaje organizator.",
+    "NOT_A_TEST_TOURNAMENT": "Graczy testowych można dodać tylko w turnieju testowym.",
+    "INVALID_DUMMY_COUNT": "Podaj od 1 do 64 graczy.",
+    "TOO_MANY_DUMMIES": "Za dużo uczestników (maks. 256).",
+    "TEST_TOURNAMENT_NOT_COUNTED": "Turniej testowy nie może należeć do ligi."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -565,7 +570,9 @@
       "coOrganizers": "Współorganizatorzy / sędziowie",
       "coOrganizersHint": "Wpisz co najmniej 2 litery nicku i wybierz z listy (do 10 osób). Mają te same uprawnienia co Ty, poza zmianą tej listy.",
       "coOrganizersOwnerOnly": "Listę współorganizatorów zmienia tylko twórca turnieju.",
-      "removeCoOrganizer": "Usuń: {name}"
+      "removeCoOrganizer": "Usuń: {name}",
+      "test": "Turniej testowy",
+      "testHint": "Prywatny turniej do przećwiczenia przebiegu: możesz dodać graczy testowych (dummy) i zaprosić innych użytkowników po nicku, wpisywać wszystkie wyniki i generować rundy. Nigdy nie jest publiczny i nie liczy się do żadnych statystyk. Nie można tego zmienić później."
     },
     "manageView": {
       "title": "Panel organizatora",
@@ -622,7 +629,11 @@
       "paidShort": "Opł.",
       "pending": "oczekuje",
       "approve": "Zatwierdź",
-      "unapprove": "Cofnij zatwierdzenie"
+      "unapprove": "Cofnij zatwierdzenie",
+      "testInfo": "Tryb testowy: dodaj graczy testowych albo zaproś innych użytkowników po nicku. Wyniki wszystkich gier wpiszesz sam przy każdym meczu, rundy generujesz jak zwykle. Nic nie trafia do ELO, lig ani statystyk.",
+      "dummyCount": "Liczba graczy testowych",
+      "addDummies": "Dodaj graczy testowych",
+      "dummiesHint": "Gracze „Dummy” nie mają konta do logowania – ich rozpiski i wyniki wpisujesz Ty."
     },
     "listStatus": {
       "NOT_SUBMITTED": "Brak",
@@ -875,7 +886,9 @@
       "ELDFALL": "Eldfall",
       "BOLT_ACTION": "Bolt Action"
     },
-    "organizerJudge": "Organizator/sędzia"
+    "organizerJudge": "Organizator/sędzia",
+    "testBadge": "Test",
+    "testInfo": "Turniej testowy: widzą go tylko organizatorzy i zaproszeni testerzy. Nie liczy się do ELO, lig, sezonów ani statystyk."
   },
   "game": {
     "back": "Wróć do turnieju",

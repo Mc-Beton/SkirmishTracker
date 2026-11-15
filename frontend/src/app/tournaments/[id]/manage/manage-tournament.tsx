@@ -67,6 +67,7 @@ export function ManageTournament({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(justCreated ? t("form.created") : null);
   const [newPlayer, setNewPlayer] = useState("");
+  const [dummyCount, setDummyCount] = useState("8");
   const [pairA, setPairA] = useState("");
   const [pairB, setPairB] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
@@ -204,6 +205,7 @@ export function ManageTournament({ id }: { id: string }) {
 
       {notice && <Alert variant="success">{notice}</Alert>}
       {error && <Alert variant="destructive">{error}</Alert>}
+      {tournament.test && <Alert variant="warning">{tm("testInfo")}</Alert>}
 
       <Card>
         <CardContent className="flex flex-wrap items-center gap-3">
@@ -304,9 +306,11 @@ export function ManageTournament({ id }: { id: string }) {
         </CollapsibleCard>
       )}
 
-      <CollapsibleCard title={tm("leagues")}>
-          <LeagueSubmit tournamentId={id} system={tournament.gameSystem} />
-      </CollapsibleCard>
+      {!tournament.test && (
+        <CollapsibleCard title={tm("leagues")}>
+            <LeagueSubmit tournamentId={id} system={tournament.gameSystem} />
+        </CollapsibleCard>
+      )}
 
       <CollapsibleCard title={tm("roundsTitle")} contentClassName="grid gap-6">
           <div className="flex flex-wrap gap-2">
@@ -442,6 +446,20 @@ export function ManageTournament({ id }: { id: string }) {
               onChange={(e) => setNewPlayer(e.target.value)} className="max-w-xs" />
             <Button type="submit" variant="secondary">{tm("add")}</Button>
           </form>}
+          {!teamEvent && tournament.test && (
+            <form method="post" className="flex flex-wrap items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const n = Number.parseInt(dummyCount, 10);
+                if (!Number.isFinite(n) || n < 1) return;
+                void run(() => api("POST", `/api/tournaments/${id}/dummies`, { count: n }));
+              }}>
+              <Input aria-label={tm("dummyCount")} type="number" min={1} max={64} value={dummyCount}
+                onChange={(e) => setDummyCount(e.target.value)} className="w-20" />
+              <Button type="submit" variant="secondary">{tm("addDummies")}</Button>
+              <span className="w-full text-xs text-muted-foreground">{tm("dummiesHint")}</span>
+            </form>
+          )}
 
           <div>
             {/* Fixed layout so the list-status select shrinks to its column on phones. */}

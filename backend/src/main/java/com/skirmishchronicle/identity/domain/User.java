@@ -76,6 +76,22 @@ public class User extends AbstractEntity {
     protected User() {
     }
 
+    /** Test-tournament placeholder: no password, no external login, never in player search. */
+    @Column(nullable = false)
+    private boolean dummy;
+
+    /** A dummy player for a test tournament (verified, so no clean-up job touches it; cannot sign in). */
+    public static User dummy(String displayName) {
+        User u = new User("dummy+" + UUID.randomUUID() + "@warbracket.invalid", displayName, "pl");
+        u.dummy = true;
+        u.markEmailVerified();
+        return u;
+    }
+
+    public boolean isDummy() {
+        return dummy;
+    }
+
     public User(String email, String displayName, String locale) {
         this.id = UUID.randomUUID();
         this.email = normalizeEmail(email);

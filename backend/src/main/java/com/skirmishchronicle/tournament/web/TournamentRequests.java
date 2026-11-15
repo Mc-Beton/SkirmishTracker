@@ -89,7 +89,9 @@ public final class TournamentRequests {
             ListVisibility listVisibility,
             Boolean requireApproval,
             /** Co-organizers (organizer / judge); null = keep the current list. Owner / admin only. */
-            @Size(max = 10) List<@NotNull UUID> organizerIds) {
+            @Size(max = 10) List<@NotNull UUID> organizerIds,
+            /** Test tournament: private, never counted; fixed at creation (ignored on update). */
+            Boolean test) {
 
         public GameSystem system() {
             return gameSystem == null ? GameSystem.ELDFALL : gameSystem;
@@ -146,7 +148,7 @@ public final class TournamentRequests {
                     blankToNull(address), city, country, entryFeeAmount, entryFeeCurrency, rank, format, maxPlayers,
                     limit, roundsPlanned, listDeadline, lf, party, lf == ListFormat.ROSTER && Boolean.TRUE.equals(hiddenRosters),
                     maxOrderDice, maxPlatoons, listVisibility == null ? ListVisibility.AFTER_DEADLINE : listVisibility,
-                    Boolean.TRUE.equals(requireApproval));
+                    Boolean.TRUE.equals(requireApproval), Boolean.TRUE.equals(test));
         }
 
         private static String blankToNull(String s) {
@@ -192,6 +194,9 @@ public final class TournamentRequests {
     }
 
     public record AddPlayerRequest(@NotBlank @Size(max = 32) String displayName) {
+    }
+
+    public record DummiesRequest(@NotNull @Min(1) @Max(64) Integer count) {
     }
 
     /** status: REGISTERED approves a waiting player, WAITLIST moves an approved one back (before round 1). */

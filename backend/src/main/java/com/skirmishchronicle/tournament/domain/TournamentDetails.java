@@ -33,5 +33,7 @@ public record TournamentDetails(
         /** Who sees other players' lists (Bolt Action). */
         ListVisibility listVisibility,
         /** Registrations wait on the waiting list until the organizer approves them. */
-        boolean requireApproval) {
+        boolean requireApproval,
+        /** Test tournament (used at creation only). */
+        boolean test) {
 }

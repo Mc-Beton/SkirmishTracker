@@ -237,7 +237,7 @@ public class ProfileService {
         if (q.length() < 2) {
             return List.of();
         }
-        return users.findTop10ByDisplayNameContainingIgnoreCaseOrderByDisplayNameAsc(q).stream()
+        return users.findTop10ByDummyFalseAndDisplayNameContainingIgnoreCaseOrderByDisplayNameAsc(q).stream()
                 .map(u -> new SearchHit(u.getId(), u.getDisplayName(), u.getClub())).toList();
     }
 
@@ -250,7 +250,7 @@ public class ProfileService {
         List<TournamentEntry> out = new ArrayList<>();
         for (Tournament t : tournaments.findAllById(ids)) {
             if (!t.getStatus().isPublic() || t.getStatus() == TournamentStatus.CANCELLED
-                    || t.getGameSystem() != system) {
+                    || t.getGameSystem() != system || t.isTest()) {
                 continue;
             }
             Integer position = null;
@@ -374,7 +374,8 @@ public class ProfileService {
         int countries = (int) finishedById.values().stream().map(Tournament::getCountry).distinct().count();
         int maxFactionWins = play.factionWins().stream().mapToInt(Count::count).max().orElse(0);
         int organized = (int) tournaments.findByOwnerIdOrderByStartsAtDesc(userId).stream()
-                .filter(t -> t.getStatus() == TournamentStatus.FINISHED && t.getGameSystem() == system).count();
+                .filter(t -> t.getStatus() == TournamentStatus.FINISHED && t.getGameSystem() == system && !t.isTest())
+                .count();
         return Badges.of(new Badges.Input(mine == null ? 0 : mine.games, Badges.bestWinStreak(scores), wins, podiums,
                 countries, maxFactionWins, play.factions().size(), giant, organized, officialWins));
     }

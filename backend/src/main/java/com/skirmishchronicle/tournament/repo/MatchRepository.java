@@ -22,7 +22,7 @@ public interface MatchRepository extends JpaRepository<TournamentMatch, UUID> {
     @Query("select m.id, m.playerA, m.playerB, m.smallA, m.smallB, r.startedAt, m.tournamentId, "
             + "m.secondaryA, m.secondaryB, t.gameSystem "
             + "from TournamentMatch m, TournamentRound r, Tournament t where r.id = m.roundId "
-            + "and t.id = m.tournamentId and m.status = :status "
+            + "and t.id = m.tournamentId and t.test = false and m.status = :status "
             + "and m.resultType = :type and m.playerB is not null")
     List<Object[]> playedGames(MatchStatus status, MatchResultType type);
 

@@ -64,12 +64,14 @@ public class TournamentService {
     private final RoundRepository rounds;
     private final RoundPlanRepository roundPlans;
     private final ContentService content;
+    private final TournamentGuard guard;
 
     public TournamentService(TournamentRepository tournaments, ParticipantRepository participants,
                              UserRepository users, AuditService audit, ChallengeService challenges,
                              RoundRepository rounds, RoundPlanRepository roundPlans, ContentService content,
             NotificationService notifications,
-            TeamRepository teams) {
+            TeamRepository teams, TournamentGuard guard) {
+        this.guard = guard;
         this.teams = teams;
         this.notifications = notifications;
         this.tournaments = tournaments;
@@ -98,6 +100,7 @@ public class TournamentService {
         validate(settings, details, system);
         validatePlans(plans, system);
         Tournament t = new Tournament(actor.id(), system);
+        t.markTest(details.test());
         t.updateDetails(details);
         t.updateSettings(settings);
         if (organizerIds != null) {
@@ -238,6 +241,8 @@ public class TournamentService {
         }
         GameSystem gs = system == null ? GameSystem.ELDFALL : system;
         spec = spec.and((root, q, cb) -> cb.equal(root.get("gameSystem"), gs));
+        // Test tournaments are never listed publicly.
+        spec = spec.and((root, q, cb) -> cb.isFalse(root.get("test")));
         Sort sort = tab == Tab.FINISHED ? Sort.by("startsAt").descending() : Sort.by("startsAt").ascending();
         var result = tournaments.findAll(spec, PageRequest.of(page, size, sort));
         return new TournamentViews.Page<>(summaries(result.getContent()), page, size, result.getTotalElements());
@@ -267,7 +272,7 @@ public class TournamentService {
                 coNames.entrySet().stream().map(e -> new TournamentViews.Organizer(e.getKey(), e.getValue()))
                         .sorted(Comparator.comparing(TournamentViews.Organizer::displayName, String.CASE_INSENSITIVE_ORDER))
                         .toList(),
-                viewer != null && (viewer.admin() || t.isOwnedBy(viewer.id())));
+                viewer != null && (viewer.admin() || t.isOwnedBy(viewer.id())), t.isTest());
     }
 
     @Transactional(readOnly = true)
@@ -318,6 +323,10 @@ public class TournamentService {
             // Players of a team tournament join through a team (captain creates it and invites them).
             throw new ApiException(HttpStatus.CONFLICT, "TEAM_TOURNAMENT");
         }
+        if (t.isTest()) {
+            // Testers are added by the organizer (by nickname), there is no open registration.
+            throw new ApiException(HttpStatus.CONFLICT, "TEST_TOURNAMENT_INVITE_ONLY");
+        }
         if (participants.findByTournamentIdAndUserId(id, actor.id()).isPresent()) {
             throw new ApiException(HttpStatus.CONFLICT, "ALREADY_REGISTERED");
         }
@@ -363,17 +372,53 @@ public class TournamentService {
         if (t.isTeamTournament()) {
             throw new ApiException(HttpStatus.CONFLICT, "TEAM_TOURNAMENT");
         }
-        User user = users.findByDisplayNameIgnoreCase(displayName.trim())
+        User user = users.findByDisplayNameIgnoreCase(displayName.trim()).filter(u -> !u.isDummy())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAYER_NOT_FOUND"));
         if (participants.findByTournamentIdAndUserId(id, user.getId()).isPresent()) {
             throw new ApiException(HttpStatus.CONFLICT, "ALREADY_REGISTERED");
         }
-        // A late entry during the tournament always plays (joins from the next round).
-        ParticipantStatus status = inProgress || hasFreeSlot(t) ? ParticipantStatus.REGISTERED : ParticipantStatus.WAITLIST;
+        // A late entry during the tournament always plays (joins from the next round); testers always play.
+        ParticipantStatus status = inProgress || t.isTest() || hasFreeSlot(t)
+                ? ParticipantStatus.REGISTERED : ParticipantStatus.WAITLIST;
         TournamentParticipant added = new TournamentParticipant(id, user.getId(), status);
         added.snapshotProfile(user.getClub(), user.getHomeCity());
         participants.save(added);
         audit.record(actor.id(), AUDIT_TYPE, id, "PLAYER_ADDED", user.getDisplayName() + " (" + status + ")");
+    }
+
+    /**
+     * Test tournaments: adds {@code count} placeholder players ("Dummy 3 · 1a2b3c"). They cannot sign in; the
+     * organizer enters their lists and results. Always registered (the player limit does not apply).
+     */
+    @Transactional
+    public void addDummies(CurrentUser actor, UUID id, int count) {
+        Tournament t = lockManaged(actor, id);
+        if (!t.isTest()) {
+            throw new ApiException(HttpStatus.CONFLICT, "NOT_A_TEST_TOURNAMENT");
+        }
+        if (t.isTeamTournament()) {
+            throw new ApiException(HttpStatus.CONFLICT, "TEAM_TOURNAMENT");
+        }
+        boolean inProgress = t.getStatus() == TournamentStatus.IN_PROGRESS;
+        if (!t.getStatus().acceptsRosterChanges() && !inProgress) {
+            throw new ApiException(HttpStatus.CONFLICT, "ROSTER_LOCKED");
+        }
+        if (count < 1 || count > 64) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_DUMMY_COUNT");
+        }
+        List<TournamentParticipant> all = participants.findByTournamentIdOrderByStatusAscRegisteredAtAsc(id);
+        if (all.size() + count > 256) {
+            throw new ApiException(HttpStatus.CONFLICT, "TOO_MANY_DUMMIES");
+        }
+        long dummies = users.findAllById(all.stream().map(TournamentParticipant::getUserId).toList()).stream()
+                .filter(User::isDummy).count();
+        String tag = id.toString().substring(0, 6);
+        for (int i = 1; i <= count; i++) {
+            User dummy = users.save(User.dummy("Dummy " + (dummies + i) + " · " + tag));
+            TournamentParticipant p = new TournamentParticipant(id, dummy.getId(), ParticipantStatus.REGISTERED);
+            participants.save(p);
+        }
+        audit.record(actor.id(), AUDIT_TYPE, id, "DUMMIES_ADDED", String.valueOf(count));
     }
 
     @Transactional
@@ -533,12 +578,8 @@ public class TournamentService {
     }
 
     private Tournament visible(CurrentUser viewer, UUID id) {
-        Tournament t = tournaments.findById(id).orElseThrow(TournamentService::notFound);
-        if (!t.getStatus().isPublic() && !canManage(viewer, t)) {
-            // Drafts do not exist for anyone but the organizer.
-            throw notFound();
-        }
-        return t;
+        // Drafts exist only for the organizers; test tournaments only for organizers and invited testers.
+        return guard.visible(viewer, id);
     }
 
     private TournamentParticipant participantOf(UUID tournamentId, UUID participantId) {
@@ -583,7 +624,7 @@ public class TournamentService {
                 t.getCity(), t.getVenueName(), t.getRank(), t.getFormat(), t.getStatus(), t.getMaxPlayers(),
                 counts.getOrDefault(t.getId(), 0L), t.getPointsLimit(),
                 owners.getOrDefault(t.getOwnerId(), "?"), t.isOfficial(), t.getListFormat(),
-                t.getPartyLimit(), t.getGameSystem())).toList();
+                t.getPartyLimit(), t.getGameSystem(), t.isTest())).toList();
     }
 
     /** Ids of existing accounts (unknown ids are an error, not silently dropped). */

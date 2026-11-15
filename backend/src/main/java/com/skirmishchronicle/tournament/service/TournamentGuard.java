@@ -3,6 +3,7 @@ package com.skirmishchronicle.tournament.service;
 import com.skirmishchronicle.common.ApiException;
 import com.skirmishchronicle.common.CurrentUser;
 import com.skirmishchronicle.tournament.domain.Tournament;
+import com.skirmishchronicle.tournament.repo.ParticipantRepository;
 import com.skirmishchronicle.tournament.repo.TournamentRepository;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -13,9 +14,11 @@ import org.springframework.stereotype.Component;
 public class TournamentGuard {
 
     private final TournamentRepository tournaments;
+    private final ParticipantRepository participants;
 
-    public TournamentGuard(TournamentRepository tournaments) {
+    public TournamentGuard(TournamentRepository tournaments, ParticipantRepository participants) {
         this.tournaments = tournaments;
+        this.participants = participants;
     }
 
     public static boolean canManage(CurrentUser viewer, Tournament t) {
@@ -25,10 +28,24 @@ public class TournamentGuard {
     /** Public read: drafts only exist for the organizer. */
     public Tournament visible(CurrentUser viewer, UUID id) {
         Tournament t = tournaments.findById(id).orElseThrow(TournamentGuard::notFound);
-        if (!t.getStatus().isPublic() && !canManage(viewer, t)) {
+        if (!canSee(viewer, t)) {
             throw notFound();
         }
         return t;
+    }
+
+    /**
+     * Drafts exist only for the organizers; a test tournament (whatever its status) only for its organizers and
+     * the players they invited.
+     */
+    public boolean canSee(CurrentUser viewer, Tournament t) {
+        if (canManage(viewer, t)) {
+            return true;
+        }
+        if (t.isTest()) {
+            return viewer != null && participants.findByTournamentIdAndUserId(t.getId(), viewer.id()).isPresent();
+        }
+        return t.getStatus().isPublic();
     }
 
     /** Row-locked load for any state-changing operation on the tournament. */

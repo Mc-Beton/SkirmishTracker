@@ -205,7 +205,7 @@ public class BaListService {
 
     private Tournament lockForWrite(CurrentUser actor, UUID tournamentId) {
         Tournament t = guard.lock(tournamentId);
-        if (!t.getStatus().isPublic() && !TournamentGuard.canManage(actor, t)) {
+        if (!guard.canSee(actor, t)) {
             throw TournamentGuard.notFound();
         }
         return requireBoltAction(t);

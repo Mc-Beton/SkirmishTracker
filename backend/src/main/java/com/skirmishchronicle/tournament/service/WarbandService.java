@@ -198,7 +198,7 @@ public class WarbandService {
     @Transactional
     public WarbandView save(CurrentUser actor, UUID tournamentId, UUID userId, SaveInput input, UUID sourceListId) {
         Tournament t = guard.lock(tournamentId);
-        if (!t.getStatus().isPublic() && !TournamentGuard.canManage(actor, t)) {
+        if (!guard.canSee(actor, t)) {
             throw TournamentGuard.notFound();
         }
         TournamentGuard.requireEldfall(t);

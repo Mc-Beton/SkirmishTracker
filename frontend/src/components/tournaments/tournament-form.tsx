@@ -117,6 +117,7 @@ export function TournamentForm({
   const scenarios = useScenarios(system);
   // Co-organizers (organizer / judge): picked by name; only the owner (or an admin) changes them.
   const canEditOrganizers = !tournament || tournament.canEditOrganizers;
+  const [test, setTest] = useState(false);
   const [organizers, setOrganizers] = useState<{ id: string; displayName: string }[]>(() => tournament?.coOrganizers ?? []);
   const [searchKey, setSearchKey] = useState(0);
   const addOrganizer = (h: SearchHit | null) => {
@@ -165,6 +166,7 @@ export function TournamentForm({
         maxPlatoons: ba ? int(form.maxPlatoons) : null,
         listVisibility: ba ? form.listVisibility : "AFTER_DEADLINE",
         requireApproval: form.requireApproval,
+        ...(tournament ? {} : { test }),
         ...(canEditOrganizers ? { organizerIds: organizers.map((o) => o.id) } : {}),
         name: form.name,
         description: form.description || null,
@@ -206,6 +208,10 @@ export function TournamentForm({
 
       <fieldset className="grid gap-4">
         <legend className="mb-2 font-display text-lg">{t("form.basics")}</legend>
+        {!tournament && (
+          <Check id="test" checked={test} onChange={(e) => setTest(e.target.checked)}
+            label={t("form.test")} hint={t("form.testHint")} />
+        )}
         <Field id="name" label={t("form.name")}>
           <Input id="name" required minLength={3} maxLength={120} value={form.name} onChange={set("name")} />
         </Field>

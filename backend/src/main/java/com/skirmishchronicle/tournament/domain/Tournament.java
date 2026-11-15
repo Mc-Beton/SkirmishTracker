@@ -201,6 +201,10 @@ public class Tournament extends AbstractEntity {
     @Column(name = "require_approval", nullable = false)
     private boolean requireApproval;
 
+    /** Test tournament: private sandbox, never counted anywhere (fixed at creation). */
+    @Column(nullable = false)
+    private boolean test;
+
     /** Co-organizers (organizer / judge): same rights as the owner except editing this list. */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "tournament_organizers", joinColumns = @JoinColumn(name = "tournament_id"))
@@ -452,6 +456,15 @@ public class Tournament extends AbstractEntity {
 
     public boolean isRequireApproval() {
         return requireApproval;
+    }
+
+    public boolean isTest() {
+        return test;
+    }
+
+    /** Only when the tournament is created. */
+    public void markTest(boolean value) {
+        this.test = value;
     }
 
     public boolean isOfficial() {

@@ -106,7 +106,7 @@ public class AuthService {
 
     @Transactional
     public void forgotPassword(String email) {
-        users.findByEmailIgnoreCase(email.trim()).ifPresent(user -> {
+        users.findByEmailIgnoreCase(email.trim()).filter(user -> !user.isDummy()).ifPresent(user -> {
             String raw = createToken(user, OneTimeToken.Type.PASSWORD_RESET, props.security().passwordResetTtl());
             mail.sendPasswordReset(user, raw);
         });

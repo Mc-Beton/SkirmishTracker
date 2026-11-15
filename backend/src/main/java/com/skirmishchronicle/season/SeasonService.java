@@ -171,7 +171,7 @@ public class SeasonService {
                         to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant()).stream()
                 .filter(t -> t.getStatus().isPublic() && t.getStatus() != TournamentStatus.CANCELLED)
                 // The official program belongs to the Eldfall publisher.
-                .filter(t -> !t.isBoltAction()).toList();
+                .filter(t -> !t.isBoltAction() && !t.isTest()).toList();
         Map<UUID, Long> counts = new HashMap<>();
         if (!list.isEmpty()) {
             for (Object[] row : participants.countByTournamentIds(list.stream().map(Tournament::getId).toList(),
@@ -190,7 +190,7 @@ public class SeasonService {
     public void setOfficial(CurrentUser actor, UUID tournamentId, boolean official) {
         Tournament t = tournaments.findById(tournamentId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TOURNAMENT_NOT_FOUND"));
-        if (!t.getStatus().isPublic() || t.getStatus() == TournamentStatus.CANCELLED || t.isBoltAction()) {
+        if (!t.getStatus().isPublic() || t.getStatus() == TournamentStatus.CANCELLED || t.isBoltAction() || t.isTest()) {
             throw new ApiException(HttpStatus.CONFLICT, "TOURNAMENT_NOT_ELIGIBLE");
         }
         if (t.isOfficial() == official) {
@@ -207,7 +207,7 @@ public class SeasonService {
         return tournaments.findByStartsAtGreaterThanEqualAndStartsAtLessThanOrderByStartsAtAsc(
                 s.getStartsOn().atStartOfDay(ZoneOffset.UTC).toInstant(),
                 s.getEndsOn().plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant()).stream()
-                .filter(t -> !t.isBoltAction()).toList();
+                .filter(t -> !t.isBoltAction() && !t.isTest()).toList();
     }
 
     private static SeasonSummary summary(Season s, LocalDate today) {

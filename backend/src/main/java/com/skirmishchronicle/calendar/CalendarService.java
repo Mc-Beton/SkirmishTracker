@@ -83,7 +83,7 @@ public class CalendarService {
     @Transactional(readOnly = true)
     public String single(UUID id) {
         Tournament t = tournaments.findById(id)
-                .filter(x -> x.getStatus().isPublic())
+                .filter(x -> x.getStatus().isPublic() && !x.isTest())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TOURNAMENT_NOT_FOUND"));
         return Ics.calendar(t.getName(), List.of(event(t)), Instant.now());
     }
@@ -103,7 +103,7 @@ public class CalendarService {
     private Stream<Tournament> visible(LocalDate from, LocalDate to) {
         return tournaments.findByStartsAtGreaterThanEqualAndStartsAtLessThanOrderByStartsAtAsc(
                         from.atStartOfDay(ZoneOffset.UTC).toInstant(), to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant())
-                .stream().filter(t -> t.getStatus().isPublic() && t.getStatus() != TournamentStatus.CANCELLED);
+                .stream().filter(t -> t.getStatus().isPublic() && t.getStatus() != TournamentStatus.CANCELLED && !t.isTest());
     }
 
     private Ics.Event event(Tournament t) {

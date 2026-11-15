@@ -274,6 +274,9 @@ public class LeagueService {
         if (t.getStatus() == TournamentStatus.CANCELLED) {
             throw new ApiException(HttpStatus.CONFLICT, "TOURNAMENT_CANCELLED");
         }
+        if (t.isTest()) {
+            throw new ApiException(HttpStatus.CONFLICT, "TEST_TOURNAMENT_NOT_COUNTED");
+        }
         if (t.getGameSystem() != l.getGameSystem()) {
             throw new ApiException(HttpStatus.CONFLICT, "LEAGUE_GAME_SYSTEM_MISMATCH");
         }

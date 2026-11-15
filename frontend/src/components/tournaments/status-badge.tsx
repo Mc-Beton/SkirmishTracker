@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck, FlaskConical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { TournamentRank, TournamentStatus } from "@/lib/tournaments";
 
@@ -20,6 +20,16 @@ export function StatusBadge({ status }: { status: TournamentStatus }) {
 export function RankBadge({ rank }: { rank: TournamentRank }) {
   const t = useTranslations("tournaments.rank");
   return <Badge variant={rank === "LOCAL" ? "secondary" : "default"}>{t(rank)}</Badge>;
+}
+
+/** Private test tournament (not counted anywhere). */
+export function TestBadge() {
+  const t = useTranslations("tournaments");
+  return (
+    <Badge variant="warning" className="gap-1">
+      <FlaskConical className="size-3.5" aria-hidden />{t("testBadge")}
+    </Badge>
+  );
 }
 
 /** Official tournament of the season (marked by the game publisher). */

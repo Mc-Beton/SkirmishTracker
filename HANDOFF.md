@@ -86,7 +86,7 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   (tylko za frontendem / reverse proxy).
 - **Błędy API:** `throw new ApiException(status, "KOD")`, a kod dopisujemy do `errors` w `pl.json` i `en.json`.
 - **Baza:** zmiany wyłącznie nowymi migracjami `V<n>__opis.sql` (Hibernate ma `ddl-auto=validate`).
-  Następna wolna: **V24**.
+  Następna wolna: **V26**.
 - **Teksty UI:** zawsze w obu plikach `messages/pl.json` i `messages/en.json`.
 - **Mobile first:** żaden widok nie może przewijać się na boki na telefonie (~390 px). Tabele na telefonie
   chowają kolumny (`hidden sm:table-cell`) i pokazują skrót pod nazwą.
@@ -284,6 +284,12 @@ Pełny opis: `docs/online-play.md`. W skrócie:
   (`ORGANIZERS_OWNER_ONLY`). Dostają powiadomienia o zapisach, rozpiskach, sporach, wezwaniach sędziego i końcu
   czasu. Na stronie turnieju wiersz „Organizator/sędzia” z linkami do profili; w Uczestnikach widać miejscowość.
   Pola wpisowego usunięte z formularza (opłaty w opisie, „Opłacone” zostaje w panelu).
+- **Turniej testowy** (V25: `tournaments.test`, `users.dummy`): zaznaczany tylko przy tworzeniu. Widzą go wyłącznie
+  organizatorzy i dodani uczestnicy (`TournamentGuard.canSee`) – nawet po „publikacji”; brak go na listach, w kalendarzu,
+  sezonach, ligach (`TEST_TOURNAMENT_NOT_COUNTED`), ELO (zapytanie `playedGames` pomija `t.test`) i statystykach profilu.
+  Zapis otwarty jest wyłączony (`TEST_TOURNAMENT_INVITE_ONLY`) – organizator dodaje testerów po nicku albo graczy
+  „Dummy N · abc123” (`POST /api/tournaments/{id}/dummies`, 1–64 naraz, konta bez logowania, poza wyszukiwarką graczy
+  i resetem hasła). Wyniki wszystkich gier organizator wpisuje przy meczach jak zwykle.
 
 ## 7. Dokumentacja w repo
 
