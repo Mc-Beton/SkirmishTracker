@@ -1,0 +1,6 @@
+# Only the rules service is built from the repository root: it needs the engine and its own three files.
+*
+!rules/mapping.ts
+!rules/service.ts
+!rules/server.ts
+!frontend/src/lib/eld

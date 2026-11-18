@@ -6,6 +6,8 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     public fields?: Record<string, string>,
+    /** A sentence for the user that goes with the code (a rule of the game that refused a move). */
+    public detail?: string,
   ) {
     super(code);
   }
@@ -87,15 +89,17 @@ export async function api<T = void>(method: string, path: string, body?: unknown
   if (!res.ok) {
     let code = "INTERNAL_ERROR";
     let fields: Record<string, string> | undefined;
+    let detail: string | undefined;
     try {
       const problem = await res.json();
       code = problem.code ?? problem.title ?? code;
       fields = problem.fields;
+      if (typeof problem.message === "string") detail = problem.message;
     } catch {
       if (res.status === 401) code = "UNAUTHORIZED";
       if (res.status === 403) code = "FORBIDDEN";
     }
-    throw new ApiError(res.status, code, fields);
+    throw new ApiError(res.status, code, fields, detail);
   }
   if (res.status === 204 || res.status === 202) return undefined as T;
   const text = await res.text();

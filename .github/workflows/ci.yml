@@ -21,8 +21,29 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
+      # The online table's rules service (rules/): TableGameIntegrationTest plays against it.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Start the rules service
+        working-directory: rules
+        run: |
+          nohup npm start > rules.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:8090/health && break; sleep 1; done
       # Integration tests use Testcontainers (Docker is available on GitHub runners).
       - run: ./gradlew build --no-daemon
+
+  rules:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rules
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm test
 
   frontend:
     runs-on: ubuntu-latest

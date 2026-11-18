@@ -22,5 +22,14 @@ services:
       - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
 
+  # Rules of the online table (the game engine); the backend calls it at http://localhost:8090.
+  # Without Docker: `npm start` in rules/.
+  rules:
+    build:
+      context: .
+      dockerfile: rules/Dockerfile
+    ports:
+      - "127.0.0.1:8090:8090"
+
 volumes:
   pgdata:

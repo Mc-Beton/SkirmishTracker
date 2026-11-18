@@ -22,6 +22,9 @@ public class GameTable extends AbstractEntity {
     /** STANDARD: a map and lists chosen up front. SANDBOX: a free game built during play, solo possible. */
     public enum Mode { STANDARD, SANDBOX }
 
+    /** LEGACY: the first engine (Java, {@code table.engine}); GAME: the game engine behind the rules service. */
+    public enum Engine { LEGACY, GAME }
+
     /** Core Rules p.18: how much the players may pre-measure (enforced by the browser preview). */
     public enum MeasureMode { ASSISTED, STANDARD, REALISM }
 
@@ -87,6 +90,30 @@ public class GameTable extends AbstractEntity {
 
     @Column(name = "reported_game_id")
     private UUID reportedGameId;
+
+    @Column(nullable = false, length = 10)
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    private Engine engine = Engine.LEGACY;
+
+    /** GAME engine: the Scheme cards of both players as JSON ([hand, hand]); secret, never in the event log. */
+    @Column(name = "scheme_hands", columnDefinition = "text")
+    private String schemeHands;
+
+    /** GAME engine: phase, round, Victory Points and winner after the last command, as JSON. */
+    @Column(name = "game_summary", columnDefinition = "text")
+    private String gameSummary;
+
+    @Column(name = "faction_a", length = 40)
+    private String factionA;
+
+    @Column(name = "allied_a", length = 40)
+    private String alliedA;
+
+    @Column(name = "faction_b", length = 40)
+    private String factionB;
+
+    @Column(name = "allied_b", length = 40)
+    private String alliedB;
 
     @Column(name = "measure_mode", nullable = false, length = 10)
     @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
@@ -182,6 +209,60 @@ public class GameTable extends AbstractEntity {
         this.observersAllowed = allowed;
         this.watchInviteHash = allowed ? watchHash : null;
         touch();
+    }
+
+    /** Plays by the game engine (rules service). Set once, right after the table is created. */
+    public void useGameEngine() {
+        this.engine = Engine.GAME;
+    }
+
+    public boolean isGame() {
+        return engine == Engine.GAME;
+    }
+
+    public Engine getEngine() {
+        return engine;
+    }
+
+    public String getSchemeHands() {
+        return schemeHands;
+    }
+
+    public String getGameSummary() {
+        return gameSummary;
+    }
+
+    /** After a command of the game engine: the hands (null = unchanged) and the summary. */
+    public void gameAdvanced(String schemeHands, String gameSummary) {
+        if (schemeHands != null) {
+            this.schemeHands = schemeHands;
+        }
+        this.gameSummary = gameSummary;
+        touch();
+    }
+
+    /** The faction of a side's list (GAME engine), for the result report. */
+    public void faction(int side, String faction, String allied) {
+        if (side == 0) {
+            this.factionA = faction;
+            this.alliedA = allied;
+        } else {
+            this.factionB = faction;
+            this.alliedB = allied;
+        }
+    }
+
+    public String getFaction(int side) {
+        return side == 0 ? factionA : factionB;
+    }
+
+    public String getAllied(int side) {
+        return side == 0 ? alliedA : alliedB;
+    }
+
+    /** The sequence number of the last stored event (0: none yet). */
+    public long lastSeq() {
+        return nextSeq - 1;
     }
 
     /** Hands out {@code count} sequence numbers and returns the first. */

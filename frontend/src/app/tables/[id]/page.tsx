@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { TablePlay } from "@/components/table/table-play";
+import { TableSwitch } from "@/components/table/table-switch";
 
 export async function generateMetadata() {
   const t = await getTranslations("table");
@@ -8,5 +8,5 @@ export async function generateMetadata() {
 
 export default async function TablePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <TablePlay tableId={id} />;
+  return <TableSwitch tableId={id} />;
 }

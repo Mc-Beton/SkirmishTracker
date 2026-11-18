@@ -228,8 +228,55 @@ Strona `/tables/{id}` to pełnoekranowy panel od szerokości `lg` (1024 px); na 
 | 3 | Scenariusz, scheme, żetony, tabela PZ, szablony AoE, osłona, Awareness, linijka, koniec za zgodą, zgłoszenie wyniku | ✔ (kod) |
 | 3b | Tryby mierzenia, sędzia, obserwatorzy | ✔ (kod) |
 | 3c | Testy z graczami, poprawki | następny |
+| 3d | Stoły standardowe na silniku gry (pełna mechanika, okno kości) – §10 | ✔ (kod) |
 | 4 | Turnieje online: runda tworzy stoły, limit czasu, wynik do meczu, narzędzia sędziego | |
 
 ## 9. Otwarte pytania
 
 - Na razie brak – zgłaszajcie po testach z graczami.
+
+## 10. Stoły standardowe na silniku gry (pełna mechanika)
+
+Od migracji V26 stół **standardowy** (mapa + rozpiski) gra tym samym silnikiem co gra „Eldfall Table”; widok zostaje
+2D. Gra swobodna i stoły założone wcześniej działają jak w §1–§9 (silnik Java). O silniku decyduje kolumna
+`game_tables.engine` (`GAME` / `LEGACY`), dla nowych stołów zmienna `TABLE_ENGINE` (domyślnie `GAME`).
+
+### Architektura
+- **Silnik**: `frontend/src/lib/eld/` (TypeScript bez zależności; `decide(state, cmd, ctx) → zdarzenia`, `apply`).
+  Jedno źródło: przeglądarka składa nim stan, usługa `rules/` nim rozstrzyga. Zmiany względem gry opisuje
+  `frontend/src/lib/eld/README.md` (rozstawienie narożne, poddanie gry, żetony graczy).
+- **Usługa zasad** `rules/` (Node ≥ 22.18, bez builda): `POST /create`, `/join`, `/command`, `GET /health`.
+  Bezstanowa – trzyma tylko pamięć podręczną stanów; po restarcie odpowiada `409 NEED_LOG`, a backend dosyła dziennik.
+  Kości rzuca serwer (`crypto.randomInt`).
+- **Backend**: `TableGameController` (`GET /api/tables/{id}/engine`, `GET /{id}/game?after=N`,
+  `POST /{id}/game/commands`), `TableGameService` (uprawnienia: komendy tylko gracze; obserwator czyta; obcy 404),
+  `GameEngine` (zapis zdarzeń z kontrolą numeru, status stołu, karty Scheme tylko właścicielowi), `RulesClient`.
+  Odmowa zasad wraca jako `409 TABLE_RULE` ze zdaniem silnika w polu `message`.
+- **Frontend**: `TableSwitch` → `GameTable` (`components/table/game/`), stan z `useGame` (zdarzenia + SSE).
+
+### Przebieg gry
+1. **Rozstawienie**: figurki z rozpiski stoją na półce za krawędzią stołu (ciemna część półki jest ukryta przed
+   przeciwnikiem); przeciągnij je do strefy (pas albo ćwiartka koła w narożniku). Losowanie i wybór Scheme w zakładce
+   „Misja i punkty”. „Gotowe” obu graczy → rzut na inicjatywę.
+2. **Tura**: Faza Strategiczna (Stratagemy lidera w lewym panelu) → „Aktywuj (1 AP)” → ruch przeciąganiem
+   (Walk / Run, Climb, Jump; okręgi pokazują zasięg) → przeciwnik może **zareagować** (Atak, Dodge, inna reakcja,
+   Attack of Opportunity) → **Akcja** na karcie (Atak z wyborem broni, celu, Combat Art, podziałem Strike, szablonem;
+   Dodge; Nothing; zaklęcia, rytuały, wierzchowiec, żetony misji, Death Blow) → „Zakończ aktywację” / „Koniec tury”.
+3. **Kości**: Akcja otwiera okno kości – liczba kości i próg (± do ustaleń graczy), „Rzuć” deklaruje Akcję; strona
+   reagująca widzi swoje kości i też naciska „Rzuć”; serwer rzuca, kości toczą się u obu graczy, dopiero potem stół
+   pokazuje skutki (rany, stany, dziennik). Opcja „Wszystkie rzuty naraz” albo krok po kroku (zapamiętana w przeglądarce).
+   Pod kartą jest też zwykły rzut k20 i rzut na obrażenia.
+4. **Koniec**: 5 rund; Scheme'y ujawnia i liczy gra. Misję Treasure Hunt gra prowadzi sama, w pozostałych punkty za
+   misję wpisują gracze (± w zakładce „Misja i punkty”) i kładą własne żetony. „Zgłoś wynik” działa jak dotąd.
+
+### Sterowanie
+Kółko nad figurką albo Q / E – obrót; L – linia wzroku; M – linijka; W – Awareness; F – ruch swobodny (poprawki);
+Esc – anuluj celowanie / narzędzie / wybór. „Cofnij ruch” działa do pierwszego rzutu lub reakcji.
+
+### Czego jeszcze nie ma na tym silniku
+Sędzia, tryby mierzenia, cofanie dowolnego kroku, koniec gry za zgodą, gra swobodna (zostają na pierwszym silniku).
+Teksty silnika (dziennik, odmowy, karty, Stratagemy, Scheme'y) są po angielsku.
+
+### Testy
+`cd rules; npm test` (74 testy zasad gry + 6 testów usługi). `TableGameIntegrationTest` (backend) uruchamia się tylko,
+gdy usługa zasad odpowiada na `localhost:8090` (w CI startuje ją job backendu).

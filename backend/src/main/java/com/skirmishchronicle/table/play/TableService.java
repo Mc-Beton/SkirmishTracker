@@ -95,11 +95,17 @@ public class TableService {
     private final TableEngine engine;
     private final TableWatcherRepository watchers;
     private final NotificationService notifications;
+    private final GameEngine game;
+    /** New games with a map and lists play by the game engine (GAME) or by the first, Java engine (LEGACY). */
+    private final boolean gameEngine;
 
     public TableService(GameTableRepository tables, TableEventStore events, TableLibraryService library,
                         ArmyListRepository lists, WarbandService warbands, UserRepository users, LiveEventService live,
                         ObjectMapper json, ContentService content, FriendlyGameService friendly,
-                        TableWatcherRepository watchers, NotificationService notifications) {
+                        TableWatcherRepository watchers, NotificationService notifications, GameEngine game,
+                        @org.springframework.beans.factory.annotation.Value("${app.table-engine:GAME}") String tableEngine) {
+        this.game = game;
+        this.gameEngine = !"LEGACY".equalsIgnoreCase(tableEngine);
         this.notifications = notifications;
         this.watchers = watchers;
         this.content = content;
@@ -154,8 +160,19 @@ public class TableService {
         }
         String watchInvite = observers ? Tokens.newToken() : null;
         t.observers(observers, watchInvite == null ? null : Tokens.sha256(watchInvite));
+        if (gameEngine) {
+            // the game engine (rules service) deploys the list and keeps the rules
+            t.useGameEngine();
+            t.faction(0, list.getFaction(), list.getAlliedFaction());
+        }
         tables.saveAndFlush(t); // the event log (plain JDBC) references the row
-        appendSystem(t, models(0, list));
+        if (gameEngine) {
+            boolean corner = deployment == GameState.Deployment.CORNER;
+            game.start(t, actor.id(), player(actor.id(), 0).name(), party(list), terrain(snap), corner,
+                    corner ? GameState.CORNER_RADIUS : snap.deploymentDepth());
+        } else {
+            appendSystem(t, models(0, list));
+        }
         if (opponentId != null) {
             inviteUser(actor, t, opponentId);
         }
@@ -367,6 +384,11 @@ public class TableService {
         }
         if (listId == null) {
             t.join(actor.id(), null);
+        } else if (t.isGame()) {
+            ArmyList list = ownList(actor, listId);
+            t.join(actor.id(), list.getUnits());
+            t.faction(1, list.getFaction(), list.getAlliedFaction());
+            game.join(t, actor.id(), player(actor.id(), 1).name(), party(list));
         } else {
             ArmyList list = ownList(actor, listId);
             t.join(actor.id(), list.getUnits());
@@ -472,6 +494,9 @@ public class TableService {
     @Transactional(readOnly = true)
     public TableView view(CurrentUser actor, UUID id) {
         GameTable t = visible(actor, id);
+        if (t.isGame()) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_OTHER_ENGINE"); // see TableGameService
+        }
         List<Recorded> log = events.load(t.getId());
         return view(actor, t, log, state(t, log));
     }
@@ -491,6 +516,9 @@ public class TableService {
         GameTable.Role role = role(actor, t);
         if (role == GameTable.Role.NONE) {
             throw new ApiException(HttpStatus.NOT_FOUND, "TABLE_NOT_FOUND");
+        }
+        if (t.isGame()) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_OTHER_ENGINE"); // see TableGameService
         }
         if (role != GameTable.Role.PLAYER && role != GameTable.Role.JUDGE) {
             throw new ApiException(HttpStatus.FORBIDDEN, "TABLE_READ_ONLY");
@@ -567,6 +595,9 @@ public class TableService {
         if (t.isSandbox()) {
             throw new ApiException(HttpStatus.CONFLICT, "TABLE_SANDBOX_NO_REPORT");
         }
+        if (t.isGame()) {
+            return reportGame(actor, t, side);
+        }
         List<Recorded> log = events.load(t.getId());
         GameState s = state(t, log);
         if (s.status != GameState.Status.FINISHED || !"FINISHED".equals(s.endReason)) {
@@ -587,14 +618,51 @@ public class TableService {
     }
 
     private GameList gameList(GameState.Party party, String unitsJson) {
-        if (party == null || unitsJson == null) {
+        return party == null ? null : gameList(party.faction(), party.alliedFaction(), unitsJson);
+    }
+
+    private GameList gameList(String faction, String allied, String unitsJson) {
+        if (faction == null || unitsJson == null) {
             return null;
         }
-        List<GameList.Unit> units = warbands.unitViews(party.faction(), party.alliedFaction(), unitsJson).stream()
+        List<GameList.Unit> units = warbands.unitViews(faction, allied, unitsJson).stream()
                 .map(u -> new GameList.Unit(u.unit(), u.leader(),
                         u.items().stream().map(i -> new GameList.Item(i.item(), i.reduced())).toList()))
                 .toList();
-        return new GameList(party.faction(), party.alliedFaction(), units, 0);
+        return new GameList(faction, allied, units, 0);
+    }
+
+    /** A game of the game engine: the result is the Victory Points of its summary (Schemes counted at the end). */
+    private UUID reportGame(CurrentUser actor, GameTable t, int side) {
+        com.fasterxml.jackson.databind.JsonNode sum = game.summary(t);
+        if (!"finished".equals(sum.path("phase").asText()) || t.getPlayerB() == null) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_NOT_FINISHED");
+        }
+        int other = 1 - side;
+        UUID opponent = side == 0 ? t.getPlayerB() : t.getPlayerA();
+        UUID gameId = friendly.report(actor, new FriendlyGameService.Report(opponent, Math.max(0, sum.path("vp").path(side).asInt(0)),
+                Math.max(0, sum.path("vp").path(other).asInt(0)), java.time.LocalDate.now(java.time.ZoneId.of("Europe/Warsaw")),
+                t.getQuestCode(), t.getFaction(side), t.getFaction(other), null, "Online: " + t.getMapName(),
+                gameList(t.getFaction(side), t.getAllied(side), side == 0 ? t.getListA() : t.getListB()),
+                gameList(t.getFaction(other), t.getAllied(other), side == 0 ? t.getListB() : t.getListA())));
+        t.reported(gameId);
+        live.tableChangedAfterCommit(t.getId(), 0);
+        return gameId;
+    }
+
+    /** A saved list for the rules service: the faction and, per unit, its name, whether it leads and its Upgrades. */
+    private com.fasterxml.jackson.databind.node.ObjectNode party(ArmyList list) {
+        com.fasterxml.jackson.databind.node.ObjectNode party = json.createObjectNode();
+        party.put("faction", list.getFaction());
+        com.fasterxml.jackson.databind.node.ArrayNode units = party.putArray("units");
+        for (WarbandService.UnitView u : warbands.unitViews(list.getFaction(), list.getAlliedFaction(), list.getUnits())) {
+            com.fasterxml.jackson.databind.node.ObjectNode unit = units.addObject();
+            unit.put("name", u.name());
+            unit.put("leader", u.leader());
+            com.fasterxml.jackson.databind.node.ArrayNode items = unit.putArray("items");
+            u.items().forEach(i -> items.add(i.name()));
+        }
+        return party;
     }
 
     @Transactional(readOnly = true)
@@ -679,7 +747,7 @@ public class TableService {
                 .map(c -> new GameEvent.SchemeCard(c.scheme(), c.roll())).toList();
     }
 
-    private GameTable visible(CurrentUser actor, UUID id) {
+    GameTable visible(CurrentUser actor, UUID id) {
         return tables.findById(id).filter(t -> role(actor, t) != GameTable.Role.NONE)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TABLE_NOT_FOUND"));
     }
@@ -870,7 +938,7 @@ public class TableService {
     }
 
     /** Player A, and player B once they have joined (List.of rejects the missing seat). */
-    private List<TableView.Player> players(GameTable t) {
+    List<TableView.Player> players(GameTable t) {
         List<TableView.Player> out = new ArrayList<>(2);
         out.add(player(t.getPlayerA(), 0));
         if (t.getPlayerB() != null) {
@@ -879,7 +947,7 @@ public class TableService {
         return out;
     }
 
-    private TableView.Player player(UUID id, int side) {
+    TableView.Player player(UUID id, int side) {
         User u = users.findById(id).orElse(null);
         return new TableView.Player(side, id, u == null ? "?" : u.getDisplayName());
     }

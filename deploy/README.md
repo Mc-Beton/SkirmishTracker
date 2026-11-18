@@ -45,3 +45,15 @@ wb exec backup sh -c 'pg_restore -h db -U warbracket -d warbracket --clean --if-
 ```
 Kopie backupów warto regularnie ściągać poza serwer, np.
 `scp root@46.225.172.142:/var/lib/docker/volumes/warbracket_backups/_data/* ./backupy/`.
+
+## Usługa zasad gry (kontener `rules`)
+Stoły standardowe gry online rozstrzyga silnik gry uruchomiony jako osobny kontener Node (`rules/`, port 8090,
+dostępny tylko w sieci Dockera). Backend woła go pod `RULES_URL=http://rules:8090`; startuje dopiero, gdy `rules`
+jest zdrowy. Usługa nie ma własnej bazy – dziennik zdarzeń trzyma backend (`table_events`), więc restart `rules`
+niczego nie gubi.
+
+- `RULES_KEY` (opcjonalnie, w `.env`): wspólny klucz backendu i usługi; pusty = bez klucza.
+- `TABLE_ENGINE` (domyślnie `GAME`): `LEGACY` przywraca pierwszy panel dla nowo zakładanych stołów standardowych.
+  Stoły już założone zostają przy swoim silniku (kolumna `game_tables.engine`, migracja V26).
+- Diagnostyka: `wb logs -f rules`, `wb exec rules node -e "fetch('http://localhost:8090/health').then(r=>r.text()).then(console.log)"`.
+  Błąd „Silnik zasad gry chwilowo nie odpowiada” (`TABLE_RULES_UNAVAILABLE`) = backend nie dosięga `rules`.

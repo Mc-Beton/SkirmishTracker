@@ -27,6 +27,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail pd = ProblemDetail.forStatus(ex.getStatus());
         pd.setTitle(ex.getCode());
         pd.setProperty("code", ex.getCode());
+        if (ex.getDetail() != null) {
+            pd.setProperty("message", ex.getDetail());
+        }
         return pd;
     }
 

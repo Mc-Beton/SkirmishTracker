@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The game engine of the online table: shared with the rules service, kept as it is in the game.
+    "src/lib/eld/**",
   ]),
 ]);
 

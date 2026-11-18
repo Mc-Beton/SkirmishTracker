@@ -63,7 +63,7 @@ export function TablesHome() {
     setBusy(true);
     setError(null);
     try {
-      const options = { questCode: questCode || null, measureMode, judge: withJudge, observers: withObservers, opponentId: opponent?.id ?? null };
+      const options = { questCode: questCode || null, measureMode, judge: mode !== "STANDARD" && withJudge, observers: withObservers, opponentId: opponent?.id ?? null };
       const res = mode === "SANDBOX"
         ? await api<CreatedTable>("POST", "/api/tables/sandbox", options)
         : await api<CreatedTable>("POST", "/api/tables", { ...options, mapId: map!.id, listId });
@@ -190,16 +190,22 @@ export function TablesHome() {
               </section>
               <section className="grid gap-2">
                 <h2 className="text-sm font-medium">{t("step4Options")}</h2>
-                <label className="grid gap-1 text-sm">{t("measureMode")}
-                  <NativeSelect value={measureMode} onChange={(e) => setMeasureMode(e.target.value as MeasureMode)}>
-                    {MEASURE_MODES.map((m) => <option key={m} value={m}>{t(`measure.${m}`)}</option>)}
-                  </NativeSelect>
-                  <span className="text-xs text-muted-foreground">{t(`measureHelp.${measureMode}`)}</span>
-                </label>
-                <label className="flex items-start gap-2 text-sm">
-                  <input type="checkbox" className="mt-1 size-4 accent-[var(--primary)]" checked={withJudge} onChange={(e) => setWithJudge(e.target.checked)} />
-                  <span>{t("withJudge")}<span className="block text-xs text-muted-foreground">{t("judgeHelp")}</span></span>
-                </label>
+                {/* Standard tables play by the game engine: it measures by its own rules and has no judge yet. */}
+                {mode === "STANDARD" && <p className="text-xs text-muted-foreground">{t("gameEngineNote")}</p>}
+                {mode !== "STANDARD" && (
+                  <label className="grid gap-1 text-sm">{t("measureMode")}
+                    <NativeSelect value={measureMode} onChange={(e) => setMeasureMode(e.target.value as MeasureMode)}>
+                      {MEASURE_MODES.map((m) => <option key={m} value={m}>{t(`measure.${m}`)}</option>)}
+                    </NativeSelect>
+                    <span className="text-xs text-muted-foreground">{t(`measureHelp.${measureMode}`)}</span>
+                  </label>
+                )}
+                {mode !== "STANDARD" && (
+                  <label className="flex items-start gap-2 text-sm">
+                    <input type="checkbox" className="mt-1 size-4 accent-[var(--primary)]" checked={withJudge} onChange={(e) => setWithJudge(e.target.checked)} />
+                    <span>{t("withJudge")}<span className="block text-xs text-muted-foreground">{t("judgeHelp")}</span></span>
+                  </label>
+                )}
                 <label className="flex items-start gap-2 text-sm">
                   <input type="checkbox" className="mt-1 size-4 accent-[var(--primary)]" checked={withObservers} onChange={(e) => setWithObservers(e.target.checked)} />
                   <span>{t("observersAllowed")}<span className="block text-xs text-muted-foreground">{t("observersHelp")}</span></span>

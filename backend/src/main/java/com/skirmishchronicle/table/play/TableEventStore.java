@@ -34,6 +34,18 @@ public class TableEventStore {
                 tableId, r.seq(), r.side(), r.author(), type, write(r.event()), Timestamp.from(r.at()));
     }
 
+    /** GAME engine: the events as the rules service wrote them (JSON), after the given sequence number. */
+    public List<String> payloads(UUID tableId, long afterSeq) {
+        return jdbc.query("select payload from table_events where table_id = ? and seq > ? order by seq",
+                (rs, i) -> rs.getString("payload"), tableId, afterSeq);
+    }
+
+    /** GAME engine: one event of the rules service, stored as it came. */
+    public void appendRaw(UUID tableId, long seq, int side, UUID author, String type, String payload, java.time.Instant at) {
+        jdbc.update("insert into table_events (table_id, seq, side, author_id, type, payload, created_at) values (?, ?, ?, ?, ?, ?, ?)",
+                tableId, seq, side, author, type, payload, Timestamp.from(at));
+    }
+
     static String typeName(GameEvent e) {
         for (var t : GameEvent.class.getAnnotation(com.fasterxml.jackson.annotation.JsonSubTypes.class).value()) {
             if (t.value() == e.getClass()) {

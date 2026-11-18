@@ -17,7 +17,15 @@ import { inviteLink, type InviteKind, type TableView } from "@/lib/table/api";
  * For the creator of the table: fresh links for the opponent (while the seat is free) and the judge
  * (until one joins), and observers on/off. Links are shown once – only their hashes are stored.
  */
-export function TableSharing({ view, onChanged }: { view: TableView; onChanged: () => void }) {
+/** What the card reads of a table (tables of both engines have it). */
+export type SharedTable = Pick<TableView, "id" | "status" | "solo" | "invited" | "judge" | "observersAllowed">;
+
+export function TableSharing({ view, onChanged, judgeLink = true }: {
+  view: SharedTable;
+  onChanged: () => void;
+  /** Tables of the game engine have no judge. */
+  judgeLink?: boolean;
+}) {
   const t = useTranslations("table");
   const errorMessage = useErrorMessage();
   const [links, setLinks] = useState<Partial<Record<InviteKind, string>>>({});
@@ -84,7 +92,7 @@ export function TableSharing({ view, onChanged }: { view: TableView; onChanged: 
             <Button size="sm" disabled={busy || !player} onClick={() => void inviteUser()}><UserPlus aria-hidden /> {t("sendInvitation")}</Button>
           </div>
         )}
-        {view.judge ? (
+        {!judgeLink ? null : view.judge ? (
           <p className="text-xs">{t("judgeIs", { name: view.judge.name })}</p>
         ) : (
           <Button size="sm" variant="outline" disabled={busy} onClick={() => void fresh("JUDGE")}><Link2 aria-hidden /> {t("newInvite.JUDGE")}</Button>

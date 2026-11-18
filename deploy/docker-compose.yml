@@ -20,17 +20,36 @@ services:
       retries: 20
     networks: [internal]
 
+  # Rules of the online table (the game engine). Internal only: it trusts what the backend tells it.
+  rules:
+    build:
+      context: ..
+      dockerfile: rules/Dockerfile
+    restart: unless-stopped
+    environment:
+      RULES_KEY: ${RULES_KEY:-}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8090/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      retries: 10
+    networks: [internal]
+
   backend:
     build: ../backend
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      rules:
+        condition: service_healthy
     environment:
       DB_URL: jdbc:postgresql://db:5432/warbracket
       DB_USER: warbracket
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in deploy/.env}
+      RULES_URL: http://rules:8090
+      RULES_KEY: ${RULES_KEY:-}
+      TABLE_ENGINE: ${TABLE_ENGINE:-GAME}
       FRONTEND_URL: https://${DOMAIN:?set DOMAIN in deploy/.env}
       SECURE_COOKIES: "true"
       MAIL_HOST: ${MAIL_HOST:?set MAIL_HOST in deploy/.env}

@@ -55,7 +55,7 @@ scans/                                     skany podręcznika – NIE commitowa�
 Wymagania: JDK 21, Node.js 22, Docker Desktop.
 
 ```powershell
-docker compose up -d                     # baza + Mailpit
+docker compose up -d                     # baza + Mailpit + usługa zasad gry (rules, port 8090)
 cd backend;  .\gradlew.bat bootRun       # http://localhost:8080 (migracje Flyway odpalają się same)
 cd frontend; npm install; npm run dev    # http://localhost:3000
 ```
@@ -86,7 +86,7 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   (tylko za frontendem / reverse proxy).
 - **Błędy API:** `throw new ApiException(status, "KOD")`, a kod dopisujemy do `errors` w `pl.json` i `en.json`.
 - **Baza:** zmiany wyłącznie nowymi migracjami `V<n>__opis.sql` (Hibernate ma `ddl-auto=validate`).
-  Następna wolna: **V26**.
+  Następna wolna: **V27**.
 - **Teksty UI:** zawsze w obu plikach `messages/pl.json` i `messages/en.json`.
 - **Mobile first:** żaden widok nie może przewijać się na boki na telefonie (~390 px). Tabele na telefonie
   chowają kolumny (`hidden sm:table-cell`) i pokazują skrót pod nazwą.
@@ -290,6 +290,19 @@ Pełny opis: `docs/online-play.md`. W skrócie:
   Zapis otwarty jest wyłączony (`TEST_TOURNAMENT_INVITE_ONLY`) – organizator dodaje testerów po nicku albo graczy
   „Dummy N · abc123” (`POST /api/tournaments/{id}/dummies`, 1–64 naraz, konta bez logowania, poza wyszukiwarką graczy
   i resetem hasła). Wyniki wszystkich gier organizator wpisuje przy meczach jak zwykle.
+- **Stół online na silniku gry** (V26: `game_tables.engine`, `scheme_hands`, `game_summary`, frakcje stron): stoły
+  **standardowe** grają pełną mechaniką gry Eldfall Table. Silnik (TypeScript, bez zależności) leży w
+  `frontend/src/lib/eld/` – jedno źródło dla przeglądarki i dla usługi `rules/` (Node ≥ 22.18, natywne usuwanie typów,
+  bez builda; `cd rules; npm start` / `npm test`). Backend (`table/play`: `RulesClient`, `GameEngine`,
+  `TableGameService`, `TableGameController`) autoryzuje, szereguje komendy, zapisuje zdarzenia w `table_events`,
+  trzyma karty Scheme po stronie serwera i wysyła podpowiedź SSE; przeglądarka pobiera zdarzenia
+  (`GET /api/tables/{id}/game?after=N`) i składa stan tym samym `apply`. Panel: `components/table/game/*`
+  (`TableSwitch` wybiera panel wg `GET /api/tables/{id}/engine`). Rozpiski biorą się z „Moich rozpisek”
+  (`rules/mapping.ts` dopasowuje modele i przedmioty po nazwie). Gra swobodna i stoły założone wcześniej zostają na
+  pierwszym silniku (Java). `TABLE_ENGINE=LEGACY` wyłącza nowy silnik dla nowych stołów. Szczegóły:
+  `docs/online-play.md` §10, `rules/README.md`.
+  **Nieuruchomione:** `./gradlew build` (w tym `TableGameIntegrationTest` – wymaga `rules` na :8090), migracja V26 na
+  Postgresie, `next build`, obraz Dockera `rules`, rozgrywka w przeglądarce.
 
 ## 7. Dokumentacja w repo
 

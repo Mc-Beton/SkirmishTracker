@@ -1,0 +1,14 @@
+{
+  "name": "warbracket-rules",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rules service of the online table: the game engine (frontend/src/lib/eld) behind a small HTTP API for the backend",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types --no-warnings server.ts",
+    "test": "node --experimental-strip-types --no-warnings --test tests/rules.test.ts tests/service.test.ts"
+  }
+}

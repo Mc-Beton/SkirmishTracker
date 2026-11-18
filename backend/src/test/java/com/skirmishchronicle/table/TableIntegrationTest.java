@@ -31,8 +31,11 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/** Online table end to end: library (admin), maps (players), a game from invitation to undo rules. */
-@SpringBootTest
+/**
+ * Online table end to end: library (admin), maps (players), a game from invitation to undo rules.
+ * Plays by the first (Java) engine; the game engine has its own test, {@link TableGameIntegrationTest}.
+ */
+@SpringBootTest(properties = "app.table-engine=LEGACY")
 @AutoConfigureMockMvc
 @Testcontainers(disabledWithoutDocker = true)
 class TableIntegrationTest {
