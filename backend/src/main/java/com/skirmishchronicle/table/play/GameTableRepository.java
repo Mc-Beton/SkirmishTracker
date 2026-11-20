@@ -17,6 +17,9 @@ public interface GameTableRepository extends JpaRepository<GameTable, UUID> {
 
     Optional<GameTable> findByInviteHash(String inviteHash);
 
+    /** Tables of tournament matches (online rounds). */
+    List<GameTable> findByMatchIdIn(java.util.Collection<UUID> matchIds);
+
     /** Tables the user plays or judges. */
     @Query("select t from GameTable t where t.playerA = :userId or t.playerB = :userId or t.judgeId = :userId order by t.updatedAt desc")
     List<GameTable> findMine(UUID userId);

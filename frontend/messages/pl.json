@@ -137,6 +137,7 @@
     "PLAYER_NOT_IN_ROUND": "Gracza nie ma w tej rundzie.",
     "ROUND_NOT_IN_PROGRESS": "Runda nie jest w trakcie.",
     "RESULTS_MISSING": "Nie wszystkie wyniki są zatwierdzone.",
+    "ONLINE_LIST_MISSING": "Runda online: nie każdy gracz ma zgłoszoną listę – bez niej nie da się otworzyć stołu.",
     "RESULT_ALREADY_CONFIRMED": "Wynik jest już zatwierdzony.",
     "NOTHING_TO_CONFIRM": "Nie ma czego potwierdzać.",
     "ROUND_NOT_STARTED": "Runda się jeszcze nie rozpoczęła.",
@@ -726,6 +727,8 @@
     },
     "rounds": {
       "round": "Runda {n}",
+      "enterTable": "Wejdź do stołu",
+      "viewTable": "Stół online",
       "noRounds": "Turniej jeszcze się nie rozpoczął.",
       "table": "Stół",
       "bye": "BYE",
@@ -791,6 +794,11 @@
     "inLeague": "Liga: {name}",
     "plan": {
       "title": "Plan rund",
+      "onlineMap": "Runda online – mapa:",
+      "onlineMapFor": "Mapa online rundy {n}",
+      "onlineMapNone": "przy stołach (bez stołów online)",
+      "onlineHint": "Runda z wybraną mapą jest rozgrywana online: start rundy otwiera stół dla każdego meczu z listami turniejowymi graczy, a wynik gry trafia do meczu sam.",
+      "online": "online",
       "empty": "Brak zaplanowanych rund – parowanie domyślne (1. runda wg ustawień, kolejne Swiss), stoły wg tabeli.",
       "round": "Runda",
       "scenario": "Scenariusz",
@@ -2729,6 +2737,7 @@
       "cancel": "Anuluj"
     },
     "useLuck": "Użyj Luck ({n})",
+    "strayAlly": "Friendly Fire: zabłąkany strzał (17–20) trafia",
     "useLuckHint": "Lucky Charm: jeśli kość tej figurki zawiedzie (rzut ataku, Dodge) albo rzut na obrażenia ją zrani, jeden licznik Luck przerzuca jedną kość. Licznik schodzi tylko wtedy, gdy przerzut się odbył.",
     "mageReroll": "Mag: przerzut za 1 AP",
     "mageRerollHint": "Mag wydaje niewykorzystany AP, żeby przerzucić nieudane kości rzucanego zaklęcia. AP schodzi tylko wtedy, gdy jakaś kość zawiodła.",

@@ -137,6 +137,7 @@
     "PLAYER_NOT_IN_ROUND": "The player is not in this round.",
     "ROUND_NOT_IN_PROGRESS": "The round is not in progress.",
     "RESULTS_MISSING": "Not all results are confirmed.",
+    "ONLINE_LIST_MISSING": "Online round: not every player has submitted a list – a table cannot be opened without it.",
     "RESULT_ALREADY_CONFIRMED": "The result is already confirmed.",
     "NOTHING_TO_CONFIRM": "Nothing to confirm.",
     "ROUND_NOT_STARTED": "The round has not started yet.",
@@ -726,6 +727,8 @@
     },
     "rounds": {
       "round": "Round {n}",
+      "enterTable": "Enter the table",
+      "viewTable": "Online table",
       "noRounds": "The tournament has not started yet.",
       "table": "Table",
       "bye": "BYE",
@@ -791,6 +794,11 @@
     "inLeague": "League: {name}",
     "plan": {
       "title": "Round plan",
+      "onlineMap": "Online round – map:",
+      "onlineMapFor": "Online map of round {n}",
+      "onlineMapNone": "at real tables (no online tables)",
+      "onlineHint": "A round with a map is played online: starting the round opens a table for every match with the players' tournament lists, and the result of the game goes to the match by itself.",
+      "online": "online",
       "empty": "No rounds planned – default pairing (round 1 by settings, then Swiss), tables by standings.",
       "round": "Round",
       "scenario": "Scenario",
@@ -2729,6 +2737,7 @@
       "cancel": "Cancel"
     },
     "useLuck": "Use Luck ({n})",
+    "strayAlly": "Friendly Fire: a stray shot (17–20) hits",
     "useLuckHint": "Lucky Charm: if a die of this model fails (an Attack roll, a Dodge) or a Damage roll wounds it, one Luck counter rerolls one die. The counter is spent only when a reroll happens.",
     "mageReroll": "Mage: reroll for 1 AP",
     "mageRerollHint": "The Mage spends an unspent AP to reroll the failed dice of the Spell it casts. The AP is spent only when a die failed.",

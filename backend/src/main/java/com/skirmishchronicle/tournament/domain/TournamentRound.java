@@ -40,6 +40,9 @@ public class TournamentRound extends AbstractEntity {
     @Column(name = "scenario_code", length = 60)
     private String scenarioCode;
 
+    @Column(name = "game_map", length = 40)
+    private String gameMap;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "table_order", length = 20)
     private TableOrder tableOrder;
@@ -96,6 +99,15 @@ public class TournamentRound extends AbstractEntity {
 
     public String getScenarioCode() {
         return scenarioCode;
+    }
+
+    /** Online round: the map of the game its tables are played on; null for a round played at real tables. */
+    public String getGameMap() {
+        return gameMap;
+    }
+
+    public void setGameMap(String gameMap) {
+        this.gameMap = gameMap;
     }
 
     public void setScenarioCode(String scenarioCode) {

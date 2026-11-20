@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { ScenarioOption } from "@/components/use-scenarios";
+import { fetchGameMaps, gameMapChoices, type GameMapChoice } from "@/lib/table/game-maps";
 import { TABLE_ORDERS, type RoundPairing, type RoundPlan, type TournamentFormat } from "@/lib/tournaments";
 
 export const MAX_PLAN_ROUNDS = 30;
@@ -22,7 +24,7 @@ export function defaultPlan(number: number): RoundPlan {
  * One row per round: scenario, pairing method (Swiss only), table order and soft preferences.
  * Rounds that were already generated are read-only.
  */
-export function RoundPlanEditor({ plans, onChange, format, scenarios, lockedUpTo, softPrefsConfigured }: {
+export function RoundPlanEditor({ plans, onChange, format, scenarios, lockedUpTo, softPrefsConfigured, online = true }: {
   plans: RoundPlan[];
   onChange: (plans: RoundPlan[]) => void;
   format: TournamentFormat;
@@ -32,8 +34,18 @@ export function RoundPlanEditor({ plans, onChange, format, scenarios, lockedUpTo
   lockedUpTo: number;
   /** At least one soft preference (club/faction/city) is switched on. */
   softPrefsConfigured: boolean;
+  /** Rounds may be played on online tables (Eldfall): a map of the game can be picked for each round. */
+  online?: boolean;
 }) {
   const t = useTranslations("tournaments.plan");
+  // Published maps of the game; a round with one of them is played on online tables.
+  const [maps, setMaps] = useState<GameMapChoice[]>([]);
+  useEffect(() => {
+    if (!online) return;
+    let alive = true;
+    fetchGameMaps().then((stored) => { if (alive) setMaps(gameMapChoices(stored)); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [online]);
   const swiss = format === "SWISS";
   const cols = "sm:grid-cols-[2.5rem_minmax(0,1.8fr)_minmax(0,1.8fr)_minmax(0,1.6fr)_5.5rem_4rem] sm:gap-x-2";
   const update = (i: number, patch: Partial<RoundPlan>) => onChange(plans.map((p, j) => (j === i ? { ...p, ...patch } : p)));
@@ -101,6 +113,17 @@ export function RoundPlanEditor({ plans, onChange, format, scenarios, lockedUpTo
                     <span className="text-xs text-muted-foreground sm:hidden">{t("softPrefs")}</span>
                   </label>
                 ) : <span className="hidden sm:block" />}
+                {online && (maps.length > 0 || p.gameMap) && (
+                  <label className="col-span-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground sm:col-span-full">
+                    {t("onlineMap")}
+                    <NativeSelect className="w-auto min-w-40" aria-label={t("onlineMapFor", { n: p.number })} value={p.gameMap ?? ""} disabled={locked}
+                      onChange={(e) => update(i, { gameMap: e.target.value || null })}>
+                      <option value="">{t("onlineMapNone")}</option>
+                      {p.gameMap && !maps.some((m) => m.id === p.gameMap) && <option value={p.gameMap}>{p.gameMap}</option>}
+                      {maps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </NativeSelect>
+                  </label>
+                )}
               </div>
             );
           })}
@@ -118,6 +141,7 @@ export function RoundPlanEditor({ plans, onChange, format, scenarios, lockedUpTo
         )}
       </div>
       <p className="text-xs text-muted-foreground">{t(`hint.${format}`)}</p>
+      {online && maps.length > 0 && <p className="text-xs text-muted-foreground">{t("onlineHint")}</p>}
       {lockedUpTo > 0 && <p className="text-xs text-muted-foreground">{t("lockedHint")}</p>}
     </div>
   );

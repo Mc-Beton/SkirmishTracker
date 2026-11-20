@@ -1483,11 +1483,11 @@ test('Treasure Hunt: tokens, Sigils, the Cache and carrying the Treasure off', (
   const s = table([], 'treasure-hunt');
   const r = baseRadius('medium');
   const touch = r + 0.49 + 0.05;
-  assert.deepEqual(s.markers.map((k) => [k.id, k.kind, k.x, k.y]), [['cache-1', 'intrigue', 12, 18], ['cache-2', 'intrigue', 24, 18]]);
-  run(s, add('sog-bushi-attendant', 12, 30)); // a1: INT 10, AG 10, ARM 4, HP 2
-  run(s, add('sog-bushi-attendant', 16, 30)); // a2
-  run(s, add('hel-flameshaper', 24, 6, 1)); // b1: AG 12, ARM 1, HP 1
-  run(s, add('hel-citadel-guard', 28, 6, 1)); // b2
+  assert.deepEqual(s.markers.map((k) => [k.id, k.kind, k.x, k.y]), [['cache-1', 'intrigue', 9, 18], ['cache-2', 'intrigue', 27, 18]]);
+  run(s, add('sog-bushi-attendant', 9, 30)); // a1: INT 10, AG 10, ARM 4, HP 2
+  run(s, add('sog-bushi-attendant', 13, 30)); // a2
+  run(s, add('hel-flameshaper', 27, 6, 1)); // b1: AG 12, ARM 1, HP 1
+  run(s, add('hel-citadel-guard', 31, 6, 1)); // b2
   run(s, { type: 'SET_LEADER', id: 'a1' });
   run(s, { type: 'SET_LEADER', id: 'b1' });
   for (const side of [0, 1] as const) {
@@ -1498,7 +1498,7 @@ test('Treasure Hunt: tokens, Sigils, the Cache and carrying the Treasure off', (
   const token = (id: string) => s.markers.find((k) => k.id === id)!;
 
   // Round 1: Perceive reveals the Sigil from a distance; touching it does not set it off yet.
-  run(s, { type: 'MOVE_MODEL', id: 'a1', x: 12, y: 21, free: true });
+  run(s, { type: 'MOVE_MODEL', id: 'a1', x: 9, y: 21, free: true });
   run(s, { type: 'ACTIVATE', id: 'a1' });
   assert.equal(code(() => run(s, { type: 'ACTION', action: 'interact', marker: 'cache-1' })), 'NO_ATTACK', 'not in Base Contact');
   let ev = run(s, { type: 'ACTION', action: 'perceive', marker: 'cache-1' }, dice(5, 10));
@@ -1507,7 +1507,7 @@ test('Treasure Hunt: tokens, Sigils, the Cache and carrying the Treasure off', (
   assert.equal(s.log.at(-1)!.text, 'Bushi Attendant reveals Intrigue token A: a Sigil of Claws of Earth (d20: 10)');
   assert.equal(token('cache-1').name, 'Sigil A: Claws of Earth');
   run(s, { type: 'ACTIVATE', id: 'a1' });
-  ev = run(s, { type: 'MOVE_MODEL', id: 'a1', x: 12, y: 18 + touch });
+  ev = run(s, { type: 'MOVE_MODEL', id: 'a1', x: 9, y: 18 + touch });
   assert.deepEqual(ev.map((e) => e.type), ['MODEL_MOVED'], 'Sigils do not go off in round 1');
   assert.equal(code(() => run(s, { type: 'ACTION', action: 'interact', marker: 'cache-1' })), 'NO_ATTACK', 'no Cache in round 1');
   run(s, { type: 'END_TURN' }, dice(20, 20));
@@ -1525,9 +1525,9 @@ test('Treasure Hunt: tokens, Sigils, the Cache and carrying the Treasure off', (
   run(s, { type: 'END_TURN' }, dice(20, 20));
 
   // Red walks into the other token: revealed (d20 1: Inferno) and set off at once. Dodge fails, 1 Wound, Burn (3).
-  run(s, { type: 'MOVE_MODEL', id: 'b1', x: 24, y: 14, free: true });
+  run(s, { type: 'MOVE_MODEL', id: 'b1', x: 27, y: 14, free: true });
   run(s, { type: 'ACTIVATE', id: 'b1' });
-  ev = run(s, { type: 'MOVE_MODEL', id: 'b1', x: 24, y: 18 - touch }, dice(1, 20, 5, 20, 20, 20));
+  ev = run(s, { type: 'MOVE_MODEL', id: 'b1', x: 27, y: 18 - touch }, dice(1, 20, 5, 20, 20, 20));
   assert.deepEqual(ev.map((e) => e.type), ['MODEL_MOVED', 'MARKER_REVEALED', 'EFFECT', 'MARKER_SET']);
   assert.deepEqual([model(s, 'b1').states.includes('Incapacitated'), token('cache-2').kind], [true, 'cache']);
   assert.ok(s.log.some((l) => /Burn \(3\) on Flameshaper: 3d20 vs PW 14 – 0 Wounds/.test(l.text)));
@@ -1552,7 +1552,7 @@ test('Treasure Hunt: tokens, Sigils, the Cache and carrying the Treasure off', (
   assert.deepEqual([s.round, s.active], [4, 0]);
   run(s, { type: 'ACTIVATE', id: 'a2' });
   assert.equal(code(() => run(s, { type: 'LEAVE_FIELD', id: 'a2' })), 'TOO_FAR');
-  run(s, { type: 'MOVE_MODEL', id: 'a2', x: 12, y: 30, free: true });
+  run(s, { type: 'MOVE_MODEL', id: 'a2', x: 9, y: 30, free: true });
   ev = run(s, { type: 'LEAVE_FIELD', id: 'a2' });
   assert.deepEqual(ev.map((e) => e.type), ['MODEL_LEFT', 'QUEST_SCORED']);
   assert.deepEqual([s.models.some((m) => m.id === 'a2'), s.escaped, s.vp, s.activation], [false, [1, 0], [4, 0], null]);
@@ -1569,8 +1569,8 @@ test('Treasure Hunt: tokens, Sigils, the Cache and carrying the Treasure off', (
   assert.deepEqual([s.phase, s.vp, s.winner], ['finished', [4, 3], 0]);
 
   const t = table([], 'treasure-hunt');
-  run(t, add('sog-bushi-attendant', 12, 30));
-  run(t, add('hel-flameshaper', 24, 6, 1));
+  run(t, add('sog-bushi-attendant', 9, 30));
+  run(t, add('hel-flameshaper', 27, 6, 1));
   run(t, { type: 'SET_LEADER', id: 'a1' });
   run(t, { type: 'SET_LEADER', id: 'b1' });
   for (const side of [0, 1] as const) {
@@ -3057,8 +3057,8 @@ test('Quest tokens never lie inside scenery on any built-in map', () => {
   for (const def of MAPS) {
     const built = buildMap(def);
     for (const quest of QUESTS) {
-      const s = emptyState();
-      apply(s, { seq: 1, at: 0, type: 'TABLE_CREATED', name: 't', width: 36, height: 36, deployDepth: 8, terrain: built.terrain, quest: quest.code } as GameEvent);
+      const s = emptyState('test');
+      apply(s, { type: 'TABLE_CREATED', name: 't', width: 36, height: 36, deployDepth: 8, terrain: built.terrain, quest: quest.code, seq: 1, ts: 0, side: null, by: 'Table' });
       assert.equal(s.markers.length, quest.markers.length);
       for (const k of s.markers.filter((x) => x.kind)) {
         assert.equal(s.terrain.some((t) => t.kind === 'obstacle' && circleHitsPolygon(k, 0.5, t.shape)), false, `${def.id}: ${k.id} is inside scenery`);
@@ -3077,4 +3077,46 @@ test('A token on open ground stays where the Quest puts it', () => {
   const spot = tokenSpot([wall], 36, 36, { x: 12, y: 18 });
   assert.equal(spot.y, 18);
   assert.ok(Math.abs(spot.x - 12) >= 1.5 && Math.abs(spot.x - 12) <= 2);
+});
+
+// ---- Dice a Movement sets off, and who a stray shot hits ----
+import { moveRolls } from '../../frontend/src/lib/eld/engine.ts';
+
+test('moveRolls: a token in reach of the move asks for its dice first', () => {
+  const s = table([], 'treasure-hunt');
+  run(s, add('sog-bushi-attendant', 9, 30));
+  run(s, add('hel-flameshaper', 27, 6, 1));
+  run(s, { type: 'SET_LEADER', id: 'a1' });
+  run(s, { type: 'SET_LEADER', id: 'b1' });
+  for (const side of [0, 1] as const) {
+    run(s, { type: 'DRAW_SCHEMES', side });
+    run(s, { type: 'KEEP_SCHEME', code: 'no-quarter', side });
+  }
+  run(s, { type: 'READY' }, dice(20, 1));
+  const a1 = model(s, 'a1');
+  const touch = baseRadius('medium') + 0.49 + 0.05;
+  assert.equal(moveRolls(s, a1, { x: 9, y: 25 }, 'walk'), null);
+  assert.equal(moveRolls(s, a1, { x: 9, y: 18 + touch }, 'free'), null);
+  assert.equal(moveRolls(s, a1, { x: 9, y: 18 + touch }, 'walk')?.kind, 'intrigue');
+});
+
+test('Friendly Fire: the shooter names the ally a stray shot hits', () => {
+  const s = table([]);
+  const d = 2 * baseRadius('medium');
+  run(s, add('sog-clan-champion', 16, 30));
+  run(s, add('sog-bushi-attendant', 20, 30));
+  run(s, add('sog-bushi-attendant', 24, 30));
+  run(s, add('hel-citadel-guard', 16, 6, 1));
+  run(s, { type: 'READY' }, dice(10, 10));
+  run(s, { type: 'MOVE_MODEL', id: 'b1', x: 16, y: 16, free: true });
+  run(s, { type: 'MOVE_MODEL', id: 'a1', x: 16 - d, y: 16, free: true });
+  run(s, { type: 'MOVE_MODEL', id: 'a3', x: 16 + d, y: 16, free: true });
+  run(s, { type: 'MOVE_MODEL', id: 'a2', x: 16, y: 26, free: true });
+  const shooter = model(s, 'a2');
+  const plans = attackOptions(shooter).map((o) => [o.index, planAttack(s, shooter, model(s, 'b1'), o.index, NO_MODS, { reactive: false })] as const).filter(([, p]) => p.friendly.length === 2);
+  assert.ok(plans.length > 0, 'a ranged option with two allies in the way');
+  const [index, plain] = plans[0]!;
+  const other = plain.friendly[1]!;
+  assert.equal(planAttack(s, shooter, model(s, 'b1'), index, { ...NO_MODS, ally: other }, { reactive: false }).friendly[0], other);
+  assert.deepEqual(planAttack(s, shooter, model(s, 'b1'), index, { ...NO_MODS, ally: 'nobody' }, { reactive: false }).friendly, plain.friendly);
 });

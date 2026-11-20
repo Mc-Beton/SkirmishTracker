@@ -43,6 +43,10 @@ public class TournamentRoundPlan extends AbstractEntity {
     @Column(name = "duration_minutes")
     private Integer durationMinutes;
 
+    /** Online round: the map of the game its tables are played on (built-in id or the UUID of a published map). */
+    @Column(name = "game_map", length = 40)
+    private String gameMap;
+
     protected TournamentRoundPlan() {
     }
 
@@ -56,6 +60,16 @@ public class TournamentRoundPlan extends AbstractEntity {
         this.tableOrder = tableOrder == null ? TableOrder.BY_STANDINGS : tableOrder;
         this.softPreferences = softPreferences;
         this.durationMinutes = durationMinutes;
+    }
+
+    public TournamentRoundPlan(UUID tournamentId, int number, String scenarioCode, RoundPairing pairing,
+                               TableOrder tableOrder, Boolean softPreferences, Integer durationMinutes, String gameMap) {
+        this(tournamentId, number, scenarioCode, pairing, tableOrder, softPreferences, durationMinutes);
+        this.gameMap = gameMap;
+    }
+
+    public String getGameMap() {
+        return gameMap;
     }
 
     public Integer getDurationMinutes() {

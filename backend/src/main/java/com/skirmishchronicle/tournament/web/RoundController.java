@@ -91,6 +91,12 @@ public class RoundController {
 
     // ------------------------------------------------ rounds
 
+    /** Online rounds: the tables of the viewer's matches (all of them for organizers). */
+    @GetMapping("/online-tables")
+    public List<RoundService.OnlineTable> onlineTables(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        return rounds.onlineTables(user(jwt), id);
+    }
+
     @GetMapping("/rounds")
     public List<RoundService.RoundView> rounds(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         return rounds.rounds(user(jwt), id);

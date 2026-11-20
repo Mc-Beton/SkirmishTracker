@@ -65,7 +65,9 @@ public final class TournamentViews {
 
     /** pairing / softPreferences null = default for that round. */
     public record RoundPlan(int number, String scenarioCode, RoundPairing pairing, TableOrder tableOrder,
-                            Boolean softPreferences, Integer durationMinutes) {
+                            Boolean softPreferences, Integer durationMinutes,
+                            /** Online round: the map of the game its tables are played on; null = real tables. */
+                            String gameMap) {
     }
 
     /** paid/listStatus are only filled in for the organizer. */

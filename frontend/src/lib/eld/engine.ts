@@ -1043,6 +1043,52 @@ function sigilBlast(state: TableState, k: Marker, d20: () => number): EventBody[
   ];
 }
 
+/** The models a Trample runs over on the way a→b: smaller ones it moves through or touches. */
+function trampled(state: TableState, m: Model, to: Pt): Model[] {
+  return state.models.filter(
+    (o) =>
+      o.id !== m.id && !o.states.includes('Dead') && baseRadius(o.size) < baseRadius(m.size) && Math.abs((o.z ?? 0) - (m.z ?? 0)) < baseHeight(o.size) &&
+      distToSegment(o, m, to) <= baseRadius(m.size) + baseRadius(o.size) + 0.02,
+  );
+}
+
+/** Dice a Movement sets off (besides Fall Damage), for the dice window to ask for before the move is made. */
+export interface MoveRoll {
+  kind: 'trample' | 'intrigue' | 'sigil';
+  /** The token or the first model concerned. */
+  name: string;
+  dice: number;
+  target: number;
+  attr: string;
+  notes: string[];
+}
+
+export function moveRolls(state: TableState, m: Model, to: Pt, mode: MoveMode): MoveRoll | null {
+  if (state.phase !== 'playing' || mode === 'free' || mode === 'deploy') return null;
+  if (mode === 'run' && hasTrait(m, 'Trample')) {
+    const hit = trampled(state, m, to);
+    const up = hit.filter((o) => !isOut(o));
+    if (up.length > 0) return { kind: 'trample', name: up[0]!.name, dice: up.length, target: modelStats(up[0]!).ag, attr: 'AG', notes: up.map((o) => `${o.name}: Dodge, AG ${modelStats(o).ag}`) };
+    if (hit.length > 0) {
+      const pw = modelStats(m).t;
+      return { kind: 'trample', name: hit[0]!.name, dice: hit.length, target: Math.max(0, pw - modelStats(hit[0]!).arm), attr: 'PW − ARM', notes: hit.map((o) => `${o.name}: Damage, PW ${pw} − ARM ${modelStats(o).arm}`) };
+    }
+  }
+  for (const k of state.markers) {
+    if (!touchesToken(m, to, k)) continue;
+    const blast = (): MoveRoll | null => {
+      const near = state.models.filter((o) => !isOut(o) && dist(o.id === m.id ? to : o, k) <= SIGIL_RADIUS + baseRadius(o.size) + 1e-6);
+      return near.length ? { kind: 'sigil', name: k.name, dice: near.length, target: modelStats(near[0]!).ag, attr: 'AG', notes: near.map((o) => `${o.name}: Dodge, AG ${modelStats(o).ag}`) } : null;
+    };
+    if (k.kind === 'intrigue') return { kind: 'intrigue', name: k.name, dice: 1, target: 20, attr: 'd20', notes: ['1–4 Inferno · 5–8 Glacier Circle · 9–12 Claws of Earth · 13–16 Thunderstorm · 17–18 Mass Mindbreak · 19 Corroding Embrace · 20 Smite'] };
+    if (k.kind === 'sigil' && state.round >= 2) {
+      const r = blast();
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
 /** What the tokens do when a model has just moved to where it stands: Intrigue is revealed, a Sigil goes off. */
 function tokenContact(state: TableState, modelId: string, d20: () => number): EventBody[] {
   const out: EventBody[] = [];
@@ -1349,7 +1395,7 @@ const isPt = (v: unknown): v is Pt => typeof v === 'object' && v !== null && Num
 function mods(v: unknown): Mods {
   const o = (typeof v === 'object' && v !== null ? v : {}) as Record<string, unknown>;
   const one = (x: unknown, what: string) => (x === undefined || x === null ? 0 : int(x, -20, 20, what));
-  return { hit: one(o.hit, 'Modifier'), stk: one(o.stk, 'Strike modifier'), pw: one(o.pw, 'Power modifier'), art: text(o.art, 40), ...(o.snipe === true ? { snipe: true } : {}), ...(o.luck === true ? { luck: true } : {}), ...(o.mage === true ? { mage: true } : {}), ...(isPt(o.push) ? { push: { x: Number(o.push.x), y: Number(o.push.y) } } : {}) };
+  return { hit: one(o.hit, 'Modifier'), stk: one(o.stk, 'Strike modifier'), pw: one(o.pw, 'Power modifier'), art: text(o.art, 40), ...(o.snipe === true ? { snipe: true } : {}), ...(o.luck === true ? { luck: true } : {}), ...(typeof o.ally === 'string' && o.ally.length <= 64 ? { ally: o.ally } : {}), ...(o.mage === true ? { mage: true } : {}), ...(isPt(o.push) ? { push: { x: Number(o.push.x), y: Number(o.push.y) } } : {}) };
 }
 
 /** The state as it will be once these events are applied (used to chain decisions inside one command). */
@@ -1835,9 +1881,7 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
         const pw = modelStats(m).t;
         const lines: { text: string; dice?: DiceResult }[] = [];
         const results: EffectResult[] = [];
-        for (const o of state.models) {
-          if (o.id === m.id || o.states.includes('Dead') || baseRadius(o.size) >= baseRadius(m.size) || Math.abs((o.z ?? 0) - (m.z ?? 0)) >= baseHeight(o.size)) continue;
-          if (distToSegment(o, m, to) > baseRadius(m.size) + baseRadius(o.size) + 0.02) continue;
+        for (const o of trampled(state, m, to)) {
           const st = modelStats(o);
           if (!isOut(o)) {
             const dodge = rollDice(1, st.ag, 'Dodge', ctx.d20);

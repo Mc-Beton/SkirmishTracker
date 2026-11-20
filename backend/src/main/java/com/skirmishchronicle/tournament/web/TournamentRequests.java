@@ -103,7 +103,8 @@ public final class TournamentRequests {
                     .map(p -> new TournamentViews.RoundPlan(p.number(),
                             p.scenarioCode() == null || p.scenarioCode().isBlank() ? null : p.scenarioCode(),
                             p.pairing(), p.tableOrder() == null ? TableOrder.BY_STANDINGS : p.tableOrder(),
-                            p.softPreferences(), p.durationMinutes()))
+                            p.softPreferences(), p.durationMinutes(),
+                            p.gameMap() == null || p.gameMap().isBlank() ? null : p.gameMap().trim()))
                     .toList();
         }
 
@@ -158,7 +159,7 @@ public final class TournamentRequests {
 
     public record RoundPlanRequest(@NotNull @Min(1) @Max(30) Integer number, @Size(max = 60) String scenarioCode,
                                    RoundPairing pairing, TableOrder tableOrder, Boolean softPreferences,
-                                   @Min(5) @Max(600) Integer durationMinutes) {
+                                   @Min(5) @Max(600) Integer durationMinutes, @Size(max = 40) String gameMap) {
     }
 
     public record DifferenceRowRequest(@Min(0) @Max(10000) Integer upTo,

@@ -20,7 +20,7 @@ import { TableSharing } from "@/components/table/table-sharing";
 import { api, ApiError } from "@/lib/api";
 import { useGameContent } from "@/lib/content";
 import { AOE_POINT, areaOf, attackOptions, fallRolls, planAttack, weaponAt } from "@/lib/eld/combat.ts";
-import { checkMove, leaderMorale, summonSpotProblem, ZONES } from "@/lib/eld/engine.ts";
+import { checkMove, leaderMorale, moveRolls, summonSpotProblem, ZONES } from "@/lib/eld/engine.ts";
 import { baseRadius, normDeg } from "@/lib/eld/geometry.ts";
 import { profileById } from "@/lib/eld/profiles.ts";
 import { questByCode } from "@/lib/eld/quests.ts";
@@ -567,9 +567,12 @@ export function GameTable({ tableId }: { tableId: string }) {
       const cmd: Command = { type: "MOVE_MODEL", id, x, y, ...(freeMove ? { free: true } : {}), ...(how ? { how } : {}) };
       // A Jump that falls short: the Fall Damage rolls go through the dice window.
       const m = st.models.find((o) => o.id === id);
-      const check = m && how === "jump" ? checkMove(st, viewer, m, { x, y }, freeMove, how) : null;
-      const falls = m && check?.ok && check.fall ? fallRolls(m, check.fall) : 0;
+      const check = m ? checkMove(st, viewer, m, { x, y }, freeMove, how) : null;
+      const falls = m && how === "jump" && check?.ok && check.fall ? fallRolls(m, check.fall) : 0;
+      // Trample and the Quest tokens (the Sigil's die, the Dodges against its Spell) wait for the player as well.
+      const extra = m && check?.ok ? moveRolls(st, m, { x, y }, check.mode) : null;
       if (m && falls > 0) rollGate({ title: `${m.name}: Fall Damage`, sub: `${check!.ok && check!.fall ? check!.fall.toFixed(1) : ""}″`, dice: falls, target: modelStats(m).ag, attr: "AG" }, cmd);
+      else if (m && extra) rollGate({ title: extra.kind === "trample" ? `${m.name}: Trample` : extra.name, sub: extra.kind === "trample" ? "Dodge" : extra.kind === "intrigue" ? "Sigil" : "Sigil · Dodge", dice: extra.dice, target: extra.target, attr: extra.attr, notes: extra.notes }, cmd);
       else send(cmd);
     },
     onTurn: (id, degrees) => {

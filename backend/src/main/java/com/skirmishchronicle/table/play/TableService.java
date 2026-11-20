@@ -229,6 +229,89 @@ public class TableService {
         return new Created(t.getId(), invite, judgeInvite, watchInvite);
     }
 
+    /** The list a player brings to the table of a tournament match. */
+    public record MatchList(String faction, String alliedFaction, String units) {
+    }
+
+    /**
+     * The table of a match of an online tournament round: both players are seated with their tournament lists, on the
+     * map and Quest of the round. {@code judge} (the organizer) may look in and has the judge's tools. No invitations,
+     * and the players' limit of open tables is not checked: the tournament opens it, not they.
+     */
+    @Transactional
+    public UUID createForMatch(UUID matchId, UUID playerA, MatchList listA, UUID playerB, MatchList listB,
+                               String questCode, String gameMap, UUID judge) {
+        if (!gameEngine) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_3D_UNAVAILABLE");
+        }
+        if (gameMap == null || !gameMap.matches("[a-z0-9-]{1,40}")) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_MAP");
+        }
+        com.fasterxml.jackson.databind.node.ObjectNode customMap = null;
+        if (gameMap.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
+            GameMapStore.Row row = gameMaps.find(UUID.fromString(gameMap)).filter(GameMapStore.Row::published)
+                    .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_MAP"));
+            customMap = json.createObjectNode();
+            customMap.put("name", row.name());
+            customMap.put("base", row.base());
+            try {
+                customMap.set("items", json.readTree(row.items()));
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new IllegalStateException("corrupt game map " + row.id(), e);
+            }
+        }
+        String quest = questCode == null || questCode.isBlank() || content.quest(questCode).isEmpty() ? null : questCode;
+        GameState.Deployment deployment = quest == null ? GameState.Deployment.STANDARD
+                : content.quest(quest).map(q -> "CORNER".equals(q.deploymentType()) ? GameState.Deployment.CORNER
+                        : GameState.Deployment.STANDARD).orElse(GameState.Deployment.STANDARD);
+        MapSnapshot snap = new MapSnapshot(gameMap, 36, 36, 8, null, List.of(), Map.of());
+        GameTable t = new GameTable(playerA, snap.name(), quest, write(snap), snap.widthIn(), snap.heightIn(),
+                snap.deploymentDepth(), deployment, listA.units(), null, GameTable.MeasureMode.ASSISTED);
+        t.useGameMap(gameMap, true);
+        t.forMatch(matchId);
+        if (judge != null && !judge.equals(playerA) && !judge.equals(playerB)) {
+            t.judgeJoined(judge);
+        }
+        t.useGameEngine();
+        t.faction(0, listA.faction(), listA.alliedFaction());
+        tables.saveAndFlush(t); // the event log (plain JDBC) references the row
+        boolean corner = deployment == GameState.Deployment.CORNER;
+        game.start(t, playerA, player(playerA, 0).name(), party(listA), terrain(snap), corner,
+                corner ? GameState.CORNER_RADIUS : snap.deploymentDepth(), gameMap, customMap);
+        t.join(playerB, listB.units());
+        t.faction(1, listB.faction(), listB.alliedFaction());
+        game.join(t, playerB, player(playerB, 1).name(), party(listB));
+        live.tableChangedAfterCommit(t.getId(), 0);
+        return t.getId();
+    }
+
+    /** Match id -> table id, for the matches that have a table. */
+    @Transactional(readOnly = true)
+    public Map<UUID, UUID> tablesOfMatches(java.util.Collection<UUID> matchIds) {
+        Map<UUID, UUID> out = new LinkedHashMap<>();
+        if (matchIds.isEmpty()) {
+            return out;
+        }
+        for (GameTable t : tables.findByMatchIdIn(matchIds)) {
+            out.put(t.getMatchId(), t.getId());
+        }
+        return out;
+    }
+
+    private com.fasterxml.jackson.databind.node.ObjectNode party(MatchList list) {
+        com.fasterxml.jackson.databind.node.ObjectNode party = json.createObjectNode();
+        party.put("faction", list.faction());
+        com.fasterxml.jackson.databind.node.ArrayNode units = party.putArray("units");
+        for (WarbandService.UnitView u : warbands.unitViews(list.faction(), list.alliedFaction(), list.units())) {
+            com.fasterxml.jackson.databind.node.ObjectNode unit = units.addObject();
+            unit.put("name", u.name());
+            unit.put("leader", u.leader());
+            com.fasterxml.jackson.databind.node.ArrayNode items = unit.putArray("items");
+            u.items().forEach(i -> items.add(i.name()));
+        }
+        return party;
+    }
+
     /**
      * A free game: no map and no lists – the mat, terrain and models are put on the table during the game. The creator
      * plays both sides until somebody joins (link or invitation by name; the opponent may join without a list).
@@ -644,6 +727,10 @@ public class TableService {
         }
         if (t.isSandbox()) {
             throw new ApiException(HttpStatus.CONFLICT, "TABLE_SANDBOX_NO_REPORT");
+        }
+        if (t.getMatchId() != null) {
+            // a tournament table: its result goes to the match, not to "My games"
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_ALREADY_REPORTED");
         }
         if (t.isGame()) {
             return reportGame(actor, t, side);

@@ -540,6 +540,8 @@ export function planAttack(state: TableState, attacker: Model, target: Model, we
   let friendly: string[] = [];
   if (ranged && !snipe && !ctx.chain && !/AoE/.test(weapon.rch) && target.id !== AOE_POINT) {
     friendly = state.models.filter((o) => o.side === attacker.side && o.id !== attacker.id && !o.states.includes('Dead') && !o.states.includes('Incapacitated') && gap(o, target) <= CONTACT).map((o) => o.id);
+    // The shooter says which of them a stray shot hits (otherwise the first).
+    if (mods.ally && friendly.includes(mods.ally)) friendly = [mods.ally, ...friendly.filter((id) => id !== mods.ally)];
     add(-4 * friendly.length, 'Friendly Fire');
   }
   add(soldierBonus(state, attacker), 'Soldier');

@@ -242,6 +242,8 @@ export interface Mods {
   push?: Pt;
   /** Lucky Charm: spend a Luck counter if a die of this model fails (an Attack roll, a Dodge) or a Damage roll wounds it. */
   luck?: boolean;
+  /** Ranged Friendly Fire: the ally of the shooter (in Base Contact with the target) that a stray shot hits. */
+  ally?: string;
   /** Mage: spend an Activation Point to reroll the failed dice of a Spell. */
   mage?: boolean;
 }

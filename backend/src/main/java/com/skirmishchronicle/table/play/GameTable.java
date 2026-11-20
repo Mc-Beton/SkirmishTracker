@@ -139,6 +139,13 @@ public class GameTable extends AbstractEntity {
     @Column(name = "watch_invite_hash", length = 64)
     private String watchInviteHash;
 
+    /** A table of a tournament match (online round): the result of its game goes to that match. */
+    @Column(name = "match_id")
+    private UUID matchId;
+
+    @Column(name = "match_reported", nullable = false)
+    private boolean matchReported;
+
     @Column(name = "next_seq", nullable = false)
     private long nextSeq = 1;
 
@@ -180,6 +187,25 @@ public class GameTable extends AbstractEntity {
         this.status = Status.WAITING;
         this.createdAt = Instant.now();
         this.updatedAt = createdAt;
+    }
+
+    /** The table of a tournament match. Set once, right after the table is created. */
+    public void forMatch(UUID matchId) {
+        this.matchId = matchId;
+    }
+
+    public UUID getMatchId() {
+        return matchId;
+    }
+
+    /** The result of the game has been written to the match. */
+    public boolean isMatchReported() {
+        return matchReported;
+    }
+
+    public void matchReported() {
+        this.matchReported = true;
+        touch();
     }
 
     /** Player B takes the seat; the invitation is used up. */

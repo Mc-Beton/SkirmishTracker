@@ -31,7 +31,11 @@ export type RoundPlan = {
   softPreferences: boolean | null;
   /** Round length for the timer (minutes), null = no timer. */
   durationMinutes: number | null;
+  /** Online round: the map of the game its tables are played on; null = played at real tables. */
+  gameMap?: string | null;
 };
+/** The online table of a match (online rounds): the viewer's own matches, all of them for organizers. */
+export type OnlineTable = { matchId: string; tableId: string };
 export type FirstRoundMode = "RANDOM" | "ELO_STRONG_VS_STRONG" | "ELO_TOP_VS_BOTTOM";
 export type ScoringMode = "WIN_DRAW_LOSS" | "SMALL_POINTS_MULTIPLIER" | "DIFFERENCE_TABLE";
 export type DifferenceRow = { upTo: number | null; winner: number; loser: number };

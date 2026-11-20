@@ -54,8 +54,8 @@ export const QUESTS: QuestDef[] = [
       'The Quest ends when both Treasures have left the field, or at the end of the turn of a player who began it in Broken Morale.',
     ],
     markers: [
-      { id: 'cache-1', name: 'Intrigue token A', at: { x: 1 / 3, y: 0.5 }, radius: 0, kind: 'intrigue' },
-      { id: 'cache-2', name: 'Intrigue token B', at: { x: 2 / 3, y: 0.5 }, radius: 0, kind: 'intrigue' },
+      { id: 'cache-1', name: 'Intrigue token A', at: { x: 0.25, y: 0.5 }, radius: 0, kind: 'intrigue' },
+      { id: 'cache-2', name: 'Intrigue token B', at: { x: 0.75, y: 0.5 }, radius: 0, kind: 'intrigue' },
     ],
     brokenMorale: true,
   },

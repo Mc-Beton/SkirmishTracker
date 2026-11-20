@@ -416,7 +416,7 @@ export function TournamentForm({
 
       <Section title={t("plan.title")} collapsible={collapsible}>
         <RoundPlanEditor plans={plans} onChange={setPlans} format={form.format} scenarios={scenarios.list}
-          lockedUpTo={lockedUpTo}
+          lockedUpTo={lockedUpTo} online={system !== "BOLT_ACTION"}
           softPrefsConfigured={!settings.teamSize && settings.avoidSameClub || settings.avoidSameFaction || settings.avoidSameCity} />
       </Section>
 

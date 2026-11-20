@@ -40,9 +40,11 @@ public class TableGameService {
     private final GameEngine game;
     private final LiveEventService live;
     private final ObjectMapper json;
+    private final com.skirmishchronicle.tournament.service.RoundService rounds;
 
     public TableGameService(TableService tables, GameTableRepository repo, GameEngine game, LiveEventService live,
-                            ObjectMapper json) {
+                            ObjectMapper json, com.skirmishchronicle.tournament.service.RoundService rounds) {
+        this.rounds = rounds;
         this.tables = tables;
         this.repo = repo;
         this.game = game;
@@ -109,6 +111,17 @@ public class TableGameService {
             throw new ApiException(HttpStatus.CONFLICT, "TABLE_ALREADY_REPORTED");
         }
         long seq = game.command(t, t.sideOf(actor.id()), actor.id(), tables.player(actor.id(), 0).name(), cmd);
+        if (t.getMatchId() != null && !t.isMatchReported()) {
+            // a tournament table: when the game is over, its Victory Points are the result of the match
+            JsonNode sum = game.summary(t);
+            if ("finished".equals(sum.path("phase").asText())) {
+                UUID tournament = rounds.resultFromTable(t.getMatchId(), sum.path("vp").path(0).asInt(0), sum.path("vp").path(1).asInt(0));
+                t.matchReported();
+                if (tournament != null) {
+                    live.tournamentChangedAfterCommit(tournament, "changed");
+                }
+            }
+        }
         live.tableChangedAfterCommit(t.getId(), seq);
         return seq;
     }

@@ -67,7 +67,7 @@ function ModsRow({ c }: { c: PanelCtx }) {
   );
 }
 
-const resetMods = (c: PanelCtx) => c.patch((u) => ({ ...u, mods: { hit: 0, stk: 0, pw: 0 }, luck: false, mage: false }));
+const resetMods = (c: PanelCtx) => c.patch((u) => ({ ...u, mods: { hit: 0, stk: 0, pw: 0 }, luck: false, mage: false, ally: "" }));
 
 /** Lucky Charm and the Mage's reroll: asked for when the Action or Reaction is declared, spent only if a die calls for it. */
 function ExtraRow({ c, m }: { c: PanelCtx; m: Model }) {
@@ -414,6 +414,13 @@ export function ActionPanel({ c, m, onAttack }: { c: PanelCtx; m: Model; onAttac
           <ArtSelect c={c} m={m} wi={s.wi} />
           <ModsRow c={c} />
           <ExtraRow c={c} m={m} />
+          {plan && plan.ok && plan.friendly.length > 1 && (
+            <label className="grid gap-0.5 text-xs text-muted-foreground">{t("strayAlly")}
+              <NativeSelect className={sel} value={plan.friendly[0]} onChange={(e) => c.patch((u) => ({ ...u, ally: e.target.value }))}>
+                {plan.friendly.map((id) => <option key={id} value={id}>{st.models.find((o) => o.id === id)?.name ?? id}</option>)}
+              </NativeSelect>
+            </label>
+          )}
           {plan && (
             <p className={plan.ok ? small : warn}>
               {plan.ok ? `${plan.stk}d20 vs ${plan.attrName} ${plan.attr} · PW ${plan.pw}.${plan.notes.length ? ` ${plan.notes.join("; ")}.` : ""}${answer}` : plan.reason}

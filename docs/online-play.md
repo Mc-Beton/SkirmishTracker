@@ -397,3 +397,18 @@ gdy usługa zasad odpowiada na `localhost:8090` (w CI startuje ją job backendu)
 - **Żetony misji** (Treasure Hunt: Intrigue / Sigil / Cache) nie mogą leżeć w przeszkodzie. `tokenSpot()` w `engine.ts` przesuwa żeton, który wypadłby w przeszkodzie, na najbliższe wolne miejsce – najpierw wzdłuż linii środkowej (obaj gracze mają do niego równie daleko), dopiero potem w dowolnym kierunku. Obelisk zostaje na środku stołu (bywa na podeście).
 - **Widok 3D**: znaczniki są rysowane na wierzchu tego, co pod nimi stoi (`markerLift`), żetony mają smugę światła i podpis – model terenu ich nie zasłania.
 - **Figurki** stoją na rzeźbionym modelu terenu (kamienie, podstawy latarni), a nie w nim: `sculptTop()` w `scene.ts` szuka powierzchni modelu do 1,8" nad wysokością z reguł. To tylko wygląd – wysokość w regułach nadal wynika z kształtów przeszkód (`surfaceAt`).
+
+### Rzuty przy ruchu, Friendly Fire, żetony Treasure Hunt (2026-11-20)
+
+- `moveRolls()` w `engine.ts` mówi, jakie kości wywoła ruch poza upadkiem: Trample (Dodge każdej mniejszej figurki na drodze), odkrycie żetonu Intrigue (k20 na Sigil), wybuch Sigila (Dodge każdej figurki w zasięgu). Stół pokazuje okno kości przed wysłaniem `MOVE_MODEL`.
+- Ranged Friendly Fire: gdy przy celu stoi kilku sojuszników strzelca, gracz wybiera, kogo trafi zabłąkany strzał (`Mods.ally`); bez wyboru – pierwszy.
+- Żetony Intrigue leżą 9" od bocznych krawędzi na linii środkowej (jak na mapie misji w podręczniku), wcześniej 12" i 24".
+- `wb-scan-thumbs/` i `*.tar` są w `.gitignore` (zdjęcia stron podręcznika, stare archiwa).
+
+### Turnieje online – krok 1 i 2 (2026-11-20)
+
+- **Runda online** = runda, której plan ma wybraną mapę gry (`tournament_round_plans.game_map`, kopiowane do `tournament_rounds.game_map` przy parowaniu). Tylko Eldfall. Migracja `V30__online_tournament_rounds.sql`.
+- **Start rundy** (`RoundService.startRound`) otwiera stół dla każdego meczu (`TableService.createForMatch`): obaj gracze siedzą od razu z listami turniejowymi (`Warband`), mapa i misja z rundy, organizator jest sędzią stołu. Brak listy u gracza → `ONLINE_LIST_MISSING`, runda nie startuje. Stoły powstają przy starcie, a nie przy parowaniu, bo w sparowanej rundzie organizator może jeszcze zamieniać graczy.
+- **Wejście do stołu**: `GET /api/tournaments/{id}/online-tables` (gracz: własne mecze, organizator/admin: wszystkie; wymaga logowania), przycisk w wierszu meczu. Dostęp do samego stołu sprawdza stół (gracz / sędzia / admin).
+- **Wynik**: gdy gra na stole się kończy, `TableGameService.command` wpisuje VP do meczu (`RoundService.resultFromTable`) – tylko gdy mecz nie ma wyniku i runda trwa; organizator może go poprawić. Stołu turniejowego nie da się zgłosić do „Moich gier”.
+- **Do zrobienia (krok 3)**: limit czasu – po końcu zegara rundy stoły kończą bieżącą rundę gry i zamykają grę.

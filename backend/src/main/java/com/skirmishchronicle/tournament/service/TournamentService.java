@@ -266,7 +266,7 @@ public class TournamentService {
                 mine, canManage(viewer, t), t.settings(), rounds.countByTournamentId(id),
                 roundPlans.findByTournamentIdOrderByNumberAsc(id).stream()
                         .map(p -> new TournamentViews.RoundPlan(p.getNumber(), p.getScenarioCode(), p.getPairing(),
-                                p.getTableOrder(), p.getSoftPreferences(), p.getDurationMinutes())).toList(),
+                                p.getTableOrder(), p.getSoftPreferences(), p.getDurationMinutes(), p.getGameMap())).toList(),
                 t.isOfficial(), t.getListFormat(), t.getPartyLimit(), t.isHiddenRosters(), t.getGameSystem(),
                 t.getMaxOrderDice(), t.getMaxPlatoons(), t.getListVisibility(), t.isRequireApproval(),
                 coNames.entrySet().stream().map(e -> new TournamentViews.Organizer(e.getKey(), e.getValue()))
@@ -517,6 +517,10 @@ public class TournamentService {
             if (p.scenarioCode() != null && !scenarioExists(system, p.scenarioCode())) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "SCENARIO_NOT_FOUND");
             }
+            // an online round: Eldfall only, on a map of the game (checked again when its tables are opened)
+            if (p.gameMap() != null && (system == GameSystem.BOLT_ACTION || !p.gameMap().matches("[a-z0-9-]{1,40}"))) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_MAP");
+            }
         }
     }
 
@@ -535,7 +539,7 @@ public class TournamentService {
         for (TournamentViews.RoundPlan p : plans) {
             if (p.number() > generatedRounds) {
                 roundPlans.save(new TournamentRoundPlan(tournamentId, p.number(), p.scenarioCode(), p.pairing(),
-                        p.tableOrder(), p.softPreferences(), p.durationMinutes()));
+                        p.tableOrder(), p.softPreferences(), p.durationMinutes(), p.gameMap()));
             }
         }
     }

@@ -13,7 +13,7 @@ import { OfficialBadge, RankBadge, StatusBadge, TestBadge } from "@/components/t
 import { api } from "@/lib/api";
 import { useLiveRefresh } from "@/lib/live";
 import { sendOrQueue, type OutboxItem } from "@/lib/offline-queue";
-import type { Challenge, Match, Participant, Round, StandingsData, TeamsData, TeamStandingRow, TournamentDetail } from "@/lib/tournaments";
+import type { Challenge, Match, OnlineTable, Participant, Round, StandingsData, TeamsData, TeamStandingRow, TournamentDetail } from "@/lib/tournaments";
 import { RoundTimer } from "@/components/tournaments/round-timer";
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { FinalStandings } from "@/components/tournaments/final-standings";
@@ -48,6 +48,16 @@ export function TournamentView({ id }: { id: string }) {
   const [players, setPlayers] = useState<Participant[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [rounds, setRounds] = useState<Round[]>([]);
+  // Online rounds: match id -> its table (own matches; all of them for organizers).
+  const [tableOf, setTableOf] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!me || rounds.length === 0) return;
+    let alive = true;
+    api<OnlineTable[]>("GET", `/api/tournaments/${id}/online-tables`)
+      .then((list) => { if (alive) setTableOf(Object.fromEntries(list.map((x) => [x.matchId, x.tableId]))); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [me, id, rounds]);
   const [standings, setStandings] = useState<StandingsData | null>(null);
   const [warbands, setWarbands] = useState<WarbandSummary[] | null>(null);
   const [leagues, setLeagues] = useState<LeagueSummary[]>([]);
@@ -167,6 +177,7 @@ export function TournamentView({ id }: { id: string }) {
     <MatchRow key={m.id} match={m} meId={me?.id}
       // Bolt Action: only the final score at the end of the game (no turn-by-turn page).
       gameHref={ba ? undefined : `/tournaments/${id}/matches/${m.id}`}
+      tableHref={tableOf[m.id] ? `/tables/${tableOf[m.id]}` : undefined}
       secondarySlot={secondary} maxPrimary={tournament.settings.maxPrimaryPoints}
       maxSecondary={tournament.settings.maxSecondaryPoints}
       onReport={(a, b, xa, xb) => callOrQueue("POST", `matches/${m.id}/report`, "report", m.table,
@@ -375,6 +386,7 @@ export function TournamentView({ id }: { id: string }) {
                       {tournament.format !== "ELIMINATION" && (
                         <span className="text-muted-foreground">{t(`plan.tablesShort.${p.tableOrder}`)}</span>
                       )}
+                      {p.gameMap && <span className="rounded bg-primary/15 px-1.5 text-xs text-primary">{t("plan.online")}</span>}
                       {p.durationMinutes != null && (
                         <span className="text-muted-foreground">{t("plan.minutes", { n: p.durationMinutes })}</span>
                       )}

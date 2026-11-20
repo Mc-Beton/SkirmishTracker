@@ -1,6 +1,8 @@
 package com.skirmishchronicle.tournament.service;
 
 import com.skirmishchronicle.tournament.repo.JudgeCallRepository;
+import com.skirmishchronicle.tournament.domain.Warband;
+import com.skirmishchronicle.tournament.repo.WarbandRepository;
 import com.skirmishchronicle.notification.NotificationService;
 import com.skirmishchronicle.notification.NotificationType;
 import com.skirmishchronicle.audit.AuditService;
@@ -120,6 +122,9 @@ public class RoundService {
     private final AuditService audit;
     private final RatingService ratings;
     private final RoundPlanRepository roundPlans;
+    private final WarbandRepository warbandLists;
+    /** Online tables (the table module); not the tournament's own table numbering. */
+    private final com.skirmishchronicle.table.play.TableService onlineTables;
     private final SecureRandom random = new SecureRandom();
 
     public RoundService(RoundRepository rounds, MatchRepository matches, ParticipantRepository participants,
@@ -127,7 +132,10 @@ public class RoundService {
                         TournamentGuard guard, AuditService audit, RatingService ratings,
                         RoundPlanRepository roundPlans,
             NotificationService notifications,
-            JudgeCallRepository judgeCalls, TeamRoundService teamRounds) {
+            JudgeCallRepository judgeCalls, TeamRoundService teamRounds,
+            WarbandRepository warbandLists, com.skirmishchronicle.table.play.TableService onlineTables) {
+        this.warbandLists = warbandLists;
+        this.onlineTables = onlineTables;
         this.teamRounds = teamRounds;
         this.judgeCalls = judgeCalls;
         this.notifications = notifications;
@@ -183,6 +191,9 @@ public class RoundService {
         }
         if (plan != null && plan.getDurationMinutes() != null) {
             round.setTimerMinutes(plan.getDurationMinutes());
+        }
+        if (plan != null && plan.getGameMap() != null) {
+            round.setGameMap(plan.getGameMap());
         }
         try {
             if (team) {
@@ -497,6 +508,9 @@ public class RoundService {
         round.startTimerIfPlanned();
         audit.record(actor.id(), AUDIT_TYPE, tournamentId, "ROUND_STARTED", "#" + number);
         Tournament t = guard.lock(tournamentId);
+        if (round.getGameMap() != null) {
+            openTables(t, round);
+        }
         String link = "/tournaments/" + tournamentId;
         for (TournamentMatch m : matches.findByRoundIdOrderByTableNumberAsc(round.getId())) {
             if (m.isBye()) {
@@ -509,6 +523,71 @@ public class RoundService {
             notifications.notify(m.getPlayerB(), NotificationType.ROUND_STARTED, Map.of("tournament", t.getName(),
                     "round", number, "table", m.getTableNumber(), "opponent", name(m.getPlayerA()), "bye", false), link);
         }
+    }
+
+    /** An online round starts: every match gets its table, both players seated with their tournament lists. */
+    private void openTables(Tournament t, TournamentRound round) {
+        for (TournamentMatch m : matches.findByRoundIdOrderByTableNumberAsc(round.getId())) {
+            if (m.isBye()) {
+                continue;
+            }
+            Warband a = warbandLists.findByTournamentIdAndUserId(t.getId(), m.getPlayerA()).orElse(null);
+            Warband b = warbandLists.findByTournamentIdAndUserId(t.getId(), m.getPlayerB()).orElse(null);
+            if (a == null || b == null) {
+                // without a list there is nothing to put on the table: the organizer sorts it out before the start
+                throw new ApiException(HttpStatus.CONFLICT, "ONLINE_LIST_MISSING");
+            }
+            onlineTables.createForMatch(m.getId(),
+                    m.getPlayerA(), new com.skirmishchronicle.table.play.TableService.MatchList(a.getFaction(), a.getAlliedFaction(), a.getUnits()),
+                    m.getPlayerB(), new com.skirmishchronicle.table.play.TableService.MatchList(b.getFaction(), b.getAlliedFaction(), b.getUnits()),
+                    round.getScenarioCode(), round.getGameMap(), t.getOwnerId());
+        }
+    }
+
+    /** The online table of a match, for those who may sit at it or look in. */
+    public record OnlineTable(UUID matchId, UUID tableId) {
+    }
+
+    /**
+     * Tables of the tournament's matches. A player gets the tables of their own matches, organizers and admins all
+     * of them; who may open a table is checked again by the table itself.
+     */
+    @Transactional(readOnly = true)
+    public List<OnlineTable> onlineTables(CurrentUser viewer, UUID tournamentId) {
+        Tournament t = guard.visible(viewer, tournamentId);
+        if (viewer == null) {
+            return List.of();
+        }
+        boolean all = TournamentGuard.canManage(viewer, t);
+        List<UUID> ids = matches.findByTournamentId(tournamentId).stream()
+                .filter(m -> all || viewer.id().equals(m.getPlayerA()) || viewer.id().equals(m.getPlayerB()))
+                .map(TournamentMatch::getId).toList();
+        return onlineTables.tablesOfMatches(ids).entrySet().stream()
+                .map(e -> new OnlineTable(e.getKey(), e.getValue())).toList();
+    }
+
+    /**
+     * The game on the online table of a match has ended: its Victory Points become the result of the match, as if
+     * the organizer had entered it (and the organizer may still correct it). Only while the match has no result and
+     * its round is running. Returns the tournament when the result was written, otherwise null.
+     */
+    @Transactional
+    public UUID resultFromTable(UUID matchId, int vpA, int vpB) {
+        TournamentMatch m = matches.findById(matchId).orElse(null);
+        if (m == null || m.isBye() || m.getStatus() != MatchStatus.PENDING) {
+            return null;
+        }
+        TournamentRound round = rounds.findById(m.getRoundId()).orElse(null);
+        if (round == null || round.getStatus() != RoundStatus.IN_PROGRESS) {
+            return null;
+        }
+        Tournament t = guard.lock(m.getTournamentId());
+        int a = Math.max(0, Math.min(MAX_SMALL_POINTS, vpA));
+        int b = Math.max(0, Math.min(MAX_SMALL_POINTS, vpB));
+        m.setResult(t.getOwnerId(), MatchResultType.PLAYED, a, b);
+        audit.record(t.getOwnerId(), AUDIT_TYPE, t.getId(), "RESULT_FROM_TABLE",
+                "#" + round.getNumber() + " " + name(m.getPlayerA()) + " vs " + name(m.getPlayerB()) + ": " + a + ":" + b);
+        return t.getId();
     }
 
     /** Throw away a round that has not started (e.g. to re-pair after late changes). */

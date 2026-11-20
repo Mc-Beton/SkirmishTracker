@@ -34,13 +34,15 @@ type Props = {
   pickedPlayer?: string | null;
   /** Link to the detailed game page. */
   gameHref?: string;
+  /** Online round: link to the table of this match (for its players and the organizers). */
+  tableHref?: string;
   /** SPLIT is not offered in knockout rounds. */
   allowSplit?: boolean;
   /** A player of this table asks the judge to come over (round in progress). */
   onCallJudge?: () => Promise<void>;
 };
 
-export function MatchRow({ match: m, meId, onReport, onConfirm, onDispute, onSetResult, onPickPlayer, pickedPlayer, gameHref, allowSplit = true, onCallJudge, secondarySlot = false, maxPrimary, maxSecondary }: Props) {
+export function MatchRow({ match: m, meId, onReport, onConfirm, onDispute, onSetResult, onPickPlayer, pickedPlayer, gameHref, tableHref, allowSplit = true, onCallJudge, secondarySlot = false, maxPrimary, maxSecondary }: Props) {
   const t = useTranslations("tournaments.rounds");
   const tm = useTranslations("tournaments.manageView");
   const mine = !!meId && (m.playerA.id === meId || m.playerB?.id === meId);
@@ -120,6 +122,11 @@ export function MatchRow({ match: m, meId, onReport, onConfirm, onDispute, onSet
         {m.playerB && <Badge variant={STATUS_VARIANT[m.status]}>{t(`match.${m.status}`)}</Badge>}
         {m.judgeCalled && (
           <Badge variant="warning"><Gavel className="mr-1 size-3" aria-hidden />{t("judgeCalled")}</Badge>
+        )}
+        {tableHref && m.playerB && (
+          <Link href={tableHref} className="rounded-md bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground hover:opacity-90">
+            {mine && m.status === "PENDING" ? t("enterTable") : t("viewTable")}
+          </Link>
         )}
         {gameHref && m.playerB && (
           <Link href={gameHref} className="text-xs text-primary hover:underline">
