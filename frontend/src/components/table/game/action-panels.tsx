@@ -4,7 +4,8 @@
 // Rituals, tokens) and the Reaction of a figure of the other player. The engine's own words (weapons, Spells,
 // what was applied, why something is refused) are shown as the engine gives them.
 
-import { AOE_POINT, artOptions, attackOptions, CONTACT, gap, isRanged, knockbackInches, knockbackTo, planAttack, weaponAt } from "@/lib/eld/combat.ts";
+import { AOE_POINT, artOptions, attackOptions, CONTACT, gap, intOf, isRanged, knockbackInches, knockbackTo, moraleOf, planAttack, weaponAt } from "@/lib/eld/combat.ts";
+import { sight } from "@/lib/eld/los.ts";
 import { castAttr, castProblem, castTargets, conjureCost, reactCheck, summonLoad, SUMMONS, touchesToken, ZONES } from "@/lib/eld/engine.ts";
 import { baseRadius } from "@/lib/eld/geometry.ts";
 import { mountById } from "@/lib/eld/mounts.ts";
@@ -66,7 +67,27 @@ function ModsRow({ c }: { c: PanelCtx }) {
   );
 }
 
-const resetMods = (c: PanelCtx) => c.patch((u) => ({ ...u, mods: { hit: 0, stk: 0, pw: 0 } }));
+const resetMods = (c: PanelCtx) => c.patch((u) => ({ ...u, mods: { hit: 0, stk: 0, pw: 0 }, luck: false, mage: false }));
+
+/** Lucky Charm and the Mage's reroll: asked for when the Action or Reaction is declared, spent only if a die calls for it. */
+function ExtraRow({ c, m }: { c: PanelCtx; m: Model }) {
+  const luck = (m.luck ?? 0) > 0;
+  const mage = hasClass(m, "Mage") && m.ap >= 1 && spellsOf(profileOf(m)).length > 0;
+  if (!luck && !mage) return null;
+  const box = (key: "luck" | "mage", label: string, hint: string) => (
+    <label className="flex items-center gap-2 text-xs" title={hint}>
+      <input type="checkbox" className="size-3.5 accent-[var(--primary)]" checked={c.ui[key]} onChange={(e) => c.patch((u) => ({ ...u, [key]: e.target.checked }))} /> {label}
+    </label>
+  );
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1">
+      {luck && box("luck", c.t("useLuck", { n: m.luck ?? 0 }), c.t("useLuckHint"))}
+      {mage && box("mage", c.t("mageReroll"), c.t("mageRerollHint"))}
+    </div>
+  );
+}
+/** A Spell cast with the Mage's reroll asked for. */
+const mageMods = (c: PanelCtx): { mods?: { mage: true } } => (c.ui.mage ? { mods: { mage: true } } : {});
 
 function WeaponSelect({ c, m, wi }: { c: PanelCtx; m: Model; wi: number }) {
   return (
@@ -256,6 +277,7 @@ function ZonePanel({ c, m }: { c: PanelCtx; m: Model }) {
   return (
     <div className="grid gap-1.5 border-t pt-2">
       <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Area Spells</h4>
+      <ExtraRow c={c} m={m} />
       {known.map((x) => {
         const z = ZONES[x.name]!;
         const poor = (x.mana ?? 0) > (m.mana ?? 0);
@@ -266,7 +288,7 @@ function ZonePanel({ c, m }: { c: PanelCtx; m: Model }) {
             <Button type="button" size="sm" variant={aiming ? "default" : "outline"} className="h-7 px-2 text-xs" disabled={poor} title={x.text}
               onClick={() => (z.reach > 0
                 ? c.setAim(aiming ? null : { kind: "zone", spell: x.name })
-                : c.rollGate({ title: `${m.name}: ${x.name}`, sub: x.kind, dice: 1, target: roll.attr, attr: roll.name, notes: roll.notes }, { type: "ACTION", action: "cast", spell: x.name }))}>
+                : c.rollGate({ title: `${m.name}: ${x.name}`, sub: x.kind, dice: 1, target: roll.attr, attr: roll.name, notes: roll.notes }, { type: "ACTION", action: "cast", spell: x.name, ...mageMods(c) }, () => resetMods(c)))}>
               {aiming ? c.t("clickTable") : `Cast ${x.name}${x.mana ? ` (${x.mana} Mana)` : ""}`}
             </Button>{" "}
             {z.reach > 0 ? `Reach ${z.reach}", ` : ""}Circular L. {x.text}
@@ -318,10 +340,11 @@ function CastPanel({ c, m }: { c: PanelCtx; m: Model }) {
         {problem || (chosen.length === 0 ? c.t("chooseCastTarget") : rolled === 0 ? c.t("noRoll") : `${rolled}d20 vs ${roll.name} ${roll.attr}${roll.notes.length ? ` (${roll.notes.join(", ")})` : ""}.`)}
         {!problem && spell.cast && !spell.cast.fx ? ` ${c.t("effectByHand")}` : ""}
       </p>
+      <ExtraRow c={c} m={m} />
       <Button type="button" size="sm" disabled={chosen.length === 0 || !!problem}
         onClick={() => c.rollGate({ title: `${m.name}: ${spell.name}`, sub: spell.kind, dice: chosen.length, target: roll.attr, attr: roll.name, notes: roll.notes },
-          { type: "ACTION", action: "cast", spell: spell.name, targets: chosen },
-          () => c.patch((u) => { const castOn = { ...u.castOn }; delete castOn[m.id]; return { ...u, castOn }; }))}>
+          { type: "ACTION", action: "cast", spell: spell.name, targets: chosen, ...mageMods(c) },
+          () => c.patch((u) => { const castOn = { ...u.castOn }; delete castOn[m.id]; return { ...u, castOn, luck: false, mage: false }; }))}>
         Cast {spell.name}
       </Button>
     </div>
@@ -334,7 +357,12 @@ function TauntRow({ c, m }: { c: PanelCtx; m: Model }) {
   if (!a || !hasSkill(m, "Taunt")) return null;
   const names = (a.taunted ?? []).map((id) => c.st.models.find((o) => o.id === id)?.name ?? "?");
   if (a.tauntUsed) return <p className={muted}>Taunt: {names.length ? names.join(", ") : "–"}</p>;
-  return <Button type="button" size="sm" variant="outline" title="Every enemy with line of sight to it, or with it in Awareness, rolls INT; on a failure it must react against this figure" onClick={() => c.send({ type: "TAUNT" })}>Taunt</Button>;
+  return <Button type="button" size="sm" variant="outline" title="Every enemy with line of sight to it, or with it in Awareness, rolls INT; on a failure it must react against this figure" onClick={() => {
+    // Every enemy that sees it or has it in Awareness rolls INT: through the dice window.
+    const foes = c.st.models.filter((o) => o.side !== m.side && !o.states.includes("Dead") && !o.states.includes("Incapacitated") && (sight(c.st, o, m).los || gap(o, m) <= modelStats(o).ag + CONTACT));
+    if (foes.length === 0) c.send({ type: "TAUNT" });
+    else c.rollGate({ title: `${m.name}: Taunt`, sub: "INT", dice: foes.length, target: intOf(c.st, foes[0]!), attr: "INT", notes: foes.map((o) => `${o.name}: INT ${intOf(c.st, o)}`) }, { type: "TAUNT" });
+  }}>Taunt</Button>;
 }
 
 /** Action Step of the activated figure: attack a target, dodge, or nothing. */
@@ -385,6 +413,7 @@ export function ActionPanel({ c, m, onAttack }: { c: PanelCtx; m: Model; onAttac
           </div>
           <ArtSelect c={c} m={m} wi={s.wi} />
           <ModsRow c={c} />
+          <ExtraRow c={c} m={m} />
           {plan && (
             <p className={plan.ok ? small : warn}>
               {plan.ok ? `${plan.stk}d20 vs ${plan.attrName} ${plan.attr} · PW ${plan.pw}.${plan.notes.length ? ` ${plan.notes.join("; ")}.` : ""}${answer}` : plan.reason}
@@ -477,8 +506,16 @@ export function ReactionPanel({ c, m }: { c: PanelCtx; m: Model }) {
   const anyway = c.ui.reactAnyway;
   const blocked = (intent: "attack" | "dodge" | "other") => !anyway && (!check.ok || (check.dodgeOnly && intent !== "dodge"));
   const react = (intent: "attack" | "dodge" | "other", opportunity = false) => () => {
-    c.send({ type: "REACT", id: m.id, intent, weapon: wi, mods, ...(opportunity ? { opportunity: true } : {}), ...(anyway ? { anyway: true } : {}) });
-    c.patch((u) => ({ ...u, reactAnyway: false, mods: { hit: 0, stk: 0, pw: 0 } }));
+    const cmd: Command = { type: "REACT", id: m.id, intent, weapon: wi, mods, ...(opportunity ? { opportunity: true } : {}), ...(anyway ? { anyway: true } : {}) };
+    const done = () => c.patch((u) => ({ ...u, reactAnyway: false, mods: { hit: 0, stk: 0, pw: 0 }, luck: false, mage: false }));
+    // Rolls that come with declaring the Reaction go through the dice window: Morale of a Panicked model, INT against Charm.
+    const mor = moraleOf(st, m);
+    if (m.states.includes("Panicked")) c.rollGate({ title: `${m.name}: Panicked`, sub: "Morale", dice: 1, target: mor.m, attr: "M", notes: mor.notes }, cmd, done);
+    else if (charm && intent !== "other") c.rollGate({ title: `${m.name}: Charm ${charm}`, sub: active.name, dice: 1, target: intOf(st, m), attr: "INT" }, cmd, done);
+    else {
+      c.send(cmd);
+      done();
+    }
   };
   const noAp = m.ap < 1;
   return (
@@ -489,6 +526,7 @@ export function ReactionPanel({ c, m }: { c: PanelCtx; m: Model }) {
       <label className="grid gap-0.5 text-xs text-muted-foreground">{t("attackWith")}<WeaponSelect c={c} m={m} wi={wi} /></label>
       <ArtSelect c={c} m={m} wi={wi} />
       <ModsRow c={c} />
+      <ExtraRow c={c} m={m} />
       <p className={plan.ok ? small : warn}>
         {plan.ok ? `Attack: ${plan.stk}d20 vs ${plan.attrName} ${plan.attr} · PW ${plan.pw}.${plan.notes.length ? ` ${plan.notes.join("; ")}.` : ""}` : `Attack: ${plan.reason}`}
       </p>

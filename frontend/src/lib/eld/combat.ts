@@ -1,9 +1,10 @@
-import { baseRadius, checkPlacement, dist, facingTo, inShallowWater, pointInPolygon, surfaceAt, verticalGap } from './geometry.ts';
+import { baseRadius, checkPlacement, dist, distToSegment, facingTo, inShallowWater, pointInPolygon, surfaceAt, verticalGap } from './geometry.ts';
 import { engagers, inFrontArc, sight } from './los.ts';
 import type { Weapon } from './profiles.ts';
 import { enchantFx, isSpell, spellElementOf, spellNamed, spellWeapons } from './spells.ts';
 import { hasBoon, hasClass, hasEnchant, hasSkill, hasTrait, modelStats, profileOf, STAT_LABEL, weaponNumbers, type StatKey } from './stats.ts';
-import type { Dealt, DiceResult, Intent, Mods, Model, Pt, StateName, TableState, Until } from './types.ts';
+import type { Dealt, DiceResult, Intent, KitUse, Mods, Model, Pt, StateName, TableState, Until } from './types.ts';
+import { hasUpgrade } from './upgrades.ts';
 import { BASE_SIZES } from './types.ts';
 
 // Attacks: what a model can attack with, whether a target is in Reach and sight, which Traits, Combat Arts,
@@ -17,17 +18,79 @@ export const NO_MODS: Mods = { hit: 0, stk: 0, pw: 0, art: '' };
 /** Bases this close (1.5 mm) count as touching. */
 export const CONTACT = 0.06;
 
+// ---- items that run out, and Throwing ----
+
+/** Index of a Throwing item used for its Ranged Attack: THROWN_INDEX + its index on the card. */
+export const THROWN_INDEX = 200;
+const HYPERIA = 'hel-hyperias-providence';
+/** How many of an item the card gives. */
+export const quantityOf = (w: Weapon): number => Number(/Quantity (\d+)/.exec(w.effect ?? '')?.[1] ?? 1);
+/** A Throwing item that returns to the Inventory when it is thrown. */
+const comesBack = (w: Weapon): boolean => /Thrown, it returns/.test(w.effect ?? '');
+/** May be thrown: a Ranged Attack with Reach equal to the user's Toughness. */
+export const isThrowing = (w: Weapon): boolean => /\bThrowing\b/.test(w.effect ?? '') || comesBack(w);
+/** Items that run out: Consumables, Throwing items, and ranged items with a Quantity. */
+export const runsOut = (w: Weapon): boolean => !comesBack(w) && (/Consumable/.test(w.type) || /\bThrowing\b/.test(w.effect ?? '') || (w.type.startsWith('Ranged') && /Quantity \d/.test(w.effect ?? '')));
+/** Used up by an Attack made with it (a Throwing item only when it is thrown). */
+const usedUp = (w: Weapon): boolean => /Consumable/.test(w.type) || (w.type.startsWith('Ranged') && /Quantity \d/.test(w.effect ?? ''));
+/** How many of the item the model still carries. */
+export const itemsLeft = (m: Pick<Model, 'items'>, w: Weapon): number => m.items?.[w.thrown ?? w.name] ?? quantityOf(w);
+/** Casting Amplifier: +4 Reach when casting Spells. */
+export const spellReach = (m: Model): number => (profileOf(m).weapons.some((w) => /\+4 RCH when casting Spells/.test(w.effect ?? '')) ? 4 : 0);
+
+/** Mana a model can pay with: its own and, for a Summoner, that of the other Summoners of its party. */
+export function manaPool(state: TableState, m: Model): number {
+  const own = m.mana ?? 0;
+  if (!hasClass(m, 'Summoner')) return own;
+  return own + state.models.filter((o) => o.side === m.side && o.id !== m.id && !o.states.includes('Dead') && !o.states.includes('Incapacitated') && hasClass(o, 'Summoner')).reduce((n, o) => n + (o.mana ?? 0), 0);
+}
+/** Who pays how much of a Mana Cost: the caster first, then the Summoners it shares its pool with. */
+export function manaBill(state: TableState, m: Model, cost: number): { id: string; spent: number }[] {
+  const out: { id: string; spent: number }[] = [];
+  let left = cost;
+  const payers = [m, ...(hasClass(m, 'Summoner') ? state.models.filter((o) => o.side === m.side && o.id !== m.id && !o.states.includes('Dead') && !o.states.includes('Incapacitated') && hasClass(o, 'Summoner')) : [])];
+  for (const p of payers) {
+    const n = Math.min(left, p.mana ?? 0);
+    if (n > 0) out.push({ id: p.id, spent: n });
+    left -= n;
+  }
+  return out;
+}
+
+/** The Hazy area a Haze Bomb leaves. */
+export const HAZE = 'Haze';
+/** Is a Hazy area in play between two models: one of them stands in it, or the line between them crosses it? */
+function hazeOn(state: TableState, a: Model, b: Model): 'none' | 'in' | 'through' {
+  let through = false;
+  for (const t of state.terrain) {
+    if (t.name !== HAZE || t.shape.length === 0) continue;
+    const c = { x: t.shape.reduce((n, p) => n + p.x, 0) / t.shape.length, y: t.shape.reduce((n, p) => n + p.y, 0) / t.shape.length };
+    const r = dist(c, t.shape[0]!);
+    if (dist(a, c) <= r + baseRadius(a.size) || dist(b, c) <= r + baseRadius(b.size)) return 'in';
+    if (distToSegment(c, a, b) < r) through = true;
+  }
+  return through ? 'through' : 'none';
+}
+
 /** A weapon or Spell that can only be used at range. A "Ranged/Melee" Spell is decided per Attack. */
 export const isRanged = (w: Weapon): boolean => w.type.startsWith('Ranged') || (isSpell(w) && w.type.endsWith(', Ranged'));
 
 /** Everything on the card that can make an Attack, plus Unarmed. `index` is what commands refer to. */
 export function attackOptions(m: Model): { index: number; weapon: Weapon }[] {
-  const out = profileOf(m)
+  const cards = profileOf(m)
     .weapons.map((weapon, index) => ({ index, weapon }))
     .filter((o) => o.weapon.pw !== '-' && o.weapon.stk !== '-');
+  // An item that has run out is gone.
+  const out = cards.filter((o) => !runsOut(o.weapon) || itemsLeft(m, o.weapon) > 0);
   out.push({ index: UNARMED_INDEX, weapon: UNARMED });
   // Attack Spells the model knows.
   for (const s of spellWeapons(profileOf(m))) out.push({ index: s.index, weapon: s.weapon });
+  // Throwing: the item as a Ranged Attack with Reach T and one Strike for each of it the model carries.
+  for (const o of cards) {
+    if (!isThrowing(o.weapon) || isRanged(o.weapon)) continue;
+    const left = comesBack(o.weapon) ? 1 : itemsLeft(m, o.weapon);
+    if (left > 0) out.push({ index: THROWN_INDEX + o.index, weapon: { ...o.weapon, name: `${o.weapon.name} (thrown)`, rch: 'T', stk: String(left), type: 'Ranged, Thrown', thrown: o.weapon.name } });
+  }
   return out;
 }
 
@@ -99,10 +162,10 @@ export function areaVictims(state: TableState, attacker: Model, area: Area, at: 
 export const gap = (a: Model, b: Model): number => Math.hypot(Math.max(0, dist(a, b) - baseRadius(a.size) - baseRadius(b.size)), verticalGap(a, b));
 
 /** Is the target within the weapon's Reach, and which range modifier applies? `extend`: inches added to the first range band. */
-export function reachCheck(attacker: Model, target: Model, weapon: Weapon, extend = 0): { ok: boolean; mod: number } {
+export function reachCheck(attacker: Model, target: Model, weapon: Weapon, extend = 0, more = 0): { ok: boolean; mod: number } {
   const d = gap(attacker, target) - CONTACT; // a hair's breadth still counts as Base Contact
   const rch = weapon.rch.trim();
-  if (/^\d+$/.test(rch)) return { ok: d <= Number(rch), mod: 0 };
+  if (/^\d+$/.test(rch)) return { ok: d <= Number(rch) + (Number(rch) > 0 ? more : 0), mod: 0 };
   const bands = [...rch.matchAll(/(\d+)-(\d+)":\s*([+-]?\d+)/g)];
   if (bands.length > 0) {
     const band = bands.find((b, i) => d <= Number(b[2]) + (i === 0 ? extend : 0));
@@ -113,7 +176,7 @@ export function reachCheck(attacker: Model, target: Model, weapon: Weapon, exten
   // Casting Aura: the caster's Awareness.
   if (rch.startsWith('Casting Aura')) return { ok: d <= modelStats(attacker).ag, mod: 0 };
   const lead = /^(\d+)\b/.exec(rch);
-  if (lead) return { ok: d <= Number(lead[1]), mod: 0 };
+  if (lead) return { ok: d <= Number(lead[1]) + more, mod: 0 };
   if (rch.startsWith('T')) return { ok: d <= modelStats(attacker).t, mod: 0 };
   return { ok: true, mod: 0 };
 }
@@ -205,6 +268,8 @@ export interface AttackPlan {
   /** Penalties this attack's Combat Art puts on the target's own Melee Attack. */
   foeHit: number;
   foeStk: number;
+  /** Ranged Friendly Fire: the shooter's allies in Base Contact with the target (a roll of 17–20 hits one of them). */
+  friendly: string[];
 }
 
 export interface AttackContext {
@@ -255,13 +320,19 @@ function shieldOf(m: Model): number {
   return Number(/^-(\d)/.exec(shield.effect ?? '')?.[1] ?? 3);
 }
 
-/** Soldier: +1 for each other Soldier of the party within Awareness that is still standing, up to +3. */
+/**
+ * Soldier: +1 OFF, DEF, ACC, INT and M for each other Soldier of the party within Awareness that is still standing,
+ * up to +3. With Companion of Hairon the model counts itself as well.
+ */
 export function soldierBonus(state: TableState, m: Model): number {
-  if (!hasClass(m, 'Soldier')) return 0;
+  if (!hasClass(m, 'Soldier') || m.states.includes('Dead') || m.states.includes('Incapacitated')) return 0;
   const reach = modelStats(m).ag;
   const others = state.models.filter((o) => o.id !== m.id && o.side === m.side && hasClass(o, 'Soldier') && !o.states.includes('Dead') && !o.states.includes('Incapacitated') && gap(m, o) <= reach + CONTACT);
-  return Math.min(3, others.length);
+  return Math.min(3, others.length + (hasUpgrade(m, 'hel-companion-of-hairon') ? 1 : 0));
 }
+
+/** Intellect for a roll (Perceive, resisting Charm or Taunt...), with the Soldier bonus. */
+export const intOf = (state: TableState, m: Model): number => modelStats(m).int + soldierBonus(state, m);
 
 /**
  * Work out an Attack before any dice are rolled. Used by the server to resolve it and by the client to show
@@ -376,7 +447,7 @@ export function planAttack(state: TableState, attacker: Model, target: Model, we
   const either = spell && weapon.type.endsWith('Ranged/Melee');
   const ranged = weapon ? (either ? !(attacker.states.includes('Engaged') || engagedBy.length > 0 || gap(attacker, target) <= CONTACT) : isRanged(weapon)) : false;
   const bad = (reason: string): AttackPlan => ({
-    ok: false, reason, weapon, ranged, attr: 0, attrName: '', stk: 0, pw: 0, notes: [], traits: [], critMax: 1, allCrit: false, autoHits: 0, unstoppable: false, foeHit: 0, foeStk: 0,
+    ok: false, reason, weapon, ranged, attr: 0, attrName: '', stk: 0, pw: 0, notes: [], traits: [], critMax: 1, allCrit: false, autoHits: 0, unstoppable: false, foeHit: 0, foeStk: 0, friendly: [],
   });
   if (!weapon) return bad('That is not a weapon this model can attack with');
   if (target.states.includes('Shrouded') && target.id !== AOE_POINT) return bad(`${target.name} is Shrouded: it can only be the target of Perceive`);
@@ -386,7 +457,7 @@ export function planAttack(state: TableState, attacker: Model, target: Model, we
   // Ethereal Blades: Strike 5, 3 in the Reactive Role.
   if (weapon.name === 'Ethereal Blades' && !attacker.states.includes('Crouched')) nums.stk = ctx.reactive ? 3 : 5;
   const cost = manaCost(weapon);
-  if (cost > (attacker.mana ?? 0)) return bad(`${weapon.name} costs ${cost} Mana – ${attacker.name} has ${attacker.mana ?? 0}`);
+  if (cost > manaPool(state, attacker)) return bad(`${weapon.name} costs ${cost} Mana – ${attacker.name} has ${manaPool(state, attacker)}`);
   const aura = weapon.rch.startsWith('Casting Aura');
   if (target.side === attacker.side) return bad('The target must be an enemy model');
   if (target.states.includes('Dead')) return bad(`${target.name} is Dead`);
@@ -428,12 +499,13 @@ export function planAttack(state: TableState, attacker: Model, target: Model, we
       .map((b) => ({ name: b.name, fx: { traits: b.fx.attackTraits, meleePw: b.fx.meleePw } })),
   ];
   const longer = ranged ? 0 : charms.reduce((n, e) => n + (e.fx!.meleeReach ?? 0), 0);
-  const reach = reachCheck(attacker, target, longer && /^\d+$/.test(weapon.rch.trim()) ? { ...weapon, rch: String(Number(weapon.rch) + longer) } : weapon, art?.range ?? 0);
+  const reach = reachCheck(attacker, target, longer && /^\d+$/.test(weapon.rch.trim()) ? { ...weapon, rch: String(Number(weapon.rch) + longer) } : weapon, art?.range ?? 0, spell ? spellReach(attacker) : 0);
   if (!reach.ok && !ctx.redirected) return bad(`${target.name} is out of ${ranged ? 'range' : 'Reach'} (${gap(attacker, target).toFixed(1)}")`);
 
   // --- the attribute rolled against ---
-  // Spells are cast with Intellect; a Mystic casts with Morale.
-  const key: StatKey = spell ? (hasClass(attacker, 'Mystic') ? 'm' : 'int') : ranged ? 'acc' : ctx.reactive ? 'def' : 'off';
+  // Spells are cast with Intellect; a Mystic casts with Morale, a Druid with the better of the two.
+  const druid = spell && hasClass(attacker, 'Druid');
+  const key: StatKey = spell ? (hasClass(attacker, 'Mystic') || (druid && stats.m > stats.int) ? 'm' : 'int') : ranged ? 'acc' : ctx.reactive ? 'def' : 'off';
   if (spell) notes.push(`Spell${either ? (ranged ? ', cast at range' : ', cast in melee') : ''}`);
   let attr = stats[key];
   const add = (n: number, why: string) => {
@@ -444,6 +516,9 @@ export function planAttack(state: TableState, attacker: Model, target: Model, we
   if (cost > 0) notes.push(`${cost} Mana`);
   const plus = /\+(\d+) OFF\b/.exec(weapon.effect ?? '');
   if (plus && key === 'off') add(Number(plus[1]), weapon.name);
+  const aim = /\+(\d+) ACC when used/.exec(weapon.effect ?? '');
+  if (aim && key === 'acc') add(Number(aim[1]), weapon.name);
+  if (druid && spellElementOf(weapon.name) === 'Earth') add(4, 'Druid (Earth)');
   if (/\+4 ACC if the target is within half RCH/.test(weapon.effect ?? '') && ranged && gap(attacker, target) <= stats.t / 2 + 0.005) add(4, 'within half Reach');
   if (blindCast) {
     attr = Math.ceil(attr / 2);
@@ -461,18 +536,28 @@ export function planAttack(state: TableState, attacker: Model, target: Model, we
     else if (view.cover === 0 && state.terrain.some((t) => t.cover === target.side && pointInPolygon(target, t.shape))) add(-2, 'Light Cover (Blessed Rain)');
   }
   // Ranged Friendly Fire: −4 for every model of the shooter's in Base Contact with the target.
+  // Incapacitated and Dead models are ignored for it.
+  let friendly: string[] = [];
   if (ranged && !snipe && !ctx.chain && !/AoE/.test(weapon.rch) && target.id !== AOE_POINT) {
-    const near = state.models.filter((o) => o.side === attacker.side && o.id !== attacker.id && !o.states.includes('Dead') && gap(o, target) <= CONTACT).length;
-    add(-4 * near, 'Friendly Fire');
+    friendly = state.models.filter((o) => o.side === attacker.side && o.id !== attacker.id && !o.states.includes('Dead') && !o.states.includes('Incapacitated') && gap(o, target) <= CONTACT).map((o) => o.id);
+    add(-4 * friendly.length, 'Friendly Fire');
   }
   add(soldierBonus(state, attacker), 'Soldier');
-  if (ranged && !ctx.reactive && ctx.idle && hasClass(attacker, 'Marksman')) add(4, 'Marksman (Idle)');
+  if (key === 'acc' && !ctx.reactive && ctx.idle && hasClass(attacker, 'Marksman')) add(4, 'Marksman (Idle)');
   if (hasTrait(attacker, 'Demon') && target.states.includes('Panicked') && !hasTrait(target, 'Demon')) add(4, 'Demon vs Panicked');
   const shield = shieldOf(target);
   const frontal = shield > 0 && inFrontArc(target, attacker);
   if (!ranged && frontal) add(-shield, 'Shield');
+  if (ranged && frontal && hasUpgrade(target, HYPERIA)) add(-3, "Hyperia's Providence");
   for (const e of target.enchants ?? []) add(enchantFx(e.name)?.foeHit ?? 0, e.name);
   add(mods.hit, 'modifier');
+  // Hazy Environment: no Ranged Attack through it; from within or into it the attribute is halved; Melee beyond Base Contact −3.
+  const haze = attacker.states.includes('Flying') ? 'none' : hazeOn(state, attacker, target);
+  if (haze === 'through' && ranged) return bad('A Hazy area is in the way: Ranged Attacks cannot target through it');
+  if (haze === 'in' && ranged) {
+    attr = Math.ceil(attr / 2);
+    notes.push('Hazy: halved');
+  } else if (haze === 'in' && gap(attacker, target) > CONTACT) add(-3, 'Hazy');
   attr = Math.max(0, attr);
 
   // --- Strike ---
@@ -511,6 +596,8 @@ export function planAttack(state: TableState, attacker: Model, target: Model, we
     stk = 1;
     notes.push('Snipe: Strike 1');
   }
+  // Thrown: no more Strikes than the model has of the item.
+  if (weapon.thrown) stk = Math.max(1, Math.min(stk, itemsLeft(attacker, weapon)));
   // Mounted: Abilities cannot raise the Strike of Weapons.
   if (attacker.mount?.on && stk > nums.stk && !spell) {
     stk = Math.max(1, nums.stk);
@@ -562,7 +649,7 @@ export function planAttack(state: TableState, attacker: Model, target: Model, we
 
   return {
     ok: true, reason: '', weapon, ranged, attr, attrName: STAT_LABEL[key], stk, pw, notes, traits,
-    critMax, allCrit, autoHits: backstab ? 1 : 0, unstoppable, foeHit: art?.foeHit ?? 0, foeStk: art?.foeStk ?? 0,
+    critMax, allCrit, autoHits: backstab ? 1 : 0, unstoppable, foeHit: art?.foeHit ?? 0, foeStk: art?.foeStk ?? 0, friendly,
   };
 }
 
@@ -634,6 +721,10 @@ export interface CombatOutcome {
   dealt: Dealt[];
   /** Mana Counters spent on Spells. */
   mana: { id: string; spent: number }[];
+  /** Items and Luck counters used up. */
+  kit: KitUse[];
+  /** A template was placed. */
+  placed: boolean;
 }
 
 export interface ReactionInfo {
@@ -703,6 +794,18 @@ export function resolveAction(
     if (!hm) harm.set(m.id, (hm = { wounds: 0, states: new Set(), until: new Map(), lasting: new Set(), apLoss: 0, apAll: false }));
     return hm;
   };
+  const kit: KitUse[] = [];
+  let placed = false;
+  const luckSpent = new Map<string, number>();
+  /** Lucky Charm: the model asked for it with its Action or Reaction and has a Luck counter left. */
+  const lucky = (m: Model): boolean => (m.id === active.id ? mods.luck : reactions[m.id]?.mods.luck) === true && (m.luck ?? 0) - (luckSpent.get(m.id) ?? 0) > 0;
+  const spendLuck = (m: Model): void => {
+    luckSpent.set(m.id, (luckSpent.get(m.id) ?? 0) + 1);
+    kit.push({ id: m.id, luck: 1 });
+  };
+  /** Rogues that have made their AG roll for Knockdown in this Activation; allies already tested for Friendly Fire. */
+  const rogued = new Set<string>();
+  const shaken = new Set<string>();
   const hitsWord = (n: number) => `${n} Hit${n === 1 ? '' : 's'}`;
   const woundsWord = (n: number) => `${n} Wound${n === 1 ? '' : 's'}`;
 
@@ -731,6 +834,11 @@ export function resolveAction(
     lines.push({ text: `${victim.name} is ${st}${note}${until ? UNTIL_TEXT[until] : ''}` });
   };
   const tooBig = (attacker: Model, victim: Model): boolean => sizeRank(victim) - sizeRank(attacker) >= 2;
+  /** Hyperia's Providence on the target of a Melee Attack: the attacker rolls AG or has one Strike less. */
+  const warded = (attacker: Model, target: Model, p: AttackPlan): AttackPlan => {
+    if (!p.ok || p.ranged || p.stk <= 1 || target.id === AOE_POINT || !hasUpgrade(target, HYPERIA)) return p;
+    return test(attacker, modelStats(attacker).ag, "Hyperia's Providence, AG", 'keeps its Strikes', '−1 Strike') ? p : { ...p, stk: p.stk - 1, notes: [...p.notes, "Hyperia's Providence −1 Strike"] };
+  };
 
   const dodge = (dodger: Model, from: Model, extra: number): boolean => {
     const stats = modelStats(dodger);
@@ -742,11 +850,17 @@ export function resolveAction(
     const wet = inShallowWater(state, dodger) && !profileOf(dodger).traits.some((t) => /^Survival \([^)]*Aquatic/.test(t));
     const ag = Math.max(0, Math.ceil(Math.ceil((blind ? Math.ceil(stats.ag / 2) : stats.ag) / (caught ? 2 : 1)) / (wet ? 2 : 1)) + extra);
     const roll = rollStrikes(1, ag, d20);
-    const ok = roll[0]!.hit;
+    let ok = roll[0]!.hit;
     lines.push({
       text: `${dodger.name} dodges ${from.name}: 1d20 vs AG ${ag}${blind ? ' (halved, no line of sight)' : ''}${caught ? ' (halved, Surprise Attack)' : ''}${wet ? ' (halved, Shallow Aquatic)' : ''} – ${ok ? 'success' : 'failed'}`,
       dice: asDice(roll, ag, 'Dodge'),
     });
+    if (!ok && lucky(dodger)) {
+      spendLuck(dodger);
+      const again = rollStrikes(1, ag, d20);
+      ok = again[0]!.hit;
+      lines.push({ text: `${dodger.name}: Lucky Charm – the Dodge is rerolled, ${ok ? 'success' : 'failed'}`, dice: asDice(again, ag, 'Dodge reroll') });
+    }
     return ok;
   };
 
@@ -766,11 +880,19 @@ export function resolveAction(
       lines.push({ text: `${victim.name}: ${shrug.name} – ${hitsWord(landed.length)} and their effects negated` });
       return 0;
     }
+    // Friendly Fire: an ally hit by an Attack that could wound it rolls Morale, or is Panicked until its next Strategic Phase.
+    if (victim.side === attacker.side && victim.id !== attacker.id && plan.pw > 0 && !has('No Damage') && !shaken.has(victim.id) && !victim.states.includes('Dead') && !victim.states.includes('Incapacitated') && !victim.states.includes('Panicked') && !immuneTo(victim, 'Panicked')) {
+      shaken.add(victim.id);
+      const mor = moraleOf(state, victim);
+      if (!test(victim, mor.m, `Friendly Fire, M${mor.notes.length ? ` (${mor.notes.join(', ')})` : ''}`, 'holds firm', 'Panicked')) give(victim, 'Panicked', '', 'strategic');
+    }
     if (has('Critical Knockdown') && landed.some((r) => r.crit) && !tooBig(attacker, victim)) give(victim, 'Crouched', ' (Critical Hit, Knockdown)');
 
     // Effects of a Hit.
     if (has('Knockdown') && !tooBig(attacker, victim)) give(victim, 'Crouched', ' (Knockdown)');
-    else if (hasClass(attacker, 'Rogue') && !tooBig(attacker, victim) && !victim.states.includes('Crouched')) {
+    else if (hasClass(attacker, 'Rogue') && !rogued.has(attacker.id) && victim.side !== attacker.side && !tooBig(attacker, victim) && !victim.states.includes('Crouched')) {
+      // Once per Activation.
+      rogued.add(attacker.id);
       if (test(attacker, modelStats(attacker).ag, 'Rogue, AG', 'the Hit gains Knockdown', 'no Knockdown')) give(victim, 'Crouched', ' (Knockdown)');
     }
     if (has('Stagger') && !tooBig(attacker, victim)) {
@@ -829,6 +951,17 @@ export function resolveAction(
         text: `Damage on ${victim.name} (${weapon.name}${crit ? ', Critical Hit' : ''}): ${n}d20 vs PW ${plan.pw} − ARM ${crit ? critArm : arm} = ${need} – ${woundsWord(ok)}`,
         dice: { dice: rolls, target: need, successes: ok, crits: 0, label: 'Damage' },
       });
+      // Lucky Charm of the model that was hit: the attacker rerolls one Damage roll that wounded.
+      if (ok > 0 && lucky(victim)) {
+        spendLuck(victim);
+        const d = d20();
+        const still = d <= need;
+        if (!still) {
+          ok -= 1;
+          caused -= 1;
+        }
+        lines.push({ text: `${victim.name}: Lucky Charm – one Damage roll is rerolled, ${still ? 'it still wounds' : 'no Wound'}`, dice: { dice: [d], target: need, successes: still ? 1 : 0, crits: 0, label: 'Damage reroll' } });
+      }
       // Exploiting Weakness: the failed Damage rolls against it are rolled once more.
       const weak = hasBoon(victim, (fx) => fx.exposed);
       if (weak && weak.from === attacker.side && ok < n) {
@@ -849,8 +982,9 @@ export function resolveAction(
       lines.push({ text: `${victim.name}: ${why}, ${rolls.length}d20 vs T ${t} – ${woundsWord(saved)} negated`, dice: asDice(rolls, t, why) });
     };
     if (caused > 0 && has('Unkeen')) resist('Unkeen');
-    if (caused > 0 && hasClass(victim, 'Berserker') && !(state.used[victim.id] ?? []).includes('Berserker') && !used.some((u) => u.id === victim.id)) {
-      used.push({ id: victim.id, what: 'Berserker' });
+    // Once per turn, but for every Wound it would suffer at that moment: all the attackers of one Sequence (FAQ).
+    if (caused > 0 && hasClass(victim, 'Berserker') && !(state.used[victim.id] ?? []).includes('Berserker')) {
+      if (!used.some((u) => u.id === victim.id && u.what === 'Berserker')) used.push({ id: victim.id, what: 'Berserker' });
       resist('Berserker (once per turn)');
     }
     if (caused === 0) return 0;
@@ -893,7 +1027,7 @@ export function resolveAction(
       }
     }
     harmOf(victim).wounds += caused;
-    blows.push({ by: attacker.id, to: victim.id, wounds: caused, melee: !plan.ranged, reactive: attacker.id in reactions });
+    if (victim.side !== attacker.side) blows.push({ by: attacker.id, to: victim.id, wounds: caused, melee: !plan.ranged, reactive: attacker.id in reactions });
     return caused;
   };
 
@@ -912,7 +1046,12 @@ export function resolveAction(
       dice: asDice(rolls, plan.attr, 'Attack'),
     });
     const cost = manaCost(plan.weapon!);
-    if (cost > 0) mana.push({ id: who.id, spent: cost });
+    if (cost > 0) mana.push(...manaBill(state, who, cost));
+    // Thrown items leave the Inventory, one for each Strike; a Consumable is used up once per Attack.
+    const item = plan.weapon!;
+    if (item.thrown) {
+      if (!comesBack(item)) kit.push({ id: who.id, item: item.thrown, n: plan.stk, at: whom.id });
+    } else if (usedUp(item) && !kit.some((k) => k.id === who.id && k.item === item.name)) kit.push({ id: who.id, item: item.name, n: 1 });
   };
   /** Rolls the plan's Strikes; Backstab turns one of them into a Hit that needs no roll and cannot be cancelled. */
   const strikes = (plan: AttackPlan): { rolls: Strike[]; auto: Strike[] } => {
@@ -977,7 +1116,31 @@ export function resolveAction(
           (spell?.element === 'Profane' && /reroll a failed Profane Spell roll/.test(e));
         if (item.type === 'Accessory' && ok) again(missed().slice(0, 1), item.name);
       }
+      // Mage: an unspent Activation Point for the failed dice of the Spell.
+      const asked = (who.id === active.id ? mods.mage : reactions[who.id]?.mods.mage) === true;
+      const failed = rolls.filter((r) => !r.hit);
+      if (asked && hasClass(who, 'Mage') && failed.length > 0 && who.ap - harmOf(who).apLoss >= 1) {
+        harmOf(who).apLoss += 1;
+        again(failed, 'Mage (1 AP spent)');
+      }
       if (plan.weapon.name === 'Ethereal Blades') combo.set(who.id, rolls.filter((r) => r.hit).length);
+    }
+    if (missed().length > 0 && lucky(who)) {
+      spendLuck(who);
+      again(missed().slice(0, 1), 'Lucky Charm');
+    }
+  };
+
+  /** Ranged Friendly Fire: a roll of 17–20 hits an ally of the shooter in Base Contact with the target instead. */
+  const stray = (attacker: Model, plan: AttackPlan, rolls: Strike[]): void => {
+    const ally = plan.friendly.map((id) => state.models.find((m) => m.id === id)).find((m): m is Model => m !== undefined);
+    if (!ally) return;
+    for (const r of rolls) {
+      if (r.d < 17) continue;
+      r.hit = false;
+      r.crit = false;
+      lines.push({ text: `Friendly Fire: the roll of ${r.d} hits ${ally.name}` });
+      damage(attacker, ally, [{ d: r.d, hit: true, crit: false }], plan);
     }
   };
 
@@ -991,7 +1154,7 @@ export function resolveAction(
       if (c.side !== attacker.side || c.id === attacker.id || chained.has(c.id) || !hasSkill(c, 'Chain Attack')) continue;
       if (c.hp <= 0 || c.states.includes('Dead') || c.states.includes('Incapacitated')) continue;
       const ctx: AttackContext = { reactive: c.side !== active.side, chain: true };
-      const options = attackOptions(c);
+      const options = attackOptions(c).filter((o) => !o.weapon.thrown && !runsOut(o.weapon));
       const plan = [...options.filter((o) => o.index !== UNARMED_INDEX), ...options.filter((o) => o.index === UNARMED_INDEX)]
         .map((o) => planAttack(state, c, victim, o.index, NO_MODS, ctx))
         .find((p) => p.ok);
@@ -1053,6 +1216,8 @@ export function resolveAction(
     if (take) plan = { ...plan, stk: Math.max(1, take(plan.stk)) };
     let back = answering ? planAttack(state, target, seenAt(reaction), reaction.weapon, reaction.mods, { reactive: true, foeDuelist: hasTrait(active, 'Duelist') }) : null;
     if (back && !back.ok) back = null;
+    plan = warded(active, target, plan);
+    if (back) back = warded(target, active, back);
     if (plan.ok && plan.traits.includes('Surprise Attack') && target.id !== AOE_POINT) {
       if (hasTrait(target, 'Vigilance') || hasTrait(target, 'Construct')) lines.push({ text: `Surprise Attack: ${target.name} is ${hasTrait(target, 'Vigilance') ? 'Vigilant' : 'a Construct'} – no effect` });
       else {
@@ -1079,6 +1244,8 @@ export function resolveAction(
       // The Reactive Player rerolls first, then the Active Player.
       rerolls(target, active, back, theirRolls.rolls);
       rerolls(active, target, plan, mineRolls.rolls);
+      stray(target, back, theirRolls.rolls);
+      stray(active, plan, mineRolls.rolls);
       landed = mineRolls.rolls.filter((r) => r.hit);
       let theirs = theirRolls.rolls.filter((r) => r.hit);
       if (plan.unstoppable || back.unstoppable) lines.push({ text: 'Unstoppable: no Confrontation, successful rolls do not block each other' });
@@ -1090,6 +1257,7 @@ export function resolveAction(
       strike(target, active, theirs, back);
     } else {
       rerolls(active, target, plan, mineRolls.rolls);
+      stray(active, plan, mineRolls.rolls);
       landed = mineRolls.rolls.filter((r) => r.hit);
       if (!opts.area && reaction?.intent === 'dodge' && landed.length + mineRolls.auto.length > 0 && dodge(target, active, reaction.mods.hit)) {
         landed = landed.filter((r) => r.crit);
@@ -1103,6 +1271,7 @@ export function resolveAction(
       const under = opts.area.victims.map((id) => state.models.find((m) => m.id === id)).filter((m): m is Model => m !== undefined);
       lines.push({ text: landed.length === 0 ? `${opts.area.label}: the template is not placed` : `${opts.area.label} template: ${under.length ? under.map((m) => m.name).join(', ') : 'nobody'} under it` });
       if (landed.length > 0) {
+        placed = true;
         for (const v of under) {
           const r = reactions[v.id];
           const hits = r?.intent === 'dodge' && dodge(v, active, r.mods.hit) ? landed.filter((x) => x.crit) : landed;
@@ -1123,14 +1292,16 @@ export function resolveAction(
   for (const { model, r } of reactors) {
     if (r.intent !== 'attack' || confronted.has(model.id)) continue;
     if (r.at) lines.push({ text: `${model.name}: Attack of Opportunity where ${active.name} came into Reach` });
-    const plan = planAttack(state, model, seenAt(r), r.weapon, r.mods, { reactive: true });
+    let plan = planAttack(state, model, seenAt(r), r.weapon, r.mods, { reactive: true });
     if (!plan.ok) {
       lines.push({ text: `${model.name}'s Attack fails – ${plan.reason}` });
       continue;
     }
+    plan = warded(model, active, plan);
     const st = strikes(plan);
     announce(model, active, plan, st.rolls, 'attacks');
     rerolls(model, active, plan, st.rolls);
+    stray(model, plan, st.rolls);
     let landed = [...st.rolls.filter((x) => x.hit), ...st.auto];
     if (action === 'dodge' && landed.length > 0 && dodge(active, model, mods.hit)) landed = landed.filter((x) => x.crit);
     strike(model, active, landed, plan);
@@ -1174,7 +1345,15 @@ export function resolveAction(
       lines.push({ text: `${m.name} suffers ${woundsWord(taken)}${fate} (HP ${now.hp}/${m.maxHp})` });
     }
   }
-  return { lines, results: results.filter((r) => r.id !== AOE_POINT), used, dealt, mana };
+  // Thrown items can be taken back from a model they took down.
+  for (const k of kit) {
+    if (!k.at) continue;
+    const before = state.models.find((m) => m.id === k.at);
+    const now = results.find((r) => r.id === k.at);
+    const fell = before && now && ((now.states.includes('Dead') && !before.states.includes('Dead')) || (now.states.includes('Incapacitated') && !before.states.includes('Incapacitated')));
+    if (!fell) delete k.at;
+  }
+  return { lines, results: results.filter((r) => r.id !== AOE_POINT), used, dealt, mana, kit, placed };
 }
 
 /**
@@ -1184,6 +1363,11 @@ export function resolveAction(
 export function moraleOf(state: TableState, m: Model): { m: number; notes: string[] } {
   let value = modelStats(m).m;
   const notes: string[] = [];
+  const soldiers = soldierBonus(state, m);
+  if (soldiers) {
+    value += soldiers;
+    notes.push(`Soldier +${soldiers}`);
+  }
   let worst = 0;
   let who = '';
   for (const o of state.models) {

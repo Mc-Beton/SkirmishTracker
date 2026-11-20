@@ -5,3 +5,7 @@ gradlew text eol=lf
 *.jar binary
 *.png binary
 *.jpg binary
+# 3D terrain of the online table (models, light models, grounds, pictures from above): Git LFS.
+frontend/public/terrain3d/** filter=lfs diff=lfs merge=lfs -text
+# Not part of the code sent to the server (git archive would send LFS pointers): deploy.sh uploads the files themselves.
+frontend/public/terrain3d export-ignore

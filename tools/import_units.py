@@ -11,6 +11,7 @@ Characters with the same name in several sheets (e.g. Adventurers' Guild members
 Soga/Helian/Thenion/Sand) are one character with one code; their points must be identical.
 The same holds for items listed in several faction sheets (e.g. Seasoned Combatant).
 Costs like "2 pkt / 1 pkt*" become points=2, reducedPoints=1 with the condition in REDUCED_NOTES.
+An optional 4th column "Limit" in items.xlsx is how many of the upgrade one party may buy (empty = no limit).
 """
 import json
 import re
@@ -88,6 +89,8 @@ def read_items() -> tuple[list[dict], dict[str, list[str]]]:
             costs = [int(x) for x in re.findall(r"\d+", str(row[2]))]
             code = code_of(name)
             item = {"code": code, "name": name, "points": costs[0]}
+            if len(row) > 3 and row[3] is not None and str(row[3]).strip():
+                item["limit"] = int(row[3])
             if len(costs) > 1:
                 if code not in REDUCED_NOTES:
                     raise SystemExit(f"{name}: two costs but no REDUCED_NOTES entry")

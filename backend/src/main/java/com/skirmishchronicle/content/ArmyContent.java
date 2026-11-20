@@ -20,7 +20,11 @@ public record ArmyContent(String source, List<ArmyFaction> factions, List<Unit> 
     public record Unit(String code, String name, int points) {
     }
 
-    /** {@code reducedPoints}/{@code reducedNote}: optional cheaper cost when the note's condition holds. */
-    public record Item(String code, String name, int points, Integer reducedPoints, GameContent.Localized reducedNote) {
+    /**
+     * {@code reducedPoints}/{@code reducedNote}: optional cheaper cost when the note's condition holds.
+     * {@code limit}: how many of it one party may buy; null = no limit.
+     */
+    public record Item(String code, String name, int points, Integer reducedPoints, GameContent.Localized reducedNote,
+                       Integer limit) {
     }
 }

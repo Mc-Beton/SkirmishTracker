@@ -19,6 +19,7 @@ import { PlayerSearch } from "@/components/table/player-search";
 import type { SearchHit } from "@/lib/players";
 import { api } from "@/lib/api";
 import { listLabel, type ArmyListSummary } from "@/lib/army-lists";
+import { fetchGameMaps, gameMapChoices, type GameMapChoice } from "@/lib/table/game-maps";
 import {
   MEASURE_MODES, inviteLink, type CreatedTable, type InviteKind, type MapSummary, type MeasureMode, type TableInvitation,
   type TableMode, type TableSummary,
@@ -42,6 +43,13 @@ export function TablesHome() {
   const [withObservers, setWithObservers] = useState(false);
   const [opponent, setOpponent] = useState<SearchHit | null>(null);
   const [mode, setMode] = useState<TableMode>("STANDARD");
+  // A standard table is 2D (a WarBracket map from above) or 3D (a map of the game, drawn with models).
+  const [view, setView] = useState<"2D" | "3D">("2D");
+  // Maps of the game (built-in and the admin's published ones): each is a pair, playable in 3D and in 2D.
+  const [gameMaps, setGameMaps] = useState<GameMapChoice[]>(() => gameMapChoices([]));
+  const [gameMap, setGameMap] = useState(() => gameMapChoices([])[0]?.id ?? "");
+  // 2D table: "" = a map from the 2D library (picked below), otherwise the 2D version of a map of the game.
+  const [flatGameMap, setFlatGameMap] = useState("");
   const [invitations, setInvitations] = useState<TableInvitation[]>([]);
   const [invite, setInvite] = useState<{ id: string; links: { kind: InviteKind; link: string }[]; invited: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,17 +64,25 @@ export function TablesHome() {
     api<TableSummary[]>("GET", "/api/tables/mine").then(setTables).catch((e) => setError(errorMessage(e)));
     api<ArmyListSummary[]>("GET", "/api/army-lists").then(setLists).catch(() => setLists([]));
     api<TableInvitation[]>("GET", "/api/tables/invitations").then(setInvitations).catch(() => setInvitations([]));
+    fetchGameMaps().then((stored) => {
+      const all = gameMapChoices(stored);
+      setGameMaps(all);
+      setGameMap((id) => (all.some((m) => m.id === id) ? id : (all[0]?.id ?? "")));
+    }).catch(() => undefined);
   }, [me, errorMessage]);
 
   const create = async () => {
-    if (mode === "STANDARD" && (!map || !listId)) return;
+    const threeD = mode === "STANDARD" && view === "3D";
+    const flat = mode === "STANDARD" && view === "2D" && flatGameMap !== "";
+    if (mode === "STANDARD" && (!listId || (threeD ? !gameMap : !flat && !map))) return;
     setBusy(true);
     setError(null);
     try {
       const options = { questCode: questCode || null, measureMode, judge: mode !== "STANDARD" && withJudge, observers: withObservers, opponentId: opponent?.id ?? null };
       const res = mode === "SANDBOX"
         ? await api<CreatedTable>("POST", "/api/tables/sandbox", options)
-        : await api<CreatedTable>("POST", "/api/tables", { ...options, mapId: map!.id, listId });
+        : await api<CreatedTable>("POST", "/api/tables", threeD ? { ...options, gameMap, viewMode: "3D", listId }
+          : flat ? { ...options, gameMap: flatGameMap, viewMode: "2D", listId } : { ...options, mapId: map!.id, listId });
       const links: { kind: InviteKind; link: string }[] = [{ kind: "PLAYER", link: inviteLink("PLAYER", res.invite) }];
       if (res.judgeInvite) links.push({ kind: "JUDGE", link: inviteLink("JUDGE", res.judgeInvite) });
       if (res.watchInvite) links.push({ kind: "WATCH", link: inviteLink("WATCH", res.watchInvite) });
@@ -161,7 +177,34 @@ export function TablesHome() {
               {mode === "STANDARD" && (<>
               <section className="grid gap-2">
                 <h2 className="text-sm font-medium">{t("step1Map")}</h2>
-                <MapPicker selected={map?.id} onSelect={setMap} />
+                <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={t("viewMode")}>
+                  {(["2D", "3D"] as const).map((v) => (
+                    <label key={v} className={`flex cursor-pointer gap-2 rounded-lg border p-3 text-sm ${view === v ? "border-primary bg-primary/5" : ""}`}>
+                      <input type="radio" name="table-view" value={v} checked={view === v} onChange={() => setView(v)} className="mt-0.5" />
+                      <span className="grid gap-0.5">
+                        <span className="font-medium">{t(`viewName.${v}`)}</span>
+                        <span className="text-xs text-muted-foreground">{t(`viewHelp.${v}`)}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {view === "2D" ? (<>
+                  <NativeSelect value={flatGameMap} onChange={(e) => setFlatGameMap(e.target.value)} aria-label={t("mapSource")}>
+                    <option value="">{t("mapFromLibrary")}</option>
+                    {gameMaps.length > 0 && (
+                      <optgroup label={t("officialMaps")}>
+                        {gameMaps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </optgroup>
+                    )}
+                  </NativeSelect>
+                  {flatGameMap === "" && <MapPicker selected={map?.id} onSelect={setMap} />}
+                </>) : gameMaps.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t("noMaps3d")}</p>
+                ) : (
+                  <NativeSelect value={gameMap} onChange={(e) => setGameMap(e.target.value)} aria-label={t("map3d")}>
+                    {gameMaps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </NativeSelect>
+                )}
               </section>
               <section className="grid gap-2">
                 <h2 className="text-sm font-medium">{t("step2List")}</h2>
@@ -211,7 +254,7 @@ export function TablesHome() {
                   <span>{t("observersAllowed")}<span className="block text-xs text-muted-foreground">{t("observersHelp")}</span></span>
                 </label>
               </section>
-              <Button disabled={busy || (mode === "STANDARD" && (!map || !listId))} onClick={() => void create()}>
+              <Button disabled={busy || (mode === "STANDARD" && (!listId || (view === "3D" ? !gameMap : flatGameMap === "" && !map)))} onClick={() => void create()}>
                 {mode === "SANDBOX" ? t("createSandbox") : t("createTable")}
               </Button>
             </>

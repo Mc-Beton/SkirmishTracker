@@ -288,7 +288,7 @@ export function ListBuilder({ armies, initial, roster, limit, rosterNote, onSave
                             <optgroup key={g.key} label={g.key === "NEUTRAL" ? t("neutralItems") : factionName(armies, g.key)}>
                               {g.items.map((it) => (
                                 <option key={it.code} value={it.code}>
-                                  {it.name} ({it.reducedPoints != null ? `${it.points}/${it.reducedPoints}` : it.points} {t("pts")})
+                                  {it.name} ({it.reducedPoints != null ? `${it.points}/${it.reducedPoints}` : it.points} {t("pts")}{it.limit != null ? `, ${t("itemLimit", { n: it.limit })}` : ""})
                                 </option>
                               ))}
                             </optgroup>

@@ -21,7 +21,8 @@
     "seasons": "Sezony",
     "lists": "Moje rozpiski",
     "tables": "Gra online",
-    "tableLibrary": "Teren"
+    "tableLibrary": "Teren",
+    "maps3d": "Mapy 3D"
   },
   "home": {
     "headline": "Prowadź turnieje bez kartki i kalkulatora",
@@ -369,7 +370,14 @@
     "TEST_TOURNAMENT_NOT_COUNTED": "Turniej testowy nie może należeć do ligi.",
     "TABLE_RULE": "Zasady gry nie pozwalają na ten ruch.",
     "TABLE_RULES_UNAVAILABLE": "Silnik zasad gry chwilowo nie odpowiada. Spróbuj ponownie za chwilę.",
-    "TABLE_OTHER_ENGINE": "Ten stół działa na innym silniku gry – odśwież stronę."
+    "TABLE_OTHER_ENGINE": "Ten stół działa na innym silniku gry – odśwież stronę.",
+    "TABLE_3D_UNAVAILABLE": "Stoły 3D są teraz niedostępne (silnik gry jest wyłączony).",
+    "TABLE_UNKNOWN_MAP": "Nieznana mapa.",
+    "TABLE_MAP_REQUIRED": "Wybierz mapę.",
+    "GAME_MAP_TOO_MANY": "Jest już maksymalna liczba map 3D. Usuń którąś, żeby dodać nową.",
+    "GAME_MAP_NOT_FOUND": "Nie ma takiej mapy.",
+    "GAME_MAP_BAD": "Niepoprawne dane mapy.",
+    "ITEM_LIMIT": "To wzmocnienie ma limit na drużynę – w rozpisce jest ich za dużo."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -1013,7 +1021,8 @@
     "reducedCost": "Tańszy koszt ({points} pkt) – {when}",
     "moreOptions": "Inne punkty / notatka",
     "otherPoints": "Inne",
-    "rosterHint": "Format Roster: to rozpiska zgłoszeniowa, bez lidera. Przed każdą grą wybierzesz z niej drużynę do {party} pkt i jej lidera."
+    "rosterHint": "Format Roster: to rozpiska zgłoszeniowa, bez lidera. Przed każdą grą wybierzesz z niej drużynę do {party} pkt i jej lidera.",
+    "itemLimit": "limit {n}"
   },
   "leagues": {
     "title": "Ligi",
@@ -2352,7 +2361,75 @@
       "hintYourTurn": "Twoja tura: wybierz model i kliknij „Aktywuj” w karcie modelu.",
       "rollOn": "Ustaw {stat} jako cel rzutu"
     },
-    "gameEngineNote": "Stół standardowy działa na pełnej mechanice gry (aktywacje, reakcje, okno kości). Gra mierzy sama według zasad; sędzia jest na razie dostępny tylko w grze swobodnej."
+    "gameEngineNote": "Stół standardowy działa na pełnej mechanice gry (aktywacje, reakcje, okno kości). Gra mierzy sama według zasad; sędzia jest na razie dostępny tylko w grze swobodnej.",
+    "viewMode": "Widok stołu",
+    "map3d": "Mapa 3D",
+    "viewName": {
+      "2D": "Stół 2D",
+      "3D": "Stół 3D"
+    },
+    "viewHelp": {
+      "2D": "Mapa z biblioteki WarBracket albo wersja 2D mapy oficjalnej, widok z góry. Działa na każdym urządzeniu.",
+      "3D": "Gotowa mapa z modelami terenu. Każdy gracz wybiera u siebie widok 3D albo 2D (ta sama mapa z góry)."
+    },
+    "view3d": {
+      "topDown": "Z góry",
+      "perspective": "Widok 3D",
+      "weatherTitle": "Pogoda – tylko na tym ekranie",
+      "weather": {
+        "sunny": "Słońce",
+        "rain": "Deszcz",
+        "snow": "Śnieg"
+      },
+      "noWebgl": "Ta przeglądarka albo to urządzenie nie obsługuje grafiki 3D (WebGL). Otwórz stół na komputerze albo załóż stół 2D.",
+      "controls": "Lewy przycisk: obrót kamery · prawy: przesuwanie · kółko: zbliżenie · trzymając figurkę kręć kółkiem, żeby ją obrócić",
+      "chooseTitle": "Jak chcesz widzieć ten stół?",
+      "chooseHelp": "To stół 3D. Każdy gracz wybiera widok i jakość grafiki dla siebie – gra, zasady i mapa są te same. Wybór można zmienić w trakcie gry (przycisk ustawień na stole).",
+      "choice": {
+        "3D": "Widok 3D",
+        "2D": "Widok 2D"
+      },
+      "choiceHelp": {
+        "3D": "Modele terenu i kamera. Najlepiej na komputerze z kartą graficzną.",
+        "2D": "Ta sama mapa z góry. Działa na każdym urządzeniu."
+      },
+      "to2d": "Przełącz na widok 2D (z góry)",
+      "to3d": "Przełącz na widok 3D",
+      "settings": "Widok i jakość grafiki",
+      "loading": "Ładowanie mapy 3D…",
+      "loadingFiles": "{done} z {files} plików",
+      "loadingHelp": "Modele terenu pobierają się tylko za pierwszym razem – potem są w pamięci przeglądarki. W tym czasie można już grać.",
+      "slowAsk": "Ładowanie trwa dłużej niż pół minuty. Przełączyć ten stół na widok 2D? To ta sama mapa i ta sama gra, widziane z góry.",
+      "slowSwitch": "Przełącz na 2D",
+      "slowWait": "Czekam dalej",
+      "loadFailed": "Nie udało się pobrać {n, plural, one {# pliku} other {# plików}} – te elementy widać jako proste bryły.",
+      "quality": "Jakość grafiki",
+      "preset": {
+        "low": "Niska",
+        "medium": "Średnia",
+        "high": "Wysoka"
+      },
+      "models": "Modele terenu",
+      "modelsLight": "Lekkie (mniej do pobrania, mniej pamięci karty)",
+      "modelsFull": "Pełne (najwięcej szczegółów)",
+      "shadows": "Cienie",
+      "shadowsOff": "Wyłączone",
+      "shadowsLow": "Zwykłe",
+      "shadowsHigh": "Dokładne",
+      "option": {
+        "sharp": "Pełna rozdzielczość i wygładzanie krawędzi",
+        "surroundings": "Otoczenie stołu (sanktuarium, drzewa, mgła)",
+        "grass": "Trawa na polu bez malowanego podłoża"
+      },
+      "remember": "Zapamiętaj te ustawienia na tym urządzeniu",
+      "play3d": "Graj w 3D",
+      "play2d": "Graj w 2D"
+    },
+    "mapSource": "Źródło mapy",
+    "mapFromLibrary": "Mapa z biblioteki 2D (wybierz poniżej)",
+    "officialMaps": "Mapy oficjalne (mają też wersję 3D)",
+    "mapLoading": "Ładowanie mapy… {done} z {total}",
+    "noMaps3d": "Nie ma jeszcze opublikowanych map 3D. Mapy przygotowuje administrator."
   },
   "system": {
     "label": "System gry",
@@ -2650,6 +2727,56 @@
       "rollOrLower": "Rzuć {attr} lub mniej",
       "dice": "{n, plural, one {# kość} few {# kości} other {# kości}} k20",
       "cancel": "Anuluj"
-    }
+    },
+    "useLuck": "Użyj Luck ({n})",
+    "useLuckHint": "Lucky Charm: jeśli kość tej figurki zawiedzie (rzut ataku, Dodge) albo rzut na obrażenia ją zrani, jeden licznik Luck przerzuca jedną kość. Licznik schodzi tylko wtedy, gdy przerzut się odbył.",
+    "mageReroll": "Mag: przerzut za 1 AP",
+    "mageRerollHint": "Mag wydaje niewykorzystany AP, żeby przerzucić nieudane kości rzucanego zaklęcia. AP schodzi tylko wtedy, gdy jakaś kość zawiodła.",
+    "itemsLeft": "Ile sztuk zostało (rzucone i zużyte przedmioty znikają)",
+    "soldierBonus": "Soldier +{n} do OFF, DEF, ACC, INT i M (inni Soldierzy w Awareness)",
+    "discarded": "odrzucone",
+    "firstAidNobody": "First Aid: w Awareness nie ma figurki ze stanem do zdjęcia.",
+    "firstAidOn": "First Aid: {name}",
+    "surgeUse": "Użyj Surge Order",
+    "surgeHint": "Odrzuć kartę: do 3 figurek Helian League wykonuje teraz Walk, Climb lub Jump (przeciągnij je). Bez Reakcji.",
+    "luckCounters": "Liczniki Luck: {n}",
+    "gameBegins": "Rozpoczęcie rozgrywki",
+    "initiativeCheck": "rzut na inicjatywę",
+    "initiativeHint": "Obaj gracze są gotowi. Każdy rzuca k20 i dodaje Morale swojego Leadera.",
+    "initiativeRoll": "Inicjatywa: 1k20 + M {m}",
+    "strategicOf": "Strategic Phase – {name}",
+    "turnOf": "Tura: {name}",
+    "roundN": "Runda {n}",
+    "wonInitiative": "{name} wygrywa inicjatywę i zaczyna rozgrywkę",
+    "endTurnConfirm": "Twoje figurki mają jeszcze niewykorzystane aktywacje (AP: {n}). Na pewno zakończyć turę?",
+    "yes": "Tak",
+    "no": "Nie"
+  },
+  "maps3d": {
+    "title": "Mapy 3D",
+    "intro": "Kreator map dla stołów 3D (tylko administrator). Mapa to podłoże i elementy terenu gry ułożone na planie z góry – ten plan jest też jej wersją 2D. Gracze widzą opublikowane mapy przy zakładaniu stołu, w trybie 3D i 2D.",
+    "maps": "Mapy",
+    "newMap": "Nowa mapa",
+    "draft": "szkic",
+    "startFrom": "Zacznij od mapy gry:",
+    "planLabel": "Plan mapy z góry",
+    "planHelp": "Kliknij element, żeby go wybrać, i przeciągnij. Kółko obraca (co 15°), Shift + kółko zmienia rozmiar. Obrysy: pomarańczowy – blokuje, zielony – można wejść, biały – obszar (woda, las). Pasy przy krawędziach to strefy rozstawienia.",
+    "showPreview": "Podgląd 3D",
+    "hidePreview": "Ukryj podgląd 3D",
+    "name": "Nazwa",
+    "ground": "Podłoże",
+    "counts": "Elementy: {items} / {maxItems} · z modelem 3D: {models} / {maxModels}",
+    "published": "Opublikowana",
+    "publishedHelp": "Gracze mogą wybrać ją przy zakładaniu stołu. Szkic widzi tylko administrator (i może na nim zagrać).",
+    "save": "Zapisz",
+    "delete": "Usuń mapę",
+    "saved": "Mapa zapisana.",
+    "confirmDelete": "Usunąć mapę „{name}”? Stoły już założone na tej mapie zostają bez zmian.",
+    "size": "Rozmiar: {n}″",
+    "turn": "Obrót: {n}°",
+    "removeElement": "Usuń element",
+    "elements": "Dodaj element",
+    "plain": "bryła",
+    "noWebgl": "Ta przeglądarka albo to urządzenie nie obsługuje grafiki 3D (WebGL)."
   }
 }

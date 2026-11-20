@@ -13,6 +13,8 @@ export interface Weapon {
   stk: string;
   type: string;
   effect?: string;
+  /** A Throwing item used for its Ranged Attack: the name of the item on the card. */
+  thrown?: string;
 }
 
 export interface Profile {

@@ -115,6 +115,14 @@ public class GameTable extends AbstractEntity {
     @Column(name = "allied_b", length = 40)
     private String alliedB;
 
+    /** "2D": a WarBracket map drawn from above; "3D": a map of the game ({@code gameMap}) drawn with models. */
+    @Column(name = "view_mode", nullable = false, length = 2)
+    private String viewMode = "2D";
+
+    /** 3D tables: id of the map of the game (frontend/src/lib/eld/maps.ts). */
+    @Column(name = "game_map", length = 40)
+    private String gameMap;
+
     @Column(name = "measure_mode", nullable = false, length = 10)
     @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
     private MeasureMode measureMode = MeasureMode.ASSISTED;
@@ -214,6 +222,28 @@ public class GameTable extends AbstractEntity {
     /** Plays by the game engine (rules service). Set once, right after the table is created. */
     public void useGameEngine() {
         this.engine = Engine.GAME;
+    }
+
+    /**
+     * A table on a map of the game (built-in or made by an admin). {@code threeD}: every player may look at it in 3D
+     * or in 2D; otherwise it is the 2D version of that map only. Set once, right after the table is created.
+     */
+    public void useGameMap(String gameMap, boolean threeD) {
+        this.viewMode = threeD ? "3D" : "2D";
+        this.gameMap = gameMap;
+    }
+
+    /** The name of the map as the rules service knows it (3D tables). */
+    public void mapNamed(String mapName) {
+        this.mapName = mapName;
+    }
+
+    public String getViewMode() {
+        return viewMode;
+    }
+
+    public String getGameMap() {
+        return gameMap;
     }
 
     public boolean isGame() {

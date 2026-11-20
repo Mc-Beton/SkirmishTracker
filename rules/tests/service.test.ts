@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { apply, emptyState, RuleError } from '../../frontend/src/lib/eld/engine.ts';
 import type { Command, GameEvent, Side, TableState } from '../../frontend/src/lib/eld/types.ts';
 import { partyFrom, questFor, terrainFrom } from '../mapping.ts';
-import { command, create, forget, join, NeedLog, type Hands } from '../service.ts';
+import { checkMap, command, create, forget, join, NeedLog, type Hands } from '../service.ts';
 
 const HELIAN = {
   faction: 'HELIAN_LEAGUE',
@@ -89,6 +89,10 @@ test('create, join and a first exchange with the dice window', () => {
   assert.equal(b.hands[0]!.kept, b.hands[0]!.options[0]);
   b.send({ type: 'READY' }, 0);
   b.send({ type: 'READY' }, 1);
+  // Both ready: each player rolls their die of the Initiative Check.
+  assert.equal(b.state().phase, 'setup');
+  b.send({ type: 'ROLL_INITIATIVE' }, 0);
+  b.send({ type: 'ROLL_INITIATIVE' }, 1);
   s = b.state();
   assert.equal(s.phase, 'playing');
   assert.equal(s.round, 1);
@@ -134,6 +138,10 @@ test('corner deployment, tokens and conceding', () => {
   b.send({ type: 'MOVE_MARKER', id: token.id, x: 20, y: 18 }, 1);
   b.send({ type: 'READY' }, 0);
   b.send({ type: 'READY' }, 1);
+  // Both ready: each player rolls their die of the Initiative Check.
+  assert.equal(b.state().phase, 'setup');
+  b.send({ type: 'ROLL_INITIATIVE' }, 0);
+  b.send({ type: 'ROLL_INITIATIVE' }, 1);
   s = b.state();
   assert.equal(s.phase, 'playing');
   // Auto-deployed models stand inside their corners.
@@ -142,4 +150,87 @@ test('corner deployment, tokens and conceding', () => {
   const end = b.send({ type: 'CONCEDE' }, 1);
   assert.equal(end.find((e) => e.type === 'GAME_FINISHED')?.winner, 0);
   assert.equal(b.state().phase, 'finished');
+});
+
+test('a 3D table plays on a map of the game: its terrain with models, ground picture and relief', () => {
+  const b = start('t-3d', { gameMap: 'garden', terrain: [{ kind: 'OBSTACLE', points: [{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 2, y: 2 }], height: 2 }] });
+  const s = b.state();
+  assert.equal(s.ground, 'garden.jpg');
+  assert.equal(s.map, 'Elven garden');
+  assert.equal(s.width, 36);
+  assert.ok(s.terrain.some((t) => t.model?.file === 'stone-forest-bridge.glb'));
+  assert.ok(s.terrain.some((t) => t.env === 'water'));
+  assert.ok(!s.terrain.some((t) => t.id === 'w1'), 'shapes of a 2D map are not used');
+  assert.equal(s.models.filter((m) => m.side === 0).length, 4);
+  assert.throws(() => create({ tableId: 't-3d-x', width: 36, height: 36, deployDepth: 8, by: 'Ann', party: HELIAN, gameMap: 'atlantis' }), (e: unknown) => e instanceof RuleError && e.code === 'BAD_MAP');
+  forget('t-3d');
+});
+
+test('models of one name on both sides carry their side in the name', () => {
+  const b = start('t-names');
+  const s = b.state();
+  // Both parties are Helian with the same four models.
+  assert.deepEqual(s.models.filter((m) => m.side === 0).map((m) => m.name), ['Expeditionary Hierophant (Blue)', 'Citadel Guard (Blue)', 'Flameshaper (Blue)', 'Helrin Expatriate (Blue)']);
+  assert.ok(s.models.filter((m) => m.side === 1).every((m) => m.name.endsWith(' (Red)')));
+  assert.equal(new Set(s.models.map((m) => m.name)).size, s.models.length);
+  forget('t-names');
+});
+
+test('Shrouded models are a secret: the other player gets a token until the model is revealed', () => {
+  const THENION = { faction: 'COALITION_OF_THENION', units: [{ name: 'Bladebrethren Elite', leader: true }, { name: 'Hired Blade' }, { name: 'Hired Blade' }] };
+  const made = create({ tableId: 't-veil', name: 'Test map', width: 36, height: 36, deployDepth: 8, by: 'Ann', party: THENION });
+  const sat = join({ tableId: 't-veil', seq: made.events.length, by: 'Bob', party: HELIAN });
+  const events = [...made.events, ...sat.events];
+  const views = [...made.views, ...sat.views];
+  assert.equal(views.length, events.length);
+  const seenBy = (who: 'a' | 'b' | 'o', evs = events, vs = views): TableState => {
+    const s = emptyState('t-veil');
+    evs.forEach((ev, i) => {
+      const shown = (vs[i]?.[who] ?? ev) as GameEvent & { unmask?: TableState['models'] };
+      apply(s, shown);
+      for (const m of shown.unmask ?? []) s.models[s.models.findIndex((x) => x.id === m.id)] = structuredClone(m);
+    });
+    return s;
+  };
+  const blades = (s: TableState) => s.models.filter((m) => m.side === 0 && m.states.includes('Shrouded'));
+  // The owner sees the models; the opponent and an onlooker see two tokens and nothing that names them.
+  assert.deepEqual(blades(seenBy('a')).map((m) => m.profileId), ['the-hired-blade', 'the-hired-blade']);
+  for (const who of ['b', 'o'] as const) {
+    const s = seenBy(who);
+    assert.deepEqual(blades(s).map((m) => [m.name, m.profileId]), [['Shrouded', null], ['Shrouded', null]], who);
+    assert.ok(!JSON.stringify(events.map((ev, i) => views[i]?.[who] ?? ev)).includes('Hired Blade'), `${who} is not sent the name`);
+    assert.equal(s.models.length, seenBy('a').models.length);
+  }
+  // The same positions for everybody: the token stands where the model stands.
+  assert.deepEqual(blades(seenBy('b')).map((m) => [m.id, m.x, m.y]), blades(seenBy('a')).map((m) => [m.id, m.x, m.y]));
+  // Revealed (here: the state is taken off by hand): the event carries the model, the token becomes it.
+  const id = blades(seenBy('a'))[0]!.id;
+  const res = command({ tableId: 't-veil', seq: events.length, cmd: { type: 'SET_STATE', id, state: 'Shrouded', on: false }, side: 0, by: 'Ann', hands: [null, null] });
+  const all = [...events, ...res.events];
+  const allViews = [...views, ...res.views];
+  const b = seenBy('b', all, allViews);
+  assert.deepEqual(b.models.find((m) => m.id === id), seenBy('a', all, allViews).models.find((m) => m.id === id));
+  assert.equal(b.models.find((m) => m.id === id)!.profileId, 'the-hired-blade');
+  assert.equal(blades(b).length, 1, 'the other one is still a token');
+  // After a restart of the service (the log is replayed) the secret is still kept.
+  forget('t-veil');
+  const again = command({ tableId: 't-veil', seq: all.length, log: all, cmd: { type: 'MOVE_MODEL', id: blades(seenBy('a', all, allViews))[0]!.id, x: 30, y: 30, free: true }, side: 0, by: 'Ann', hands: [null, null] });
+  assert.ok(again.events.length > 0 && !JSON.stringify(again.events.map((ev, i) => again.views[i]?.b ?? ev)).includes('Hired Blade'));
+  forget('t-veil');
+});
+
+test("a map from the admin's creator: checked, stored as returned, played like a map of the game", () => {
+  const made = checkMap({ name: 'Bridge  <b>test', base: 'garden', items: [{ kit: 'stone-forest-bridge', x: 27, y: 9.9, size: 7, turn: 360 }, { kit: 'rock', x: 5, y: 5, size: 4, turn: 0 }] });
+  assert.deepEqual(made, { id: 'custom', name: 'Bridge   b test', base: 'garden', items: [{ kit: 'stone-forest-bridge', x: 27, y: 9.9, size: 7, turn: 0 }, { kit: 'rock', x: 5, y: 5, size: 4, turn: 0 }] });
+  const bad = (m: unknown, re: RegExp) => assert.throws(() => checkMap(m), (e: unknown) => e instanceof RuleError && e.code === 'BAD_MAP' && re.test(e.message));
+  bad({ name: 'x', base: 'moon', items: [] }, /ground/);
+  bad({ name: 'x', base: 'garden', items: [{ kit: 'castle', x: 1, y: 1, size: 5, turn: 0 }] }, /Unknown terrain/);
+  bad({ name: '', base: 'garden', items: [] }, /name/);
+  bad({ name: 'x', base: 'meadow', items: Array.from({ length: 13 }, (_, i) => ({ kit: 'altar', x: 2 + i * 2, y: 10, size: 6, turn: 0 })) }, /at most 12/);
+  const b = start('t-custom', { customMap: made, gameMap: 'atlantis' });
+  const s = b.state();
+  assert.equal(s.map, 'Bridge   b test');
+  assert.equal(s.ground, 'garden.jpg');
+  assert.ok(s.terrain.some((t) => t.model?.file === 'stone-forest-bridge.glb') && s.terrain.some((t) => t.name === 'Rocks'));
+  forget('t-custom');
 });

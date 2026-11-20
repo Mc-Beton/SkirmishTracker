@@ -47,12 +47,29 @@ export type PendingSpec = {
   onCancel: () => void;
 };
 
-export type ResultRow = { text: string; dice: DiceResult };
+/** `side`: whose roll it is, when the table can tell (the model the line names). */
+export type ResultRow = { text: string; dice: DiceResult; side?: 0 | 1 };
 
 /** Rolls the server made. `id` changes with every new batch; rows added to a batch animate from `fresh`. */
 export type ResultsSpec = { id: number; rows: ResultRow[]; fresh: number };
 
 const STEP_KEY = "wb.dice.step";
+
+/** Both players roll in the same window: then it has two halves, Blue's dice on the left and Red's on the right. */
+const bothSides = (rows: { side?: 0 | 1 }[]): boolean => rows.some((r) => r.side === 0) && rows.some((r) => r.side === 1);
+/** Where a roll goes in a split window: its side's half; a roll that belongs to nobody runs across both. */
+const half = (split: boolean, side: 0 | 1 | undefined): string => (!split ? "" : side === 0 ? "col-start-1" : side === 1 ? "col-start-2" : "col-span-2");
+
+function Halves({ names }: { names: [string, string] }) {
+  return (
+    <>
+      {([0, 1] as const).map((s) => (
+        <span key={s} className={`${s === 0 ? "col-start-1" : "col-start-2"} truncate border-b-2 pb-1 text-center text-xs font-semibold uppercase tracking-wide`}
+          style={{ borderColor: SIDE_HEX[s], color: SIDE_HEX[s] }}>{names[s]}</span>
+      ))}
+    </>
+  );
+}
 
 function readAllAtOnce(): boolean {
   try {
@@ -128,9 +145,10 @@ function ModeBox({ allAtOnce, onChange }: { allAtOnce: boolean; onChange: (on: b
   );
 }
 
-function Results({ spec, allAtOnce, setAllAtOnce, onDone, onClose }: {
-  spec: ResultsSpec; allAtOnce: boolean; setAllAtOnce: (on: boolean) => void; onDone: (id: number) => void; onClose: () => void;
+function Results({ spec, names, allAtOnce, setAllAtOnce, onDone, onClose }: {
+  spec: ResultsSpec; names: [string, string]; allAtOnce: boolean; setAllAtOnce: (on: boolean) => void; onDone: (id: number) => void; onClose: () => void;
 }) {
+  const split = bothSides(spec.rows);
   const t = useTranslations("gameTable.dice");
   // Step by step: how many rows have been rolled so far.
   const [revealed, setRevealed] = useState(0);
@@ -163,13 +181,14 @@ function Results({ spec, allAtOnce, setAllAtOnce, onDone, onClose }: {
         <span className="font-display text-base font-bold">{t("title")}</span>
         <Button type="button" size="icon" variant="ghost" className="ml-auto size-7" aria-label={t("close")} onClick={onClose}><X aria-hidden /></Button>
       </div>
-      <div className="grid max-h-[50vh] gap-2 overflow-auto">
+      <div className={`grid max-h-[50vh] gap-2 overflow-auto ${split ? "grid-cols-2 items-start" : ""}`}>
+        {split && <Halves names={names} />}
         {spec.rows.map((r, i) => {
           // Rolls further down the list would give away how the earlier ones went (a Damage roll means a Hit).
           if (i > upTo) return null;
           if (i === upTo) {
             return (
-              <div key={i} className="grid gap-1 rounded-md border border-primary/60 bg-background p-2">
+              <div key={i} className={`grid gap-1 rounded-md border border-primary/60 bg-background p-2 ${half(split, r.side)}`}>
                 <span className="text-xs">{withoutOutcome(r.text)}</span>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {r.dice.dice.map((_, k) => <Die key={k} />)}
@@ -182,7 +201,8 @@ function Results({ spec, allAtOnce, setAllAtOnce, onDone, onClose }: {
           const order = allAtOnce ? i - spec.fresh : 0;
           const animate = allAtOnce ? i >= spec.fresh : true;
           return (
-            <div key={i} className="grid gap-1 rounded-md border bg-background p-2">
+            <div key={i} className={`grid gap-1 rounded-md border bg-background p-2 ${half(split, r.side)}`}
+              style={r.side !== undefined ? { borderLeftColor: SIDE_HEX[r.side], borderLeftWidth: 3 } : undefined}>
               <span className="text-xs">{r.text}</span>
               <div className="flex flex-wrap gap-1.5">
                 {r.dice.dice.map((d, k) => <Die key={`v${k}`} value={d} target={r.dice.target} delay={animate ? 650 + 350 * Math.max(0, order) : 0} />)}
@@ -203,7 +223,9 @@ function Results({ spec, allAtOnce, setAllAtOnce, onDone, onClose }: {
  * One window, three uses: results of rolls (they come first), a declared Action waiting for both sides' dice,
  * and an Action being put together.
  */
-export function DiceWindow({ compose, pending, results, onResultsDone, onResultsClose }: {
+export function DiceWindow({ compose, pending, results, names, onResultsDone, onResultsClose }: {
+  /** The two players, Blue first: the headings of the halves when both roll. */
+  names: [string, string];
   compose: ComposeSpec | null;
   pending: PendingSpec | null;
   results: ResultsSpec | null;
@@ -221,16 +243,19 @@ export function DiceWindow({ compose, pending, results, onResultsDone, onResults
     }
   };
   if (!compose && !pending && !results) return null;
+  const split = results ? bothSides(results.rows) : pending ? bothSides(pending.rows) : false;
   return (
     <div role="dialog" aria-label={t("title")}
-      className="absolute left-1/2 top-3 z-30 w-[min(30rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-xl border border-primary bg-card p-4 text-sm shadow-2xl">
+      className={`absolute left-1/2 top-3 z-30 ${split ? "w-[min(46rem,calc(100%-1.5rem))]" : "w-[min(30rem,calc(100%-1.5rem))]"} -translate-x-1/2 rounded-xl border border-primary bg-card p-4 text-sm shadow-2xl`}>
       {results ? (
-        <Results key={results.id} spec={results} allAtOnce={allAtOnce} setAllAtOnce={setAllAtOnce} onDone={onResultsDone} onClose={onResultsClose} />
+        <Results key={results.id} spec={results} names={names} allAtOnce={allAtOnce} setAllAtOnce={setAllAtOnce} onDone={onResultsDone} onClose={onResultsClose} />
       ) : pending ? (
         <div className="grid gap-3">
           <span className="font-display text-base font-bold">{pending.title}</span>
+          <div className={`grid gap-2 ${split ? "grid-cols-2 items-start" : ""}`}>
+          {split && <Halves names={names} />}
           {pending.rows.map((r, i) => (
-            <div key={i} className="grid gap-1.5 rounded-md border bg-background p-2" style={{ borderLeftColor: SIDE_HEX[r.side], borderLeftWidth: 3 }}>
+            <div key={i} className={`grid gap-1.5 rounded-md border bg-background p-2 ${half(split, r.side)}`} style={{ borderLeftColor: SIDE_HEX[r.side], borderLeftWidth: 3 }}>
               <span className="text-xs"><strong>{r.who}</strong> – {r.what}{r.target !== null ? ` · ${t("orLower", { n: r.target })}` : ""}</span>
               <div className="flex flex-wrap items-center gap-1.5">
                 {Array.from({ length: Math.max(1, Math.min(r.dice, 12)) }, (_, k) => <Die key={k} side={r.side} />)}
@@ -244,6 +269,7 @@ export function DiceWindow({ compose, pending, results, onResultsDone, onResults
               )}
             </div>
           ))}
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             {pending.canRoll
               ? <Button type="button" onClick={pending.onRoll}><Dices aria-hidden /> {t("roll")}</Button>

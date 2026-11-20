@@ -6,7 +6,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { RuleError } from '../frontend/src/lib/eld/engine.ts';
 import { VERSION } from '../frontend/src/lib/eld/version.ts';
-import { BadRequest, command, create, join, NeedLog } from './service.ts';
+import { BadRequest, checkMap, command, create, join, NeedLog } from './service.ts';
 
 const PORT = Number(process.env.PORT ?? 8090);
 const KEY = process.env.RULES_KEY ?? '';
@@ -49,7 +49,8 @@ function allowed(req: IncomingMessage): boolean {
   return got.length === want.length && timingSafeEqual(got, want);
 }
 
-const ROUTES: Record<string, (body: never) => unknown> = { '/create': create, '/join': join, '/command': command };
+// '/map': a map from the admin's map creator, checked and returned as it is to be stored.
+const ROUTES: Record<string, (body: never) => unknown> = { '/create': create, '/join': join, '/command': command, '/map': checkMap };
 
 const server = createServer((req, res) => {
   void (async () => {

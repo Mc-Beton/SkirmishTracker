@@ -462,6 +462,7 @@ public class FriendlyGameService {
         }
         Set<String> allowedUnits = content.unitsFor(faction.code(), allied);
         Set<String> allowedItems = content.itemsFor(faction.code());
+        Map<String, Integer> bought = new HashMap<>();
         int total = 0;
         int leaders = 0;
         List<GameList.Unit> clean = new java.util.ArrayList<>();
@@ -479,6 +480,9 @@ public class FriendlyGameService {
                         : content.item(i.item()).orElse(null);
                 if (item == null) {
                     throw new ApiException(HttpStatus.BAD_REQUEST, "ITEM_NOT_ALLOWED");
+                }
+                if (item.limit() != null && bought.merge(item.code(), 1, Integer::sum) > item.limit()) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "ITEM_LIMIT");
                 }
                 boolean reduced = i.reduced() && item.reducedPoints() != null;
                 total += reduced ? item.reducedPoints() : item.points();

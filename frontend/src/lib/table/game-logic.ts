@@ -50,6 +50,9 @@ export type Ui = {
   strat: Record<string, string[]>;
   stratSpell: Record<string, string>;
   mods: { hit: number; stk: number; pw: number };
+  /** Lucky Charm: spend a Luck counter on this Action or Reaction. Mage: spend an AP to reroll the failed dice of the Spell. */
+  luck: boolean;
+  mage: boolean;
   reactAnyway: boolean;
   moveHow: "walk" | "climb" | "jump";
   /** The dice window is open for the Attack being put together. */
@@ -58,7 +61,7 @@ export type Ui = {
 
 export const initialUi: Ui = {
   weapon: {}, target: {}, spot: {}, art: {}, snipe: {}, push: {}, split: {}, cast: {}, castOn: {}, ritual: {}, raise: {},
-  raiseDead: "", strat: {}, stratSpell: {}, mods: { hit: 0, stk: 0, pw: 0 }, reactAnyway: false, moveHow: "walk", composing: false,
+  raiseDead: "", strat: {}, stratSpell: {}, mods: { hit: 0, stk: 0, pw: 0 }, luck: false, mage: false, reactAnyway: false, moveHow: "walk", composing: false,
 };
 
 const clamp = (n: number): number => Math.max(-20, Math.min(20, Math.trunc(n || 0)));
@@ -71,7 +74,7 @@ export function readMods(st: TableState, ui: Ui, m?: Model, weaponIndex?: number
   const art = m && wp && artOptions(m, isRanged(wp)).some((o) => o.id === want) ? want : "";
   const snipe = !!m && !!wp && isRanged(wp) && !!ui.snipe[m.id] && hasSkill(m, "Snipe");
   const push = m && st.activation?.id === m.id ? ui.push[m.id] : undefined;
-  return { hit: clamp(ui.mods.hit), stk: clamp(ui.mods.stk), pw: clamp(ui.mods.pw), art, ...(snipe ? { snipe } : {}), ...(push ? { push } : {}) };
+  return { hit: clamp(ui.mods.hit), stk: clamp(ui.mods.stk), pw: clamp(ui.mods.pw), art, ...(snipe ? { snipe } : {}), ...(push ? { push } : {}), ...(ui.luck ? { luck: true } : {}), ...(ui.mage ? { mage: true } : {}) };
 }
 
 export type Preview = { ok: boolean; label: string; at?: Pt };

@@ -86,7 +86,7 @@ cd frontend; npm install; npm run dev    # http://localhost:3000
   (tylko za frontendem / reverse proxy).
 - **Błędy API:** `throw new ApiException(status, "KOD")`, a kod dopisujemy do `errors` w `pl.json` i `en.json`.
 - **Baza:** zmiany wyłącznie nowymi migracjami `V<n>__opis.sql` (Hibernate ma `ddl-auto=validate`).
-  Następna wolna: **V27**.
+  Następna wolna: **V30**.
 - **Teksty UI:** zawsze w obu plikach `messages/pl.json` i `messages/en.json`.
 - **Mobile first:** żaden widok nie może przewijać się na boki na telefonie (~390 px). Tabele na telefonie
   chowają kolumny (`hidden sm:table-cell`) i pokazują skrót pod nazwą.
@@ -304,6 +304,25 @@ Pełny opis: `docs/online-play.md`. W skrócie:
   **Nieuruchomione:** `./gradlew build` (w tym `TableGameIntegrationTest` – wymaga `rules` na :8090), migracja V26 na
   Postgresie, `next build`, obraz Dockera `rules`, rozgrywka w przeglądarce.
 
+- **Stoły 3D** (19.11.2026, V27: `game_tables.view_mode`, `game_map`): przy zakładaniu stołu standardowego wybór 2D / 3D;
+  stół 3D gra na gotowej mapie gry (`lib/eld/maps.ts`) i jest rysowany sceną `frontend/src/lib/eld3d/` (port sceny gry,
+  three.js 0.170 – nowa zależność: **`npm install` we `frontend/` i commit `package-lock.json`**, inaczej `npm ci`
+  w Dockerze się nie powiedzie). Modele i podłoża: `frontend/public/terrain3d/` (270 MB, poza repozytorium – decyzja
+  w `docs/terrain3d.md`). Startowa biblioteka 2D: `tools/seed/table_library.ts`. Opis: `docs/online-play.md` §10.
+  Sprawdzone: `tsc --noEmit`, `eslint src`, `rules/` 82 testy, parytet PL/EN. **Nieuruchomione:** `./gradlew build`
+  (Java pisana bez kompilatora), V27 na Postgresie, `next build`, widok 3D w przeglądarce, skrypt biblioteki z `--apply`.
+
+- **Ukryte informacje po stronie serwera** (19.11.2026, V28: `table_events.payload_a/_b/_public`): figurki rozstawione
+  jako Shrouded docierają do przeciwnika i obserwatorów jako żetony bez danych; opis w `docs/online-play.md` §10.
+  Do tego: figurki o tej samej nazwie po obu stronach noszą w nazwie właściciela (`ownerNames`), okno kości dzieli się
+  na połowy graczy, stół 3D można oglądać także w 2D (wybór gracza). Sprawdzone: `rules/` 84 testy, `tsc`, `eslint`.
+  **Nieuruchomione:** Java (V28, `TableEventStore.Viewer`, `GameEngine.store`), widok w przeglądarce.
+
+- **Mapy gry i kreator admina** (20.11.2026, V29: `game_maps`): mapy 3D układa tylko admin w `/admin/maps3d`; każda mapa
+  gry jest parą 3D / 2D (stół 2D na tej samej mapie z góry). Gracze nie mają kreatora 3D; biblioteka i mapy 2D bez zmian.
+  Opis: `docs/online-play.md` §10. Sprawdzone: `rules/` 85 testów, `tsc`, `eslint`. **Nieuruchomione:** Java
+  (`GameMapStore`, `GameMapController`, zmiany w `TableService.create`), V29, kreator w przeglądarce.
+
 ## 7. Dokumentacja w repo
 
 - `docs/game-content-model.md` – model treści gry (frakcje, postacie, scheme, scenariusze).
@@ -311,6 +330,7 @@ Pełny opis: `docs/online-play.md`. W skrócie:
 - `docs/formats-leagues.md` – eliminacje, round robin, top cut, ligi, ELO, profile, gry własne.
 - `docs/teams-timer-notifications.md` – drużyny, zegar rundy, powiadomienia, wezwanie sędziego.
 - `docs/offline-live.md` – odświeżanie na żywo (SSE), service worker, kolejka zmian offline, test ręczny.
+- `docs/terrain3d.md` – zasoby stołu 3D i startowa biblioteka 2D.
 - `docs/online-play.md` – gra online: zasady w silniku, mapy i teren, API, bezpieczeństwo, plan.
 - Dawny „plan działania” był w Claude Docs na poprzednim koncie – na nowym koncie jest niedostępny;
   jego aktualna treść jest w tym pliku.
@@ -333,6 +353,13 @@ Do sprawdzenia u Filipa: `.\gradlew.bat build` z nowymi testami (`LiveEventServi
 5. **Poprawki Season 2:** bye = 3 TP + 4 VP, dogrywka Strength of Schedule, dyskwalifikacja = 3 TP + 8 VP
    dla przeciwnika, zegar 80 min i push „ostatnia runda”, Oni Marauder 25 → 24 pkt, nowe scheme Monster/AG
    (potrzebny dokument „Competitive Quests – Season 2”), daty sezonu demo 1.07.2026–1.07.2027.
+
+6. **Stół online 20.11.2026 – klasy, przedmioty, ulepszenia:** silnik stosuje sam zdolności klas (Soldier w pełnym
+   zakresie, Ranger, Mage, Rogue, Berserker, Warrior…), Throwing i ilości przedmiotów, wszystkie karty ulepszeń
+   poza Pouch (+2 Inventory) oraz Friendly Fire. Opis: `docs/online-play.md` §10 „Klasy, przedmioty i karty
+   ulepszeń”. Te same zmiany są w Eldfall Table (`D:\Apps\Eld\shared`). Kreator rozpisek ma limity ulepszeń
+   (`ITEM_LIMIT`), First Aid 2 pkt i trzy brakujące karty Neutral. Java (limit) nie była kompilowana – sprawdzi
+   to `./gradlew build`.
 
 ## 9. Otwarte pytania do Filipa
 

@@ -100,6 +100,8 @@ services:
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in deploy/.env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # /opt/warbracket/terrain3d: models, grounds and pictures of the 3D terrain (uploaded by deploy.sh).
+      - ../../terrain3d:/srv/terrain3d:ro
       - caddy_data:/data
       - caddy_config:/config
     networks: [internal]

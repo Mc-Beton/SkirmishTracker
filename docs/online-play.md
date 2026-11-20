@@ -277,6 +277,117 @@ Esc – anuluj celowanie / narzędzie / wybór. „Cofnij ruch” działa do pie
 Sędzia, tryby mierzenia, cofanie dowolnego kroku, koniec gry za zgodą, gra swobodna (zostają na pierwszym silniku).
 Teksty silnika (dziennik, odmowy, karty, Stratagemy, Scheme'y) są po angielsku.
 
+### Stoły 3D (19.11.2026, migracja V27)
+Przy zakładaniu stołu standardowego wybiera się **2D** (mapa z biblioteki WarBracket) albo **3D** (gotowa mapa gry:
+`MAPS` w `frontend/src/lib/eld/maps.ts` – Fallen sanctuary, Elven garden, Desert plaza, Frozen courtyard, Village
+crossing); zapis w `game_tables.view_mode`, `game_map`. Stół 2D ma tylko widok 2D. **Stół 3D każdy ogląda po swojemu:**
+przy pierwszym wejściu strona pyta o widok 3D albo 2D (wybór zapamiętany w przeglądarce dla tego stołu,
+`wb.table.view.<id>`, zmieniany przyciskiem na pasku narzędzi). Widok 2D stołu 3D rysuje tę samą mapę z góry:
+malowane podłoże, modele z `terrain3d/tops/*.webp` (rzuty z góry) i zwykłe bryły z ich kształtów – więc każda mapa
+3D ma od razu swoją wersję 2D i służy też jako widok dla słabszych urządzeń.
+
+- **Backend**: `POST /api/tables` przyjmuje `gameMap` zamiast `mapId` (`TABLE_MAP_REQUIRED`, `TABLE_UNKNOWN_MAP`,
+  `TABLE_3D_UNAVAILABLE` przy `TABLE_ENGINE=LEGACY`); pole stołu 3D buduje usługa zasad (`create` z `gameMap` →
+  `buildMap`), więc teren z modelami, podłoże i rzeźba terenu są w zdarzeniu `TABLE_CREATED`. Nieznana mapa: `409 TABLE_RULE`.
+  `GameView.meta.viewMode` mówi stronie, którą planszę pokazać.
+- **Frontend**: `components/table/game/game-board-3d.tsx` (ładowany przez `next/dynamic`, bez SSR – three.js tylko dla
+  stołów 3D) dostaje te same właściwości co plansza 2D i steruje sceną `lib/eld3d/` – portem sceny gry
+  (`client/src/scene`): teren z modeli `.glb`, malowane podłoże, niebo, pogoda, sanktuarium. Różnice wobec gry: figurki
+  zastępcze bez rzeźb i animacji, bez efektów zaklęć, żetony graczy, zakryte figurki (Shrouded), strefy rozstawienia
+  i kształty zasad włączane z paska narzędzi. Sterowanie: lewy przycisk – obrót kamery, prawy – przesuwanie, kółko –
+  zbliżenie; trzymając figurkę kółkiem się ją obraca; przyciski „Z góry” i pogoda (zapamiętana w przeglądarce).
+- **Zasoby**: `frontend/public/terrain3d/` – patrz `docs/terrain3d.md` (także startowa biblioteka 2D:
+  `tools/seed/table_library.ts`).
+- **Jakość grafiki** (20.11.2026): przy wejściu na stół 3D gracz wybiera widok i jakość – gotowe poziomy niska / średnia /
+  wysoka albo ręcznie: modele lekkie / pełne (`terrain3d/models-light` / `models`), cienie (brak / zwykłe / dokładne),
+  pełna rozdzielczość z wygładzaniem, otoczenie stołu, trawa (`SceneOptions` w `lib/eld3d/scene.ts`,
+  `lib/table/view3d-settings.ts`). Pole „zapamiętaj” zapisuje to w przeglądarce (`wb.table3d.settings`); przycisk
+  ustawień na stole otwiera wybór ponownie (scena budowana jest od nowa).
+- **Pasek ładowania**: `lib/eld3d/loading.ts` liczy pobierane modele i podłoże (bajty, gdy serwer poda rozmiar, inaczej
+  pliki); plansza 3D pokazuje postęp, a po 30 s pyta, czy przełączyć stół na widok 2D.
+- **Jeszcze nie ma**: zaproszenie nie mówi jeszcze, że stół jest 3D.
+- **Nieuruchomione**: wszystko poza `tsc`, `eslint` i testami `rules/` (82) – migracja V27, kompilacja Javy, `next build`
+  i sam widok 3D w przeglądarce czekają na pierwsze uruchomienie.
+
+### Mapy gry: pary 3D / 2D i kreator admina (20.11.2026, migracja V29)
+- **Mapa gry** to podłoże (`BASES`) i elementy (`KITS`) z `lib/eld/maps.ts`. Każda jest parą: stół **3D** (każdy gracz
+  wybiera u siebie widok 3D albo 2D) albo stół **2D** na tej samej mapie (tylko z góry: malowane podłoże i rzuty
+  modeli). `POST /api/tables` z `gameMap` i `viewMode` („3D” domyślnie, „2D”); `meta.gameMap` mówi planszy 2D, że mapa
+  jest w stanie gry, a nie w bibliotece.
+- **Skąd mapy gry**: wbudowane (`MAPS`) i zrobione przez admina w kreatorze `/admin/maps3d` (tabela `game_maps`,
+  `GET /api/table/game-maps` – opublikowane; `POST/PUT/DELETE /api/admin/table/game-maps` – tylko `ADMIN`). Zapis
+  sprawdza usługa zasad (`POST /map` → `checkMap`: znane podłoże i elementy, rozmiary, na stole, najwyżej 30 elementów,
+  w tym najwyżej **12 z modelem 3D**); przy zakładaniu stołu backend podaje mapę usłudze (`customMap`), która sprawdza
+  ją ponownie. Szkic (nieopublikowany) widzi i może rozegrać tylko admin. Najwyżej 40 map.
+- **Kreator** (`components/table/map3d-editor.tsx`): plan z góry – który jest zarazem wersją 2D mapy – z rzutami modeli
+  i obrysami kształtów zasad; przeciąganie, kółko = obrót, Shift + kółko = rozmiar; „Podgląd 3D” ładuje scenę three.js
+  dopiero na żądanie (`map3d-preview.tsx`). Nowe podłoża i nowe elementy dochodzą przez `lib/eld/maps.ts` (kod).
+- **Gracze** nie mają kreatora map 3D. Mapy z kreatora 2D (`/maps`, biblioteka) służą tylko stołom 2D – bez zmian.
+
+### Ukryte informacje (19.11.2026, migracja V28)
+- **Karty Scheme**: jak dotąd – tylko u właściciela (`scheme_hands`), nigdy w zdarzeniach.
+- **Figurki Shrouded** (rozstawione jako Shrouded: Stealth II, Concealed Approach): dopóki nic ich nie odkryje, są
+  tajemnicą właściciela. Przeglądarki same składają stan ze zdarzeń, więc sekretu nie może być w tym, co dostaje
+  przeciwnik: usługa zasad (`rules/service.ts`, `step`) dla każdego zdarzenia, które by go zdradziło, zwraca drugą
+  postać (`views`: `a`, `b`, `o` – gracz A, gracz B, pozostali), w której figurka jest zwykłym żetonem „Shrouded”
+  (bez profilu, nazwy, lidera, HP) i jej nazwa nie pada w tekstach. Backend zapisuje te postaci obok zdarzenia
+  (`table_events.payload_a/_b/_public`) i `GET /api/tables/{id}/game` wybiera właściwą dla pytającego
+  (`TableEventStore.Viewer`); usługa zasad dostaje zawsze pełny dziennik. Zdarzenie, które odkrywa figurkę, niesie ją
+  w polu `unmask`, a strona (`lib/table/use-game.ts`) wstawia ją w miejsce żetonu. Dopóki drugie miejsce jest puste,
+  założyciel widzi wszystko (gra obiema stronami).
+- **Nazwy z właścicielem** (`ownerNames` w silniku): figurki Shrouded są pomijane, żeby dopisek przy własnej figurce
+  nie zdradzał, co stoi pod żetonem przeciwnika.
+- **Znane ograniczenia**: figurka, która w trakcie gry ponownie stała się Shrouded, jest zakrywana tylko w widoku
+  (przeciwnik już ją widział); gdy ukryta figurka ma taką samą nazwę jak widoczna figurka, jej nazwa w tekście
+  zdarzenia (np. trafienie szablonem) nie jest zamazywana; zakryta część półki przy rozstawieniu jest ukrywana tylko
+  w widoku – rozpiski i tak są jawne, więc zdradza to najwyżej, które figurki jeszcze stoją na półce.
+
+### Klasy, przedmioty i karty ulepszeń (20.11.2026)
+
+Silnik (ten sam w Eldfall Table) stosuje sam:
+
+- **Klasy:** Soldier (+1 OFF/DEF/ACC/INT/M za każdego innego Soldiera w Awareness, do +3 – także rzuty na
+  Morale, Perceive, Charm, Taunt, Unconventional Tactics; premia widoczna na karcie), Ranger (ruch w End Phase:
+  po zakończeniu ostatniej aktywacji przeciągnij figurkę; potem nie ma już aktywacji w tej turze), Mage
+  (pole „Mag: przerzut za 1 AP”), Rogue (rzut na Knockdown raz na aktywację), Berserker (jeden rzut na
+  wszystkie rany z jednej sekwencji – FAQ), Warrior (Defensive Stance tylko we własnej Strategic Phase,
+  wygasa w następnej), Sorcerer także przy Sorcery rzucanych na figurkę, Marksman tylko do ACC, Druid także
+  przy zaklęciach-atakach, Summonerzy dzielą pulę Many, Alchemist odzyskuje Consumables w Strategic Phase.
+- **Przedmioty:** `Model.items` – ile sztuk zostało. Throwing: w liście broni pozycja „… (thrown)”
+  (indeks `THROWN_INDEX + n`), Reach T, tyle Strike'ów, ile sztuk; rzucone znikają, a wracają po wejściu
+  w Base Contact z figurką, którą rzut powalił (`Model.thrown`). Consumable: jedna sztuka na atak.
+- **Ulepszenia:** First Aid (Recovery Check sam; stany – przycisk na karcie we własnej Strategic Phase),
+  Lucky Charm (`Model.luck`, pole „Użyj Luck”), Smokescreen (Haze Bomb zostawia obszar „Haze”: ataki
+  dystansowe nie przechodzą przez niego, z niego i do niego atrybut na pół, wręcz poza kontaktem −3),
+  Fangs of Tiamat, Casting Amplifier (+4 RCH zaklęć), Hyperia's Providence, Double Time (+6 do inicjatywy),
+  Surge Order (przycisk, potem przeciągnięcie do 3 figurek Helian League), Companion of Hairon, Conjured
+  Retinue i Personal Guard (ukryte ulepszenia `san-retinue-soldier` / `san-guard-sentinel` na stworze).
+  Wybór (Adept Shaper, Arcane Tome, Reduce Weight, Mana Catalyst, Elemental Lineage): lista na karcie figurki
+  przed startem gry (`PICK_UPGRADE`, `Model.picks`).
+- **Friendly Fire:** rzut 17–20 przy strzale w figurkę w kontakcie z sojusznikiem trafia sojusznika; każdy
+  trafiony sojusznik rzuca na Morale albo jest Panicked do swojej następnej Strategic Phase.
+- Nowe komendy: `USE_UPGRADE`, `PICK_UPGRADE`; nowe zdarzenia: `MODEL_KIT`, `SURGE_ORDERED`; pole `kit`
+  w `ACTION_RESOLVED` / `EFFECT`. Serwis `rules` ukrywa `MODEL_KIT` figurek w stanie Shrouded.
+- Bez zmian zostało: Pouch nie daje +2 Inventory (silnik nie liczy ekwipunku), stan Flying jest ręcznym
+  znacznikiem, Devotion: Paimon obniża koszt ulepszeń tylko tej samej figurki (decyzja Filipa).
+
+### Komunikaty i rzuty czekające na gracza (20.11.2026)
+
+- **Start gry:** gdy obaj są gotowi, `READY` kończy się zdarzeniem `INITIATIVE_PENDING` (`state.initiative`).
+  Na stole pojawia się napis „Rozpoczęcie rozgrywki” i okno kości z rzutem na inicjatywę; każdy gracz rzuca
+  swoją kością (`ROLL_INITIATIVE`). Po obu rzutach: `GAME_STARTED`, wynik w oknie kości, komunikat kto zaczyna.
+- **Strategic Phase:** `END_TURN` kończy turę, a jeśli następny gracz ma coś do rzucenia (Bleeding, Poisoned,
+  Recovery Check, Unconventional Tactics), silnik czeka (`STRATEGIC_PENDING`, `state.pendingTurn`) na jego
+  `ROLL_STRATEGIC`. Bez rzutów tura zaczyna się od razu.
+- **Pozostałe rzuty** przechodzą przez okno kości po stronie klienta (`rollGate`): Morale figurki Panicked przy
+  aktywacji i reakcji, INT przeciw Charm, Taunt, Stratagemy z rzutem celu, Fall Damage po skoku. Trample i
+  Sigile rzucają od razu – wynik widać w oknie kości.
+- **Koniec tury** z niewykorzystanymi AP pyta „tak / nie”. Początek każdej tury ogłasza napis na stole.
+
+Kreator rozpisek: `content/items.xlsx` ma kolumnę „Limit”; `tools/import_units.py` przenosi ją do
+`eldfall-armies.json`, backend odrzuca rozpiskę ponad limit (`ITEM_LIMIT`). First Aid 2 pkt, doszły
+Smokescreen, Expedition Leader, Raid Leader.
+
 ### Testy
-`cd rules; npm test` (74 testy zasad gry + 6 testów usługi). `TableGameIntegrationTest` (backend) uruchamia się tylko,
+`cd rules; npm test` (85 testów zasad gry + 10 testów usługi). `TableGameIntegrationTest` (backend) uruchamia się tylko,
 gdy usługa zasad odpowiada na `localhost:8090` (w CI startuje ją job backendu).

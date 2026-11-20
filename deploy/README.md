@@ -32,6 +32,12 @@ Na swoim komputerze (Git Bash), z katalogu repo, po commicie:
 Skrypt wysyła ostatni commit (`git archive`, bez `scans/` i sekretów) do `/opt/warbracket/app`
 i przebudowuje kontenery. Migracje bazy (Flyway) uruchamiają się przy starcie backendu.
 
+## Tereny 3D stołu online
+Pliki z `frontend/public/terrain3d/` (około 370 MB, w repozytorium przez Git LFS) nie wchodzą do obrazu frontendu.
+`deploy.sh` wysyła je do `/opt/warbracket/terrain3d`, a Caddy podaje pod `/terrain3d/*`. Wysyłka idzie tylko wtedy,
+gdy zmienił się zestaw plików (nazwy i rozmiary), więc zwykłe wdrożenie kodu jej nie powtarza. Na komputerze, z którego
+wdrażasz, pliki muszą być prawdziwe (`git lfs pull`), a nie wskaźniki – skrypt to sprawdza.
+
 ## Przydatne komendy (na serwerze)
 ```bash
 cd /opt/warbracket

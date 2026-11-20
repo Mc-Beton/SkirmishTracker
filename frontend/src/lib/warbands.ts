@@ -19,6 +19,8 @@ export type ArmyItem = {
   points: number;
   reducedPoints: number | null;
   reducedNote: Localized | null;
+  /** How many of it one party may buy; null / absent = no limit. */
+  limit?: number | null;
 };
 export type Armies = {
   source: string;

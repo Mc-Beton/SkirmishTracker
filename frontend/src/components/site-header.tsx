@@ -34,7 +34,7 @@ export function SiteHeader() {
     ...(eldfall ? [{ href: "/seasons", label: t("nav.seasons") }, { href: "/scenarios", label: t("nav.scenarios") }] : []),
     ...(me && eldfall ? [{ href: "/games", label: t("nav.games") }, { href: "/lists", label: t("nav.lists") },
       { href: "/tables", label: t("nav.tables") }] : []),
-    ...(eldfall && me?.roles.includes("ADMIN") ? [{ href: "/admin/table", label: t("nav.tableLibrary") }] : []),
+    ...(eldfall && me?.roles.includes("ADMIN") ? [{ href: "/admin/table", label: t("nav.tableLibrary") }, { href: "/admin/maps3d", label: t("nav.maps3d") }] : []),
     ...(eldfall && reportRoles(me?.roles) ? [{ href: "/admin/reports", label: t("nav.reports") }] : []),
   ];
 

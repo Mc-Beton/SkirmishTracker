@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // The game engine of the online table: shared with the rules service, kept as it is in the game.
     "src/lib/eld/**",
+    // The 3D scene of the online table: ported from the game, kept close to it.
+    "src/lib/eld3d/**",
   ]),
 ]);
 

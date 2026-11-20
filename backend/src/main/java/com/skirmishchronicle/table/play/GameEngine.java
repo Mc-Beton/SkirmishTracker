@@ -32,6 +32,12 @@ public class GameEngine {
     /** The field from the map, the creator's party on its shelf, the creator in the first seat. */
     public void start(GameTable t, UUID author, String by, ObjectNode party, List<Terrain> terrain, boolean corner,
                       double deployDepth) {
+        start(t, author, by, party, terrain, corner, deployDepth, null, null);
+    }
+
+    /** As above; with {@code gameMap} (a 3D table) the field is that map of the game and {@code terrain} is not used. */
+    public void start(GameTable t, UUID author, String by, ObjectNode party, List<Terrain> terrain, boolean corner,
+                      double deployDepth, String gameMap, JsonNode customMap) {
         ObjectNode req = json.createObjectNode();
         req.put("tableId", t.getId().toString());
         req.put("name", t.getMapName());
@@ -55,7 +61,18 @@ public class GameEngine {
         }
         req.put("by", by);
         req.set("party", party);
-        store(t, rules.post("/create", req), author);
+        if (gameMap != null) {
+            req.put("gameMap", gameMap);
+        }
+        if (customMap != null) {
+            // a map from the admin's creator: the rules service gets the map itself and checks it again
+            req.set("customMap", customMap);
+        }
+        JsonNode res = rules.post("/create", req);
+        if (gameMap != null && res.path("map").isTextual()) {
+            t.mapNamed(text(res.path("map").asText(), 80));
+        }
+        store(t, res, author);
     }
 
     /** The second player sits down; {@code party} may be null once the game is under way. */
@@ -79,10 +96,15 @@ public class GameEngine {
         return t.lastSeq();
     }
 
-    /** Events after {@code afterSeq}, as stored. */
+    /** Events after {@code afterSeq}, as stored (for the rules service). */
     public ArrayNode eventsAfter(GameTable t, long afterSeq) {
+        return eventsAfter(t, afterSeq, TableEventStore.Viewer.ALL);
+    }
+
+    /** Events after {@code afterSeq} as this viewer may see them: Shrouded models of others are plain tokens. */
+    public ArrayNode eventsAfter(GameTable t, long afterSeq, TableEventStore.Viewer viewer) {
         ArrayNode out = json.createArrayNode();
-        for (String payload : events.payloads(t.getId(), afterSeq)) {
+        for (String payload : events.payloads(t.getId(), afterSeq, viewer)) {
             out.add(read(payload));
         }
         return out;
@@ -128,15 +150,19 @@ public class GameEngine {
 
     private void store(GameTable t, JsonNode res, UUID author) {
         JsonNode evs = res.path("events");
+        JsonNode views = res.path("views");
         long seq = t.takeSeq(evs.size());
         Instant now = Instant.now();
+        int at = 0;
         for (JsonNode ev : evs) {
+            JsonNode view = views.path(at++);
             if (ev.path("seq").asLong(-1) != seq) {
                 // the service and the stored log disagree: refuse (the transaction rolls back, the next call resends the log)
                 throw new IllegalStateException("rules service numbered an event " + ev.path("seq") + ", expected " + seq);
             }
             int side = ev.path("side").isInt() ? ev.path("side").asInt() : -1;
-            events.appendRaw(t.getId(), seq, side, side < 0 ? null : author, text(ev.path("type").asText("?"), 30), ev.toString(), now);
+            events.appendRaw(t.getId(), seq, side, side < 0 ? null : author, text(ev.path("type").asText("?"), 30), ev.toString(),
+                    form(view, "a"), form(view, "b"), form(view, "o"), now);
             seq++;
         }
         JsonNode summary = res.path("summary");
@@ -149,6 +175,12 @@ public class GameEngine {
         if (status != t.getStatus()) {
             t.setStatus(status);
         }
+    }
+
+    /** The form of an event for one kind of viewer, or null when they get the event itself. */
+    private static String form(JsonNode view, String who) {
+        JsonNode v = view.path(who);
+        return v.isObject() ? v.toString() : null;
     }
 
     private static String text(String s, int max) {

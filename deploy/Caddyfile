@@ -7,11 +7,20 @@ www.{$DOMAIN} {
 }
 
 {$DOMAIN} {
-	# Compress everything except the SSE stream, which must reach the browser event by event.
-	@compressible not path /api/live*
+	# Compress everything except the SSE stream, which must reach the browser event by event, and the 3D terrain
+	# (already compressed; without Content-Length the loading bar could not count bytes).
+	@compressible not path /api/live* /terrain3d/*
 	encode @compressible zstd gzip
-	reverse_proxy frontend:3000 {
-		flush_interval -1
+	# 3D terrain of the online table: files uploaded by deploy.sh to /opt/warbracket/terrain3d, not part of the image.
+	handle /terrain3d/* {
+		root * /srv
+		header Cache-Control "public, max-age=604800"
+		file_server
+	}
+	handle {
+		reverse_proxy frontend:3000 {
+			flush_interval -1
+		}
 	}
 	log {
 		output stdout

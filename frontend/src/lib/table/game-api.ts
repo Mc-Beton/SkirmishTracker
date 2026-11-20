@@ -32,6 +32,11 @@ export type GameMeta = {
   invited: GamePlayer | null;
   observersAllowed: boolean;
   reportedGameId: string | null;
+  /** 2D: a WarBracket map from above; 3D: a map of the game drawn with models (chosen when the table was created). */
+  viewMode: "2D" | "3D";
+  /** The table plays on a map of the game (built-in or made by an admin): its field, ground and models are in the
+   *  state, not in the library. With viewMode "2D" it is the 2D version of that map only. */
+  gameMap: string | null;
 };
 
 export type GameView = { meta: GameMeta; events: GameEvent[]; hands: Hands; seq: number };

@@ -55,10 +55,10 @@ export const STATE_HINT: Record<StateName, string> = {
   'Defensive Stance': 'Warrior: Strike 1 in the Active Role, full Strike in the Reactive Role (chosen in the Strategic Phase)',
 };
 
-type Carded = Pick<Model, 'profileId' | 'upgrades' | 'boons' | 'mount'>;
+type Carded = Pick<Model, 'profileId' | 'upgrades' | 'boons' | 'mount' | 'picks'>;
 /** The model's card, with its Upgrades and what Stratagems give it (Traits, Skills, Classes) applied. */
 export const profileOf = (m: Carded): Profile => {
-  const card = withUpgrades(profileById(m.profileId) ?? GENERIC, m.upgrades);
+  const card = withUpgrades(profileById(m.profileId) ?? GENERIC, m.upgrades, m.picks);
   const steed = m.mount?.on ? mountById(m.mount.id) : undefined;
   const p = steed ? mounted(card, steed) : card;
   const grants = (m.boons ?? []).map((b) => b.fx).filter((fx) => fx.traits?.length || fx.skills?.length || fx.classes?.length);

@@ -2,6 +2,7 @@
 
 // Beside the table: both parties with their Stratagems, the Quest with what counts right now, and the Schemes.
 
+import { intOf, moraleOf } from "@/lib/eld/combat.ts";
 import { stratagemFits, stratagemLeader } from "@/lib/eld/engine.ts";
 import { baseRadius, onShelf } from "@/lib/eld/geometry.ts";
 import { profileById } from "@/lib/eld/profiles.ts";
@@ -9,7 +10,7 @@ import { MARKER_RADIUS, questByCode, schemeByCode } from "@/lib/eld/quests.ts";
 import { spellsOf } from "@/lib/eld/spells.ts";
 import { profileOf } from "@/lib/eld/stats.ts";
 import { stratagemFor } from "@/lib/eld/stratagems.ts";
-import type { Side } from "@/lib/eld/types.ts";
+import type { Command, Side } from "@/lib/eld/types.ts";
 import { upgradesCost } from "@/lib/eld/upgrades.ts";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -69,8 +70,16 @@ function StratagemBox({ c, side, sideName }: { c: PanelCtx; side: Side; sideName
         )}
         <Button type="button" size="sm" className={`${mini} justify-self-start`} disabled={!!blocked || (choose && picks.length === 0)} title={blocked || undefined}
           onClick={() => {
-            c.send({ type: "STRATAGEM", side, name, ...(choose ? { targets: picks } : {}), ...(spell ? { spell: spell.name } : {}) });
-            c.patch((u) => { const strat = { ...u.strat }; delete strat[name]; return { ...u, strat }; });
+            const cmd: Command = { type: "STRATAGEM", side, name, ...(choose ? { targets: picks } : {}), ...(spell ? { spell: spell.name } : {}) };
+            const done = () => c.patch((u) => { const strat = { ...u.strat }; delete strat[name]; return { ...u, strat }; });
+            // A Stratagem its target rolls against (halved Morale, INT): through the dice window.
+            const victim = sg.halvedMorale || sg.confuse !== undefined ? pool.find((m) => m.id === picks[0]) : undefined;
+            if (victim && sg.halvedMorale) c.rollGate({ title: name, sub: victim.name, dice: 1, target: Math.ceil(moraleOf(st, victim).m / 2), attr: "M" }, cmd, done);
+            else if (victim && sg.confuse !== undefined) c.rollGate({ title: name, sub: victim.name, dice: picks.length, target: Math.max(0, intOf(st, victim) + sg.confuse), attr: "INT" }, cmd, done);
+            else {
+              c.send(cmd);
+              done();
+            }
           }}>{used.includes(name) ? t("stratDeclaredShort") : t("stratDeclare")}</Button>
       </div>
     );

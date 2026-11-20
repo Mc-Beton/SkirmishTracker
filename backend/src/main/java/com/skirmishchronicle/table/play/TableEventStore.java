@@ -40,10 +40,36 @@ public class TableEventStore {
                 (rs, i) -> rs.getString("payload"), tableId, afterSeq);
     }
 
+    /** Who reads the events of a GAME table: everything, or the form kept for player A, player B or anybody else. */
+    public enum Viewer {
+        ALL("payload"), PLAYER_A("coalesce(payload_a, payload)"), PLAYER_B("coalesce(payload_b, payload)"),
+        OTHER("coalesce(payload_public, payload)");
+
+        private final String column;
+
+        Viewer(String column) {
+            this.column = column;
+        }
+    }
+
+    /** GAME engine: the events after the given sequence number as this viewer may see them (hidden models masked). */
+    public List<String> payloads(UUID tableId, long afterSeq, Viewer viewer) {
+        // the column expression comes from the enum above, never from a request
+        return jdbc.query("select " + viewer.column + " as shown from table_events where table_id = ? and seq > ? order by seq",
+                (rs, i) -> rs.getString("shown"), tableId, afterSeq);
+    }
+
     /** GAME engine: one event of the rules service, stored as it came. */
     public void appendRaw(UUID tableId, long seq, int side, UUID author, String type, String payload, java.time.Instant at) {
-        jdbc.update("insert into table_events (table_id, seq, side, author_id, type, payload, created_at) values (?, ?, ?, ?, ?, ?, ?)",
-                tableId, seq, side, author, type, payload, Timestamp.from(at));
+        appendRaw(tableId, seq, side, author, type, payload, null, null, null, at);
+    }
+
+    /** As above, with the forms of the event for viewers who may not see all of it (null: the event itself). */
+    public void appendRaw(UUID tableId, long seq, int side, UUID author, String type, String payload, String forA, String forB,
+                          String forOthers, java.time.Instant at) {
+        jdbc.update("insert into table_events (table_id, seq, side, author_id, type, payload, payload_a, payload_b, payload_public, "
+                        + "created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                tableId, seq, side, author, type, payload, forA, forB, forOthers, Timestamp.from(at));
     }
 
     static String typeName(GameEvent e) {

@@ -21,7 +21,8 @@
     "seasons": "Seasons",
     "lists": "My lists",
     "tables": "Online play",
-    "tableLibrary": "Terrain"
+    "tableLibrary": "Terrain",
+    "maps3d": "3D maps"
   },
   "home": {
     "headline": "Run tournaments without paper and calculators",
@@ -369,7 +370,14 @@
     "TEST_TOURNAMENT_NOT_COUNTED": "A test tournament cannot belong to a league.",
     "TABLE_RULE": "The rules of the game do not allow this.",
     "TABLE_RULES_UNAVAILABLE": "The game rules engine is not answering right now. Try again in a moment.",
-    "TABLE_OTHER_ENGINE": "This table runs on the other game engine – reload the page."
+    "TABLE_OTHER_ENGINE": "This table runs on the other game engine – reload the page.",
+    "TABLE_3D_UNAVAILABLE": "3D tables are not available right now (the game engine is switched off).",
+    "TABLE_UNKNOWN_MAP": "Unknown map.",
+    "TABLE_MAP_REQUIRED": "Choose a map.",
+    "GAME_MAP_TOO_MANY": "There are already as many 3D maps as allowed. Delete one to add another.",
+    "GAME_MAP_NOT_FOUND": "There is no such map.",
+    "GAME_MAP_BAD": "The map data is not valid.",
+    "ITEM_LIMIT": "This upgrade has a limit per party – the list has too many of it."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -1013,7 +1021,8 @@
     "reducedCost": "Reduced cost ({points} pts) – {when}",
     "moreOptions": "Other points / note",
     "otherPoints": "Other",
-    "rosterHint": "Roster format: this is your roster, without a leader. Before every game you pick a party of up to {party} pts and its leader from it."
+    "rosterHint": "Roster format: this is your roster, without a leader. Before every game you pick a party of up to {party} pts and its leader from it.",
+    "itemLimit": "limit {n}"
   },
   "leagues": {
     "title": "Leagues",
@@ -2352,7 +2361,75 @@
       "hintYourTurn": "Your turn: pick a model and press “Activate” in the model card.",
       "rollOn": "Set {stat} as the dice target"
     },
-    "gameEngineNote": "A standard table plays by the full mechanics of the game (activations, Reactions, the dice window). The game measures by its own rules; a judge is for now available only in a free game."
+    "gameEngineNote": "A standard table plays by the full mechanics of the game (activations, Reactions, the dice window). The game measures by its own rules; a judge is for now available only in a free game.",
+    "viewMode": "Table view",
+    "map3d": "3D map",
+    "viewName": {
+      "2D": "2D table",
+      "3D": "3D table"
+    },
+    "viewHelp": {
+      "2D": "A map from the WarBracket library or the 2D version of an official map, seen from above. Works on every device.",
+      "3D": "A ready map with terrain models. Every player picks the 3D view or the 2D view (the same map from above) for themselves."
+    },
+    "view3d": {
+      "topDown": "From above",
+      "perspective": "3D view",
+      "weatherTitle": "Weather – on this screen only",
+      "weather": {
+        "sunny": "Sunny",
+        "rain": "Rain",
+        "snow": "Snow"
+      },
+      "noWebgl": "This browser or device does not support 3D graphics (WebGL). Open the table on a computer or create a 2D table.",
+      "controls": "Left button: turn the camera · right: pan · wheel: zoom · hold a figure and turn the wheel to turn it",
+      "chooseTitle": "How do you want to see this table?",
+      "chooseHelp": "This is a 3D table. Every player picks a view and the picture quality for themselves – the game, the rules and the map are the same. You can change it during the game (the settings button on the table).",
+      "choice": {
+        "3D": "3D view",
+        "2D": "2D view"
+      },
+      "choiceHelp": {
+        "3D": "Terrain models and a camera. Best on a computer with a graphics card.",
+        "2D": "The same map from above. Works on every device."
+      },
+      "to2d": "Switch to the 2D view (from above)",
+      "to3d": "Switch to the 3D view",
+      "settings": "View and picture quality",
+      "loading": "Loading the 3D map…",
+      "loadingFiles": "{done} of {files} files",
+      "loadingHelp": "Terrain models are downloaded only the first time – after that the browser keeps them. You can already play meanwhile.",
+      "slowAsk": "Loading has taken more than half a minute. Switch this table to the 2D view? It is the same map and the same game, seen from above.",
+      "slowSwitch": "Switch to 2D",
+      "slowWait": "Keep waiting",
+      "loadFailed": "{n, plural, one {# file} other {# files}} could not be downloaded – those elements are shown as plain shapes.",
+      "quality": "Picture quality",
+      "preset": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "models": "Terrain models",
+      "modelsLight": "Light (less to download, less graphics memory)",
+      "modelsFull": "Full (the most detail)",
+      "shadows": "Shadows",
+      "shadowsOff": "Off",
+      "shadowsLow": "Plain",
+      "shadowsHigh": "Fine",
+      "option": {
+        "sharp": "Full resolution and smooth edges",
+        "surroundings": "Surroundings of the table (sanctuary, trees, mist)",
+        "grass": "Grass on a field without a painted ground"
+      },
+      "remember": "Remember these settings on this device",
+      "play3d": "Play in 3D",
+      "play2d": "Play in 2D"
+    },
+    "mapSource": "Where the map comes from",
+    "mapFromLibrary": "A map from the 2D library (pick below)",
+    "officialMaps": "Official maps (they have a 3D version too)",
+    "mapLoading": "Loading the map… {done} of {total}",
+    "noMaps3d": "No 3D maps have been published yet. An administrator prepares them."
   },
   "system": {
     "label": "Game system",
@@ -2650,6 +2727,56 @@
       "rollOrLower": "Roll {attr} or lower",
       "dice": "{n, plural, one {# die} other {# dice}} d20",
       "cancel": "Cancel"
-    }
+    },
+    "useLuck": "Use Luck ({n})",
+    "useLuckHint": "Lucky Charm: if a die of this model fails (an Attack roll, a Dodge) or a Damage roll wounds it, one Luck counter rerolls one die. The counter is spent only when a reroll happens.",
+    "mageReroll": "Mage: reroll for 1 AP",
+    "mageRerollHint": "The Mage spends an unspent AP to reroll the failed dice of the Spell it casts. The AP is spent only when a die failed.",
+    "itemsLeft": "How many are left (thrown and used-up items are gone)",
+    "soldierBonus": "Soldier +{n} to OFF, DEF, ACC, INT and M (other Soldiers within Awareness)",
+    "discarded": "discarded",
+    "firstAidNobody": "First Aid: no model within Awareness has a State to remove.",
+    "firstAidOn": "First Aid: {name}",
+    "surgeUse": "Use Surge Order",
+    "surgeHint": "Discard the card: up to 3 Helian League models Walk, Climb or Jump now (drag them). No Reactions.",
+    "luckCounters": "Luck counters: {n}",
+    "gameBegins": "The game begins",
+    "initiativeCheck": "Initiative Check",
+    "initiativeHint": "Both players are ready. Each rolls a d20 and adds the Morale of their Leader.",
+    "initiativeRoll": "Initiative: 1d20 + M {m}",
+    "strategicOf": "Strategic Phase – {name}",
+    "turnOf": "Turn: {name}",
+    "roundN": "Round {n}",
+    "wonInitiative": "{name} wins the Initiative and begins",
+    "endTurnConfirm": "Your models still have unused Activations (AP: {n}). End the turn anyway?",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "maps3d": {
+    "title": "3D maps",
+    "intro": "The map creator for 3D tables (administrators only). A map is a ground and terrain elements of the game laid out on a plan from above – that plan is also its 2D version. Players see the published maps when they create a table, in 3D and in 2D.",
+    "maps": "Maps",
+    "newMap": "New map",
+    "draft": "draft",
+    "startFrom": "Start from a map of the game:",
+    "planLabel": "The map from above",
+    "planHelp": "Click an element to pick it, and drag it. The wheel turns it (15° a notch), Shift + wheel changes its size. Outlines: orange – blocks, green – can be walked onto, white – an area (water, forest). The bands along the edges are the Deployment Zones.",
+    "showPreview": "3D preview",
+    "hidePreview": "Hide the 3D preview",
+    "name": "Name",
+    "ground": "Ground",
+    "counts": "Elements: {items} / {maxItems} · with a 3D model: {models} / {maxModels}",
+    "published": "Published",
+    "publishedHelp": "Players can pick it when they create a table. A draft is seen by administrators only (who can play on it).",
+    "save": "Save",
+    "delete": "Delete the map",
+    "saved": "The map is saved.",
+    "confirmDelete": "Delete the map “{name}”? Tables already created on it stay as they are.",
+    "size": "Size: {n}″",
+    "turn": "Turn: {n}°",
+    "removeElement": "Remove the element",
+    "elements": "Add an element",
+    "plain": "plain",
+    "noWebgl": "This browser or device does not support 3D graphics (WebGL)."
   }
 }

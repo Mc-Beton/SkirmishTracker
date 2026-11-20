@@ -98,13 +98,16 @@ public class TableService {
     private final GameEngine game;
     /** New games with a map and lists play by the game engine (GAME) or by the first, Java engine (LEGACY). */
     private final boolean gameEngine;
+    private final GameMapStore gameMaps;
 
     public TableService(GameTableRepository tables, TableEventStore events, TableLibraryService library,
                         ArmyListRepository lists, WarbandService warbands, UserRepository users, LiveEventService live,
                         ObjectMapper json, ContentService content, FriendlyGameService friendly,
                         TableWatcherRepository watchers, NotificationService notifications, GameEngine game,
+                        GameMapStore gameMaps,
                         @org.springframework.beans.factory.annotation.Value("${app.table-engine:GAME}") String tableEngine) {
         this.game = game;
+        this.gameMaps = gameMaps;
         this.gameEngine = !"LEGACY".equalsIgnoreCase(tableEngine);
         this.notifications = notifications;
         this.watchers = watchers;
@@ -133,6 +136,44 @@ public class TableService {
     @Transactional
     public Created create(CurrentUser actor, UUID mapId, UUID listId, String questCode, GameTable.MeasureMode measureMode,
                           boolean judge, boolean observers, UUID opponentId) {
+        return create(actor, mapId, listId, questCode, measureMode, judge, observers, opponentId, null, null);
+    }
+
+    /**
+     * As above. With {@code gameMap} the table plays on a map of the game – a built-in one by its id, or one made by
+     * an admin by its UUID (the rules service knows the grounds and elements and builds the field). Such a map is a
+     * pair: {@code viewMode} "3D" (the default) lets every player look at it in 3D or 2D, "2D" is its 2D version
+     * only. Without {@code gameMap}, {@code mapId} names a WarBracket library map and the table is 2D.
+     */
+    @Transactional
+    public Created create(CurrentUser actor, UUID mapId, UUID listId, String questCode, GameTable.MeasureMode measureMode,
+                          boolean judge, boolean observers, UUID opponentId, String gameMap, String viewMode) {
+        boolean onGameMap = gameMap != null && !gameMap.isBlank();
+        boolean threeD = onGameMap && !"2D".equals(viewMode);
+        if (onGameMap && !gameEngine) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_3D_UNAVAILABLE");
+        }
+        if (onGameMap && !gameMap.matches("[a-z0-9-]{1,40}")) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_MAP");
+        }
+        if (!onGameMap && mapId == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_MAP_REQUIRED");
+        }
+        com.fasterxml.jackson.databind.node.ObjectNode customMap = null;
+        if (onGameMap && gameMap.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
+            // a map from the admin's creator; drafts can be played by admins only (to try them out)
+            GameMapStore.Row row = gameMaps.find(UUID.fromString(gameMap))
+                    .filter(r -> r.published() || actor.admin())
+                    .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_MAP"));
+            customMap = json.createObjectNode();
+            customMap.put("name", row.name());
+            customMap.put("base", row.base());
+            try {
+                customMap.set("items", json.readTree(row.items()));
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new IllegalStateException("corrupt game map " + row.id(), e);
+            }
+        }
         String quest = questCode == null || questCode.isBlank() ? null : questCode;
         if (quest != null && content.quest(quest).isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "TABLE_UNKNOWN_QUEST");
@@ -144,16 +185,25 @@ public class TableService {
         if (tables.countOpen(actor.id()) >= MAX_OPEN_TABLES) {
             throw new ApiException(HttpStatus.CONFLICT, "TABLE_TOO_MANY_OPEN");
         }
-        TableMap map = library.visibleMap(actor, mapId);
-        TableLibraryService.MapView mv = library.view(actor, map);
-        Map<String, TableLibraryService.TerrainView> assets = new LinkedHashMap<>();
-        mv.terrain().forEach(t -> assets.put(t.id().toString(), t));
-        MapSnapshot snap = new MapSnapshot(mv.name(), mv.background().widthIn(), mv.background().heightIn(),
-                mv.deploymentDepth(), mv.background(), mv.placements(), assets);
+        MapSnapshot snap;
+        if (onGameMap) {
+            // the field of such a table is in its events (the rules service builds it from the map of the game)
+            snap = new MapSnapshot(gameMap, 36, 36, 8, null, List.of(), Map.of());
+        } else {
+            TableMap map = library.visibleMap(actor, mapId);
+            TableLibraryService.MapView mv = library.view(actor, map);
+            Map<String, TableLibraryService.TerrainView> assets = new LinkedHashMap<>();
+            mv.terrain().forEach(t -> assets.put(t.id().toString(), t));
+            snap = new MapSnapshot(mv.name(), mv.background().widthIn(), mv.background().heightIn(),
+                    mv.deploymentDepth(), mv.background(), mv.placements(), assets);
+        }
         ArmyList list = ownList(actor, listId);
         String invite = Tokens.newToken();
-        GameTable t = new GameTable(actor.id(), mv.name(), quest, write(snap), snap.widthIn(), snap.heightIn(),
+        GameTable t = new GameTable(actor.id(), snap.name(), quest, write(snap), snap.widthIn(), snap.heightIn(),
                 snap.deploymentDepth(), deployment, list.getUnits(), Tokens.sha256(invite), measureMode);
+        if (onGameMap) {
+            t.useGameMap(gameMap, threeD);
+        }
         String judgeInvite = judge ? Tokens.newToken() : null;
         if (judgeInvite != null) {
             t.newJudgeInvite(Tokens.sha256(judgeInvite));
@@ -169,7 +219,7 @@ public class TableService {
         if (gameEngine) {
             boolean corner = deployment == GameState.Deployment.CORNER;
             game.start(t, actor.id(), player(actor.id(), 0).name(), party(list), terrain(snap), corner,
-                    corner ? GameState.CORNER_RADIUS : snap.deploymentDepth());
+                    corner ? GameState.CORNER_RADIUS : snap.deploymentDepth(), onGameMap ? gameMap : null, customMap);
         } else {
             appendSystem(t, models(0, list));
         }

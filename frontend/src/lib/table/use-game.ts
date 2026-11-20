@@ -5,10 +5,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "@/lib/api";
-import { apply, emptyState } from "@/lib/eld/engine.ts";
-import type { Command, GameEvent, TableState } from "@/lib/eld/types.ts";
+import { apply as applyEvent, emptyState, ownerNames } from "@/lib/eld/engine.ts";
+import type { Command, GameEvent, Model, TableState } from "@/lib/eld/types.ts";
 import { fetchGame, sendGameCommand, type GameMeta, type GameView, type Hands } from "./game-api";
 import { useTableLive } from "./live";
+
+/**
+ * Applies an event as the server sent it to this viewer. A Shrouded model of the other player arrives as a plain
+ * token; the event that reveals it carries the model as it then is (`unmask`), which takes the token's place.
+ */
+function apply(state: TableState, ev: GameEvent): void {
+  applyEvent(state, ev);
+  const shown = (ev as GameEvent & { unmask?: Model[] }).unmask;
+  if (!shown) return;
+  for (const m of shown) {
+    const i = state.models.findIndex((x) => x.id === m.id);
+    if (i >= 0) state.models[i] = structuredClone(m);
+  }
+  ownerNames(state);
+}
 
 type Core = { state: TableState; queue: GameEvent[]; queued: number; draining: boolean; polling: boolean; again: boolean };
 

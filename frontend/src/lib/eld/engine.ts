@@ -1,5 +1,6 @@
 import { baseHeight, checkPath, checkPlacement, dist, distToSegment, facingTo, heightProfile, inDeployZone, ladderAt, moveCost, ngon, normDeg, onShelf, pointInPolygon, round2, SHELF, shelfPlacement, shelfSpot, surfaceAt } from './geometry.ts';
-import { areaOf, areaVictims, attackOptions, CONTACT, fallRolls, walkToward, gap, moraleOf, immuneTo, isTargetless, NO_MODS, planAttack, pointTarget, resolveAction, soldierBonus, weaponAt, woundOnce } from './combat.ts';
+import { areaOf, areaVictims, attackOptions, CONTACT, fallRolls, walkToward, gap, HAZE, intOf, manaBill, manaPool, moraleOf, immuneTo, isTargetless, NO_MODS, planAttack, pointTarget, quantityOf, resolveAction, soldierBonus, spellReach, weaponAt, woundOnce } from './combat.ts';
+import { GUARD, hasUpgrade, RETINUE, upgradeChoices } from './upgrades.ts';
 import { spellsOf, type Spell } from './spells.ts';
 import { engagers, sight } from './los.ts';
 import { DEFAULT_POINTS, deploySpot } from './content.ts';
@@ -11,7 +12,7 @@ import { awareness, hasBoon, hasClass, hasEnchant, hasSkill, hasTrait, modelStat
 import { stratagemFor, type Boon, type Stratagem } from './stratagems.ts';
 import { mountById } from './mounts.ts';
 import { PROFILES } from './profiles.ts';
-import type { Activation, Command, DiceResult, EventBody, GameEvent, Intent, LogLine, Marker, Model, Mods, MoveMode, Pt, Side, StateName, TableState, Until , TerrainPiece } from './types.ts';
+import type { Activation, Command, DiceResult, EventBody, GameEvent, Intent, KitUse, LogLine, PendingRoll, Marker, Model, Mods, MoveMode, Pt, Side, StateName, TableState, Until , TerrainPiece } from './types.ts';
 import { MAX_ROUNDS, STATES } from './types.ts';
 
 export const LIMITS = {
@@ -182,7 +183,9 @@ export function checkMove(state: TableState, actor: Actor, model: Model, to: Pt,
 
   if (isOut(model)) return no('CANNOT_MOVE', `${model.name} is out of action`);
   if (model.states.includes('Immobilized')) return no('CANNOT_MOVE', `${model.name} is Immobilized`);
-  const a = state.activation;
+  // Outside an Activation: a Ranger's Movement in the End Phase, or one made on Surge Order.
+  const bonus = state.activation ? null : bonusMove(state, model);
+  const a: Activation | null = state.activation ?? (bonus ? { id: model.id, moved: state.bonus?.[model.id] ?? 0, reactions: {}, action: null, dodged: 0, specialUsed: state.bonus?.[model.id] ?? 0 } : null);
   const reaction = a !== null && a.id !== model.id ? a.reactions[model.id] : undefined;
   // Follow-Up: an enemy disengaged from this model, it may go after it for half its SPD.
   const follow = a?.follow?.[model.id];
@@ -217,6 +220,7 @@ export function checkMove(state: TableState, actor: Actor, model: Model, to: Pt,
     if (reacting || retreat || a.id !== model.id || a.action !== null) return no('NOT_NOW', `${how === 'climb' ? 'Climb' : 'Jump'} is declared in the Movement Step of the activated model`);
     if (flying) return no('NOT_NOW', `${model.name} is Flying: it moves over scenery anyway`);
     const skilled = how === 'climb' ? hasSkill(model, 'Climbing') : hasSkill(model, 'Leap');
+    if (bonus === 'ranger' && !skilled) return no('NOT_NOW', 'In the End Phase a Ranger makes a Normal Movement');
     if (!skilled && a.special !== how && a.moved > 0.005) return no('SPECIAL_FIRST', `${how === 'climb' ? 'Climb' : 'Jump'} is a Movement of its own – declare it before the model walks`);
     if (a.special && a.special !== how) return no('SPECIAL_FIRST', `${model.name} has declared ${a.special === 'climb' ? 'Climb' : 'Jump'} this Activation`);
     const limit = skilled ? spd : Math.ceil(spd / 2);
@@ -271,10 +275,12 @@ export function checkMove(state: TableState, actor: Actor, model: Model, to: Pt,
     const blocked = checkPath(state, model, to, hasTrait(model, 'Trample'));
     if (blocked) return no(blocked, PROBLEM_TEXT[blocked]);
   }
+  const leash = guardLeash(state, model, to);
+  if (leash) return no('LEASH', leash);
   const cost = round2(moveCost(state, model, to) + ladder);
   const spent = reaction ? reaction.moved : retreat ? (a.retreated ?? 0) : a.action === 'dodge' ? a.dodged : a.moved;
   // Crouched or Engaged models may only Walk. Hit and Retreat cancels Engaged in the Movement Step.
-  const walkOnly = model.states.includes('Crouched') || (model.states.includes('Engaged') && !hasSkill(model, 'Hit and Retreat'));
+  const walkOnly = bonus !== null || model.states.includes('Crouched') || (model.states.includes('Engaged') && !hasSkill(model, 'Hit and Retreat'));
   const limit = reacting ? Math.ceil(spd / 2) : walkOnly || retreat ? spd : spd * 2;
   if (spent + cost > limit + 0.005) {
     const left = Math.max(0, round2(limit - spent));
@@ -282,6 +288,27 @@ export function checkMove(state: TableState, actor: Actor, model: Model, to: Pt,
   }
   const mode: MoveMode = reacting ? 'react' : retreat ? 'retreat' : spent + cost > spd + 0.005 ? 'run' : 'walk';
   return { ok: true, mode, cost, spent, walk: spd, limit, z: flying ? (model.z ?? 0) : zTo };
+}
+
+/**
+ * A Movement outside an Activation: a Ranger's Normal Movement in the End Phase of its Active turn (once the last
+ * Activation is ended), or one of up to 3 Helian League models on Surge Order in the Strategic Phase.
+ */
+export function bonusMove(state: TableState, model: Model): 'ranger' | 'surge' | null {
+  if (state.phase !== 'playing' || state.activation || state.pendingTurn || model.side !== state.active || isOut(model)) return null;
+  if (!state.acted) {
+    const s = state.surge;
+    return s && s.side === model.side && profileOf(model).faction === 'Helian League' && (s.ids.includes(model.id) || s.ids.length < 3) ? 'surge' : null;
+  }
+  return hasClass(model, 'Ranger') ? 'ranger' : null;
+}
+
+/** Personal Guard: the creature may not fully leave its summoner's Awareness. */
+function guardLeash(state: TableState, model: Model, to: Pt): string | null {
+  if (!model.summonedBy || !(model.upgrades ?? []).includes(GUARD)) return null;
+  const lord = state.models.find((m) => m.id === model.summonedBy);
+  if (!lord || isOut(lord)) return null;
+  return gap({ ...model, x: to.x, y: to.y }, lord) > awareness(modelStats(lord)) + CONTACT ? `Personal Guard: ${model.name} may not fully leave ${lord.name}'s Awareness` : null;
 }
 
 /** Enemy models block the way (allies let a model pass); models at another height do not. */
@@ -343,7 +370,12 @@ function resolveEvents(state: TableState, ctx: DecideContext, action: 'attack' |
     if (before && before.id !== active.id && before.side !== active.side && r.states.some((st) => !before.states.includes(st))) struck.add(r.id);
   }
   const fx = item && target ? { fx: { from: active.id, name: item.name, at: { x: target.x, y: target.y }, hit: [...struck] } } : {};
-  const out: EventBody[] = [{ type: 'ACTION_RESOLVED', action, lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(res.mana.length ? { mana: res.mana } : {}), ...(flank ? { flank } : {}), ...fx }];
+  const out: EventBody[] = [{ type: 'ACTION_RESOLVED', action, lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(res.mana.length ? { mana: res.mana } : {}), ...kitOf(res), ...(flank ? { flank } : {}), ...fx }];
+  // Haze Bomb: where its template lands the area is a Hazy Environment until the user's next Strategic Phase.
+  if (item?.name === 'Haze Bomb' && res.placed && target) {
+    const tpl = areaOf(item);
+    out.push({ type: 'TERRAIN_ADDED', piece: { id: `h${state.round}${state.active}-${active.id}-${state.terrain.length}-${state.log.length}`, kind: 'area', env: 'magic', name: HAZE, shape: ngon(target.x, target.y, tpl && tpl.shape === 'circle' ? tpl.r : ZONE_RADIUS, 24), height: 0, caster: active.id, until: active.side === 0 ? 'blue' : 'red' } });
+  }
   // Awaiting Reinforcements: attacking in round 1 breaks the ceasefire.
   if (state.quest === 'awaiting-reinforcements' && state.round === 1) {
     if (action === 'attack') out.push({ type: 'QUEST_SCORED', team: active.side, delta: -4, text: 'Ceasefire broken in round 1' });
@@ -401,7 +433,11 @@ function spotsAround(state: TableState, centre: Model, size: Profile['size'], n:
 }
 
 function summoned(state: TableState, caster: Model, profile: Profile, at: Pt, ap: number): EventBody {
-  const m = newModel(state, caster.side, profile, round2(at.x), round2(at.y), false);
+  // Conjured Retinue: its Tier I and II creatures are Soldiers. Personal Guard: one of its creatures at a time is a Sentinel.
+  const ups: string[] = [];
+  if (profile.tier <= 2 && hasUpgrade(caster, 'san-conjured-retinue')) ups.push(RETINUE);
+  if (hasUpgrade(caster, 'san-personal-guard') && !state.models.some((o) => o.summonedBy === caster.id && !o.states.includes('Dead') && (o.upgrades ?? []).includes(GUARD))) ups.push(GUARD);
+  const m = newModel(state, caster.side, profile, round2(at.x), round2(at.y), false, ups);
   return { type: 'MODEL_ADDED', model: { ...m, ap, summonedBy: caster.id, facing: caster.facing } };
 }
 
@@ -411,7 +447,7 @@ function ritualEvents(state: TableState, ctx: DecideContext, caster: Model, cmd:
   if (a.moved > modelStats(caster).spd + 0.005) fail('RAN', `${caster.name} ran – it can only declare Nothing`);
   const spell = spellsOf(profileOf(caster)).find((x) => x.name === cmd.spell && x.kind === 'Conjuration') ?? fail('BAD_VALUE', `${caster.name} knows no such Conjuration Spell`);
   const cost = conjureCost(caster, spell);
-  if (cost > (caster.mana ?? 0)) fail('NO_MANA', `${spell.name} costs ${cost} Mana – ${caster.name} has ${caster.mana ?? 0}`);
+  if (cost > manaPool(state, caster)) fail('NO_MANA', `${spell.name} costs ${cost} Mana – ${caster.name} has ${manaPool(state, caster)}`);
   const sta = modelStats(caster).sta;
   const load = summonLoad(state, caster);
   if (load >= sta) fail('LIMIT', `${caster.name}'s Summoning Limit is full (${load} of STA ${sta})`);
@@ -445,8 +481,8 @@ function ritualEvents(state: TableState, ctx: DecideContext, caster: Model, cmd:
   }
   const world = after(state, out);
   const res = resolveAction(world, world.models.find((x) => x.id === caster.id) ?? caster, 'nothing', 0, null, NO_MODS, a.reactions, ctx.d20, a.moved, { seen: a.seen ? new Set(a.seen) : undefined });
-  const mana = [...(cost ? [{ id: caster.id, spent: cost }] : []), ...res.mana];
-  return [{ type: 'EFFECT', lines, results: [] }, ...out, { type: 'ACTION_RESOLVED', action: 'ritual', lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(mana.length ? { mana } : {}) }];
+  const mana = [...manaBill(state, caster, cost), ...res.mana];
+  return [{ type: 'EFFECT', lines, results: [] }, ...out, { type: 'ACTION_RESOLVED', action: 'ritual', lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(mana.length ? { mana } : {}), ...kitOf(res) }];
 }
 
 /** Summoner: during deployment it may bring one Tier II or lower creature into its Awareness, free. */
@@ -478,7 +514,7 @@ function summonCleanup(state: TableState): EventBody[] {
 
 // ---- Mounts ----
 
-const strategicWindow = (state: TableState, side: Side): boolean => state.phase === 'playing' && state.active === side && !state.activation && !state.acted;
+const strategicWindow = (state: TableState, side: Side): boolean => state.phase === 'playing' && state.active === side && !state.activation && !state.acted && !state.pendingTurn;
 
 function mountProblem(state: TableState, m: Model): void {
   const def = mountById(m.mount?.id) ?? fail('NO_MOUNT', `${m.name} has no Mount`);
@@ -496,7 +532,7 @@ function mountAction(state: TableState, ctx: DecideContext, m: Model): EventBody
   const up: EventBody[] = [{ type: 'MOUNTED', id: m.id, how: 'Assist' }];
   const world = after(state, up);
   const res = resolveAction(world, world.models.find((x) => x.id === m.id) ?? m, 'nothing', 0, null, NO_MODS, a.reactions, ctx.d20, a.moved, { seen: a.seen ? new Set(a.seen) : undefined });
-  return [...up, { type: 'ACTION_RESOLVED', action: 'mount', lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(res.mana.length ? { mana: res.mana } : {}) }];
+  return [...up, { type: 'ACTION_RESOLVED', action: 'mount', lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(res.mana.length ? { mana: res.mana } : {}), ...kitOf(res) }];
 }
 
 /** A mounted Rider hit by Knockdown, or taken out, comes off its Mount. */
@@ -544,6 +580,11 @@ export function stratagemFits(state: TableState, leader: Model, st: Stratagem, m
 }
 
 const CANCELLABLE: StateName[] = ['Panicked', 'Bleeding', 'Poisoned', 'Weakened', 'Crippled', 'Confused', 'Blinded', 'Immobilized', 'Slowed', 'Fatigued'];
+
+/** The models whose States the First Aid of `m` could remove right now: Alive, of its party, within its Awareness. */
+export function firstAidTargets(state: TableState, m: Model): Model[] {
+  return state.models.filter((t) => t.side === m.side && !isOut(t) && (t.id === m.id || gap(m, t) <= awareness(modelStats(m)) + CONTACT) && t.states.some((x) => CANCELLABLE.includes(x)));
+}
 
 function stratagemEvents(state: TableState, ctx: DecideContext, cmd: Extract<Command, { type: 'STRATAGEM' }>): EventBody[] {
   const side: Side = ctx.solo ? (cmd.side !== undefined ? side01(cmd.side) : state.active) : ctx.side;
@@ -632,7 +673,7 @@ function stratagemEvents(state: TableState, ctx: DecideContext, cmd: Extract<Com
       lines.push({ text: `${m.name}: ${name}, 1d20 vs halved M ${target} – ${spared ? 'holds firm' : 'loses 1 AP every turn'}`, dice: r });
     }
     if (st.confuse !== undefined) {
-      const target = Math.max(0, modelStats(m).int + st.confuse);
+      const target = Math.max(0, intOf(state, m) + st.confuse);
       const r = rollDice(1, target, `${name}, INT ${st.confuse}`, ctx.d20);
       lines.push({ text: `${m.name}: ${name}, 1d20 vs INT ${st.confuse} = ${target} – ${r.successes ? 'resists' : 'Confused'}`, dice: r });
       if (!r.successes && !states.includes('Confused') && !immuneTo(m, 'Confused')) {
@@ -702,19 +743,19 @@ export function castProblem(state: TableState, caster: Model, spell: Spell, targ
   if (spell.kind === 'Enchantment' && target.side !== caster.side && hasEnchant(target, 'Anointment')) return `${target.name} is Anointed: enemy Enchantments cannot target it`;
   const d = gap(caster, target) - CONTACT;
   const aura = c.rch === 'Casting Aura';
-  const reach = aura ? modelStats(caster).ag : Number(c.rch);
+  const reach = aura ? modelStats(caster).ag : Number(c.rch) + (Number(c.rch) > 0 ? spellReach(caster) : 0);
   if (d > reach) return reach === 0 ? `${caster.name} must be in Base Contact with ${target.name}` : `${target.name} is out of Reach (${gap(caster, target).toFixed(1)}", Reach ${reach}")`;
   if (!aura && !sight(state, caster, target).los) return `No line of sight to ${target.name}`;
   return '';
 }
 
-function castEvents(state: TableState, ctx: DecideContext, caster: Model, name: unknown, ids: unknown): EventBody[] {
+function castEvents(state: TableState, ctx: DecideContext, caster: Model, name: unknown, ids: unknown, opts: Mods): EventBody[] {
   const a = state.activation!;
   if (a.moved > modelStats(caster).spd + 0.005) fail('RAN', `${caster.name} ran – it can only declare Nothing`);
   const spell = spellsOf(profileOf(caster)).find((x) => x.name === name && x.cast) ?? fail('BAD_VALUE', `${caster.name} cannot cast that Spell on a model`);
   const c = spell.cast!;
   const cost = spell.mana ?? 0;
-  if (cost > (caster.mana ?? 0)) fail('NO_MANA', `${spell.name} costs ${cost} Mana – ${caster.name} has ${caster.mana ?? 0}`);
+  if (cost > manaPool(state, caster)) fail('NO_MANA', `${spell.name} costs ${cost} Mana – ${caster.name} has ${manaPool(state, caster)}`);
   const list = Array.isArray(ids) ? [...new Set(ids.filter((x): x is string => typeof x === 'string'))] : [];
   if (list.length === 0) fail('BAD_VALUE', 'Choose a model to cast the Spell on');
   const max = castTargets(caster, spell);
@@ -730,6 +771,10 @@ function castEvents(state: TableState, ctx: DecideContext, caster: Model, name: 
   const charms: EventBody[] = [];
   const fx = c.fx ?? {};
   let reroll = hasClass(caster, 'Wizard') && spell.element === 'Elder';
+  // Sorcerer: one failed roll of a Sorcery (cast in the Active Role). Mage: an unspent Activation Point for the failed dice.
+  let sorcerer = hasClass(caster, 'Sorcerer') && spell.kind === 'Sorcery';
+  const mage = opts.mage === true && hasClass(caster, 'Mage') && caster.ap >= 1;
+  let magePaid = false;
   for (const t of targets) {
     const ally = t.side === caster.side;
     const free = ally && ((spell.kind === 'Enchantment' && hasClass(caster, 'Enchanter')) || (spell.kind === 'Healing' && hasClass(caster, 'Vitalist') && !t.states.includes('Incapacitated')));
@@ -746,6 +791,14 @@ function castEvents(state: TableState, ctx: DecideContext, caster: Model, name: 
         reroll = false;
         roll = rollDice(1, attr, `${spell.name}, reroll`, ctx.d20);
         lines.push({ text: `Wizard: rerolled – ${roll.successes ? 'success' : 'failed'}`, dice: roll });
+      } else if (!roll.successes && sorcerer) {
+        sorcerer = false;
+        roll = rollDice(1, attr, `${spell.name}, reroll`, ctx.d20);
+        lines.push({ text: `Sorcerer: rerolled – ${roll.successes ? 'success' : 'failed'}`, dice: roll });
+      } else if (!roll.successes && mage) {
+        roll = rollDice(1, attr, `${spell.name}, reroll`, ctx.d20);
+        lines.push({ text: `Mage${magePaid ? '' : ' (1 AP spent)'}: rerolled – ${roll.successes ? 'success' : 'failed'}`, dice: roll });
+        magePaid = true;
       }
       if (!roll.successes) continue;
     }
@@ -801,11 +854,11 @@ function castEvents(state: TableState, ctx: DecideContext, caster: Model, name: 
     if (hp !== t.hp || ap !== t.ap || states.length !== t.states.length) results.push({ id: t.id, hp, states, ap, temp });
   }
   // The Spell takes effect, then the Reactions against the caster are resolved as with any other Action.
-  const cast: EventBody[] = [{ type: 'EFFECT', lines, results }, ...charms];
+  const cast: EventBody[] = [...(magePaid ? [{ type: 'MODEL_AP', id: caster.id, ap: caster.ap - 1 } as EventBody] : []), { type: 'EFFECT', lines, results }, ...charms];
   const world = after(state, cast);
   const res = resolveAction(world, world.models.find((x) => x.id === caster.id) ?? caster, 'nothing', 0, null, NO_MODS, a.reactions, ctx.d20, a.moved, { seen: a.seen ? new Set(a.seen) : undefined });
-  const mana = [...(cost ? [{ id: caster.id, spent: cost }] : []), ...res.mana];
-  return [...cast, { type: 'ACTION_RESOLVED', action: 'cast', lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(mana.length ? { mana } : {}) }];
+  const mana = [...manaBill(state, caster, cost), ...res.mana];
+  return [...cast, { type: 'ACTION_RESOLVED', action: 'cast', lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(mana.length ? { mana } : {}), ...kitOf(res) }];
 }
 
 // ---- Transmutation: Spells that change the ground ----
@@ -824,18 +877,19 @@ export const ZONES: Record<string, { reach: number; water: boolean; rain?: boole
 /** Models Primordial Word wounds and pushes out: Summoned, Undead, and those with the Profane or Divine Element. */
 const banished = (m: Model): boolean => isSummoned(m) || hasTrait(m, 'Undead') || profileOf(m).traits.some((t) => /^Affinity \([^)]*(Profane|Divine)/.test(t));
 
-function zoneEvents(state: TableState, ctx: DecideContext, caster: Model, name: string, at: unknown): EventBody[] {
+function zoneEvents(state: TableState, ctx: DecideContext, caster: Model, name: string, at: unknown, opts: Mods): EventBody[] {
   const a = state.activation!;
   const z = ZONES[name]!;
   if (a.moved > modelStats(caster).spd + 0.005) fail('RAN', `${caster.name} ran – it can only declare Nothing`);
   const spell = spellsOf(profileOf(caster)).find((x) => x.name === name) ?? fail('BAD_VALUE', `${caster.name} cannot cast that Spell`);
   const cost = spell.mana ?? 0;
-  if (cost > (caster.mana ?? 0)) fail('NO_MANA', `${spell.name} costs ${cost} Mana – ${caster.name} has ${caster.mana ?? 0}`);
+  if (cost > manaPool(state, caster)) fail('NO_MANA', `${spell.name} costs ${cost} Mana – ${caster.name} has ${manaPool(state, caster)}`);
   let centre: Pt = { x: caster.x, y: caster.y };
   if (z.reach > 0) {
     if (!isPt(at)) return fail('BAD_VALUE', 'Choose the spot the Spell is cast on');
     centre = { x: round2(Number(at.x)), y: round2(Number(at.y)) };
-    if (dist(caster, centre) - baseRadius(caster.size) > z.reach + 0.005) fail('NO_ATTACK', `That spot is out of range (${z.reach}")`);
+    const reach = z.reach + spellReach(caster);
+    if (dist(caster, centre) - baseRadius(caster.size) > reach + 0.005) fail('NO_ATTACK', `That spot is out of range (${reach}")`);
     const ghost: Model = { ...caster, id: '-spot-', side: other(caster.side), x: centre.x, y: centre.y, size: 'small', states: [] };
     delete ghost.z;
     if (!sight(state, caster, ghost).los) fail('NO_ATTACK', `${caster.name} has no line of sight to that spot`);
@@ -847,6 +901,13 @@ function zoneEvents(state: TableState, ctx: DecideContext, caster: Model, name: 
   if (!roll.successes && hasClass(caster, 'Alchemist')) {
     roll = rollDice(1, base.attr, `${spell.name}, reroll`, ctx.d20);
     lines.push({ text: `Alchemist: rerolled – ${roll.successes ? 'success' : 'failed'}`, dice: roll });
+  }
+  // Mage: an unspent Activation Point for the failed roll.
+  let magePaid = false;
+  if (!roll.successes && opts.mage === true && hasClass(caster, 'Mage') && caster.ap >= 1) {
+    magePaid = true;
+    roll = rollDice(1, base.attr, `${spell.name}, reroll`, ctx.d20);
+    lines.push({ text: `Mage (1 AP spent): rerolled – ${roll.successes ? 'success' : 'failed'}`, dice: roll });
   }
   const made: EventBody[] = [];
   const results: EffectResult[] = [];
@@ -897,11 +958,11 @@ function zoneEvents(state: TableState, ctx: DecideContext, caster: Model, name: 
       }
     }
   }
-  const cast: EventBody[] = [{ type: 'EFFECT', lines, results }, ...made];
+  const cast: EventBody[] = [...(magePaid ? [{ type: 'MODEL_AP', id: caster.id, ap: caster.ap - 1 } as EventBody] : []), { type: 'EFFECT', lines, results }, ...made];
   const world = after(state, cast);
   const res = resolveAction(world, world.models.find((x) => x.id === caster.id) ?? caster, 'nothing', 0, null, NO_MODS, a.reactions, ctx.d20, a.moved, { seen: a.seen ? new Set(a.seen) : undefined });
-  const mana = [...(cost ? [{ id: caster.id, spent: cost }] : []), ...res.mana];
-  return [...cast, { type: 'ACTION_RESOLVED', action: 'cast', lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(mana.length ? { mana } : {}) }];
+  const mana = [...manaBill(state, caster, cost), ...res.mana];
+  return [...cast, { type: 'ACTION_RESOLVED', action: 'cast', lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(mana.length ? { mana } : {}), ...kitOf(res) }];
 }
 
 // ---- tokens (Treasure Hunt) ----
@@ -1288,7 +1349,7 @@ const isPt = (v: unknown): v is Pt => typeof v === 'object' && v !== null && Num
 function mods(v: unknown): Mods {
   const o = (typeof v === 'object' && v !== null ? v : {}) as Record<string, unknown>;
   const one = (x: unknown, what: string) => (x === undefined || x === null ? 0 : int(x, -20, 20, what));
-  return { hit: one(o.hit, 'Modifier'), stk: one(o.stk, 'Strike modifier'), pw: one(o.pw, 'Power modifier'), art: text(o.art, 40), ...(o.snipe === true ? { snipe: true } : {}), ...(isPt(o.push) ? { push: { x: Number(o.push.x), y: Number(o.push.y) } } : {}) };
+  return { hit: one(o.hit, 'Modifier'), stk: one(o.stk, 'Strike modifier'), pw: one(o.pw, 'Power modifier'), art: text(o.art, 40), ...(o.snipe === true ? { snipe: true } : {}), ...(o.luck === true ? { luck: true } : {}), ...(o.mage === true ? { mage: true } : {}), ...(isPt(o.push) ? { push: { x: Number(o.push.x), y: Number(o.push.y) } } : {}) };
 }
 
 /** The state as it will be once these events are applied (used to chain decisions inside one command). */
@@ -1338,7 +1399,7 @@ function closeActivation(state: TableState, ctx: DecideContext): EventBody[] {
   const active = state.models.find((m) => m.id === a.id);
   if (a.action === null && active && Object.values(a.reactions).some((r) => r.intent === 'attack')) {
     const res = resolveAction(state, active, 'nothing', 0, null, NO_MODS, a.reactions, ctx.d20, a.moved, { seen: a.seen ? new Set(a.seen) : undefined });
-    out.push({ type: 'ACTION_RESOLVED', action: 'nothing', lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(res.mana.length ? { mana: res.mana } : {}) });
+    out.push({ type: 'ACTION_RESOLVED', action: 'nothing', lines: res.lines, results: res.results, used: res.used, dealt: res.dealt, ...(res.mana.length ? { mana: res.mana } : {}), ...kitOf(res) });
   }
   // Charm II: the charmed models Walk their full SPD towards the charming model.
   for (const [id, r] of Object.entries(a.reactions)) {
@@ -1370,7 +1431,8 @@ function strategic(state: TableState, side: Side, d20: () => number): EventBody[
   if (state.stratCheck === side) {
     const leader = state.models.find((m) => m.side === side && m.leader && !isOut(m));
     if (leader) {
-      const st = modelStats(leader);
+      // The Soldier bonus counts for both.
+      const st = { m: modelStats(leader).m + soldierBonus(state, leader), int: intOf(state, leader) };
       const use = st.m > st.int ? 'M' : 'INT';
       const roll = rollDice(1, Math.max(st.m, st.int), 'Unconventional Tactics', d20);
       head.push({ type: 'STRATAGEM_CHECK', seat: side, ok: roll.successes === 1, text: `${leader.name} (Leader): Unconventional Tactics, 1d20 vs ${use} ${Math.max(st.m, st.int)} – ${roll.successes ? 'it may declare a Stratagem' : 'no Stratagem this turn'}`, dice: roll });
@@ -1390,6 +1452,9 @@ function strategic(state: TableState, side: Side, d20: () => number): EventBody[
   }
   const lines: { text: string; dice?: DiceResult }[] = [];
   const results: { id: string; hp: number; states: StateName[] }[] = [];
+  const kits: EventBody[] = [];
+  /** Models whose First Aid went on a Recovery Check in this phase. */
+  const aided: string[] = [];
   for (const m of state.models) {
     if (m.states.includes('Dead')) continue;
     let now = { hp: m.hp, states: [...m.states] };
@@ -1403,6 +1468,11 @@ function strategic(state: TableState, side: Side, d20: () => number): EventBody[
     if (m.side !== side) {
       if (over.length) results.push({ id: m.id, ...now });
       continue;
+    }
+    // A Defensive Stance lasts until the Warrior's next Strategic Phase (it may shift to it again right away).
+    if (now.states.includes('Defensive Stance')) {
+      now.states = now.states.filter((x) => x !== 'Defensive Stance');
+      lines.push({ text: `${m.name} leaves its Defensive Stance` });
     }
     const t = modelStats({ ...m, states: now.states }).t;
     const roll = (target: number, label: string): boolean => {
@@ -1425,7 +1495,15 @@ function strategic(state: TableState, side: Side, d20: () => number): EventBody[
     if (now.states.includes('Poisoned') && now.hp > 0 && !roll(t - 6, 'Poisoned, T −6')) now = woundOnce(now.hp, now.states, undead);
     // Recovery Check, rolled again once when an ally stands in Base Contact and neither model is Engaged.
     const helped = () => !m.states.includes('Engaged') && state.models.some((o) => o.side === m.side && o.id !== m.id && !isOut(o) && !o.states.includes('Engaged') && gap(o, m) <= CONTACT);
-    if (m.states.includes('Incapacitated') && now.hp === 0 && !now.states.includes('Dead') && (roll(t, 'Recovery Check, T') || (helped() && roll(t, 'Recovery Check again (ally in Base Contact), T')))) {
+    // First Aid of a model it is within the Awareness of (or its own): discarded, the Recovery Check succeeds.
+    const down = m.states.includes('Incapacitated') && now.hp === 0 && !now.states.includes('Dead');
+    const medic = down ? state.models.find((o) => o.side === m.side && hasUpgrade(o, 'neu-first-aid') && !aided.includes(o.id) && (o.id === m.id || (!isOut(o) && gap(o, m) <= awareness(modelStats(o)) + CONTACT))) : undefined;
+    if (medic) {
+      aided.push(medic.id);
+      lines.push({ text: `${medic.name} discards First Aid: ${m.name}'s Recovery Check succeeds` });
+      kits.push({ type: 'MODEL_KIT', id: medic.id, spent: [...(medic.spent ?? []), 'neu-first-aid'] });
+    }
+    if (down && (medic !== undefined || roll(t, 'Recovery Check, T') || (helped() && roll(t, 'Recovery Check again (ally in Base Contact), T')))) {
       now = { hp: 1, states: now.states.filter((x) => x !== 'Incapacitated') };
       if (!immuneTo(m, 'Weakened') && !now.states.includes('Weakened')) now.states.push('Weakened');
       lines.push({ text: `${m.name} recovers: 1 HP, Weakened` });
@@ -1435,10 +1513,61 @@ function strategic(state: TableState, side: Side, d20: () => number): EventBody[
     results.push({ id: m.id, ...now });
     if (now.hp < m.hp) lines.push({ text: `${m.name} suffers a Wound${now.states.includes('Dead') ? ' and is Dead' : now.states.includes('Incapacitated') ? ' and is Incapacitated' : ''} (HP ${now.hp}/${m.maxHp})` });
   }
-  return [...head, ...ended, ...(lines.length > 0 ? [{ type: 'STRATEGIC', lines, results } as EventBody] : [])];
+  for (const m of state.models) {
+    if (m.side !== side || isOut(m)) continue;
+    // Lucky Charm: a Luck counter in each of its Strategic Phases, up to 3.
+    if (hasUpgrade(m, 'sog-lucky-charm') && (m.luck ?? 0) < 3) kits.push(luckEvent(m));
+    // Alchemist: its Consumables are back.
+    if (hasClass(m, 'Alchemist') && m.items) {
+      const full: Record<string, number> = {};
+      for (const w of profileOf(m).weapons) if (/Consumable/.test(w.type) && m.items[w.name] !== undefined && m.items[w.name]! < quantityOf(w)) full[w.name] = quantityOf(w);
+      if (Object.keys(full).length) kits.push({ type: 'MODEL_KIT', id: m.id, items: full, text: `${m.name} (Alchemist) replenishes its Consumables: ${Object.keys(full).join(', ')}` });
+    }
+  }
+  return [...head, ...ended, ...(lines.length > 0 ? [{ type: 'STRATEGIC', lines, results } as EventBody] : []), ...kits];
 }
 
-function leaderMorale(state: TableState, side: Side): number {
+/**
+ * The dice the Strategic Phase of `side` will roll, for the window that waits for its player: Unconventional
+ * Tactics, Bleeding, Poisoned and Recovery Checks (not the ones First Aid settles).
+ */
+export function strategicRolls(state: TableState, side: Side): PendingRoll[] {
+  const out: PendingRoll[] = [];
+  const tag = side === 0 ? 'blue' : 'red';
+  if (state.stratCheck === side) {
+    const leader = state.models.find((m) => m.side === side && m.leader && !isOut(m));
+    if (leader) out.push({ id: leader.id, who: leader.name, what: 'Unconventional Tactics', target: Math.max(modelStats(leader).m + soldierBonus(state, leader), intOf(state, leader)) });
+  }
+  for (const m of state.models) {
+    if (m.side !== side || m.states.includes('Dead')) continue;
+    // States that end in this Strategic Phase are gone before anything is rolled.
+    const states = m.states.filter((x) => !(m.temp?.[x] === tag || m.temp?.[x] === 'strategic'));
+    const t = modelStats({ ...m, states }).t;
+    if (states.includes('Bleeding') && m.hp > 0) out.push({ id: m.id, who: m.name, what: 'Bleeding, T', target: Math.max(0, t) });
+    if (states.includes('Poisoned') && m.hp > 0) out.push({ id: m.id, who: m.name, what: 'Poisoned, T −6', target: Math.max(0, t - 6) });
+    const medic = state.models.some((o) => o.side === m.side && hasUpgrade(o, 'neu-first-aid') && (o.id === m.id || (!isOut(o) && gap(o, m) <= awareness(modelStats(o)) + CONTACT)));
+    if (states.includes('Incapacitated') && m.hp === 0 && !medic) out.push({ id: m.id, who: m.name, what: 'Recovery Check, T', target: Math.max(0, t) });
+  }
+  return out;
+}
+
+/** The Strategic Phase of `next` and the start of its turn, once the turn before it has ended (`state`: after that). */
+function beginTurn(state: TableState, next: Side, round: number, d20: () => number): EventBody[] {
+  const out: EventBody[] = [...strategic(state, next, d20)];
+  out.push(...consequences(state, out));
+  const then = after(state, out);
+  // The Quest ends when a player starts their turn with nobody left standing.
+  if (!then.models.some((m) => m.side === next && standing(m))) return [...out, ...finishEvents(then)];
+  return [...out, turnStart(then, round, next)];
+}
+
+/** Lucky Charm: one more Luck counter. */
+const luckEvent = (m: Model): EventBody => ({ type: 'MODEL_KIT', id: m.id, luck: (m.luck ?? 0) + 1, text: `${m.name}: Lucky Charm – ${(m.luck ?? 0) + 1} Luck counter${(m.luck ?? 0) + 1 === 1 ? '' : 's'}` });
+
+/** What an Action used up, for its event. */
+const kitOf = (res: { kit: KitUse[] }): { kit?: KitUse[] } => (res.kit.length ? { kit: res.kit } : {});
+
+export function leaderMorale(state: TableState, side: Side): number {
   const mine = state.models.filter((m) => m.side === side);
   const leader = mine.find((m) => m.leader);
   if (leader) return moraleOf(state, leader).m;
@@ -1493,7 +1622,7 @@ function consequences(state: TableState, bodies: EventBody[]): EventBody[] {
     then = after(then, lit);
   }
   // Primordial Word is removed when its caster leaves the area (or goes down).
-  const faded = then.terrain.filter((t) => t.env === 'magic' && t.caster && !then.models.some((m) => m.id === t.caster && !isOut(m) && pointInPolygon(m, t.shape))).map((t) => t.id);
+  const faded = then.terrain.filter((t) => t.env === 'magic' && t.name !== HAZE && t.caster && !then.models.some((m) => m.id === t.caster && !isOut(m) && pointInPolygon(m, t.shape))).map((t) => t.id);
   if (faded.length) {
     const gone: EventBody = { type: 'TERRAIN_REMOVED', ids: faded, why: 'its caster left the area' };
     held.push(gone);
@@ -1610,6 +1739,11 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
     if (made.length) return [...made, ...decideCore(after(state, made), cmd, ctx)];
   }
 
+  // Waiting for dice: the Initiative Check before the game, the next player's Strategic Phase between two turns.
+  const kind: string = cmd.type;
+  if (state.initiative && !['ROLL_INITIATIVE', 'CONCEDE', 'ROLL', 'ROTATE_MODEL'].includes(kind)) fail('ROLL_FIRST', 'Both players are ready: roll for the Initiative first');
+  if (state.pendingTurn && ['STRATAGEM', 'ENCHANT', 'SHROUD', 'MOUNT', 'DISMOUNT', 'CONVERT_MANA', 'USE_UPGRADE', 'REACT', 'ACTION', 'TAUNT'].includes(kind)) fail('ROLL_FIRST', `The turn has ended: ${SIDE_NAME[state.pendingTurn.side]} rolls the dice of its Strategic Phase`);
+
   switch (cmd.type) {
     case 'ADD_MODEL': {
       const side = side01(cmd.side);
@@ -1658,7 +1792,8 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
         // A normal move turns the model the way it travels; a free move (push, correction) leaves its facing alone.
         cmd.facing !== undefined ? normDeg(num(cmd.facing, -720, 720, 'facing')) : d > 0.05 && check.mode !== 'free' ? facingTo(m, to) : m.facing;
       const z = check.z ?? m.z ?? 0;
-      const moved: EventBody = { type: 'MODEL_MOVED', id: m.id, from: { x: m.x, y: m.y }, to, facing, dist: d, cost: check.cost, mode: check.mode, ...(z !== (m.z ?? 0) ? { z } : {}), ...(check.special ? { special: true } : {}) };
+      const bonus = check.mode !== 'free' && check.mode !== 'deploy' && !state.activation ? bonusMove(state, m) : null;
+      const moved: EventBody = { type: 'MODEL_MOVED', id: m.id, from: { x: m.x, y: m.y }, to, facing, dist: d, cost: check.cost, mode: check.mode, ...(z !== (m.z ?? 0) ? { z } : {}), ...(check.special ? { special: true } : {}), ...(bonus ? { bonus } : {}) };
       const out: EventBody[] = [moved];
       // A Jump that falls short: Fall Damage.
       if (check.fall && check.fall > 0) {
@@ -1696,6 +1831,16 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
         }
         if (lines.length) out.push({ type: 'EFFECT', lines, results });
       }
+      // Thrown items lying by a model they took down are picked up in Base Contact with it.
+      if (m.thrown?.length) {
+        const here: Model = { ...m, x: to.x, y: to.y, z };
+        const back = m.thrown.filter((t) => state.models.some((o) => o.id === t.at && gap(here, o) <= CONTACT));
+        if (back.length) {
+          const items = { ...m.items };
+          for (const t of back) items[t.name] = (items[t.name] ?? 0) + t.n;
+          out.push({ type: 'MODEL_KIT', id: m.id, items, thrown: m.thrown.filter((t) => !back.includes(t)), text: `${m.name} picks up ${back.map((t) => `${t.n} × ${t.name}`).join(', ')}` });
+        }
+      }
       const tokens = state.phase === 'playing' && check.mode !== 'free' && state.markers.some((k) => k.kind === 'intrigue' || k.kind === 'sigil');
       return tokens ? [...out, ...tokenContact(after(state, out), m.id, ctx.d20)] : out;
     }
@@ -1726,6 +1871,11 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
       if (!STATES.includes(cmd.state)) fail('BAD_VALUE', 'Unknown state');
       const on = cmd.on === true;
       if (m.states.includes(cmd.state) === on) return [];
+      // A Warrior shifts to a Defensive Stance in its own Strategic Phase (it ends by itself in the next one).
+      if (cmd.state === 'Defensive Stance' && on) {
+        if (!hasClass(m, 'Warrior')) fail('CANNOT_ACT', `${m.name} is not a Warrior`);
+        if (!strategicWindow(state, m.side)) fail('NOT_NOW', 'A Warrior shifts to a Defensive Stance in its own Strategic Phase, before any model is activated');
+      }
       return [{ type: 'MODEL_STATE', id: m.id, state: cmd.state, on }];
     }
     case 'SET_LEADER': {
@@ -1761,12 +1911,34 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
         out.push({ type: 'PLAYER_READY', seat: s });
       }
       if (!(ready[0] && ready[1])) return out;
-      // Initiative Check: d20 + the Leader's Morale; the higher total takes the first turn.
+      // Both are ready: the Initiative Check waits for each player to roll their die.
+      out.push({ type: 'INITIATIVE_PENDING' });
+      return out;
+    }
+    case 'ROLL_INITIATIVE': {
+      const ini = state.initiative ?? fail('NO_ROLL', 'No Initiative Check is waiting');
+      const seats = (ctx.solo ? ([0, 1] as const) : ([ctx.side] as const)).filter((s) => ini.rolls[s] === null);
+      if (seats.length === 0) fail('ROLLED', 'You have rolled – the other player has not yet');
+      const mine: [number | null, number | null] = [ini.rolls[0], ini.rolls[1]];
+      const out: EventBody[] = [];
+      for (const s of seats) {
+        mine[s] = ctx.d20();
+        out.push({ type: 'INITIATIVE_ROLLED', seat: s, roll: mine[s]! });
+      }
+      if (mine[0] === null || mine[1] === null) return out;
+      // Initiative Check: d20 + the Leader's Morale; the higher total takes the first turn. A tie is rolled again.
       const morale: [number, number] = [leaderMorale(state, 0), leaderMorale(state, 1)];
-      let rolls: [number, number] = [ctx.d20(), ctx.d20()];
-      for (let i = 0; i < 50 && rolls[0] + morale[0] === rolls[1] + morale[1]; i++) rolls = [ctx.d20(), ctx.d20()];
-      const first: Side = rolls[0] + morale[0] >= rolls[1] + morale[1] ? 0 : 1;
-      out.push({ type: 'GAME_STARTED', rolls, morale, first }, turnStart(state, 1, first));
+      let rolls: [number, number] = [mine[0], mine[1]];
+      // Expeditionary Tactics: Double Time is discarded for +6.
+      const dt = (s: Side): number => (state.models.some((m) => m.side === s && hasUpgrade(m, 'hel-double-time')) ? 6 : 0);
+      const bonus: [number, number] = [dt(0), dt(1)];
+      const total = (s: Side): number => rolls[s] + morale[s] + bonus[s];
+      for (let i = 0; i < 50 && total(0) === total(1); i++) rolls = [ctx.d20(), ctx.d20()];
+      const first: Side = total(0) >= total(1) ? 0 : 1;
+      out.push({ type: 'GAME_STARTED', rolls, morale, first, ...(bonus[0] + bonus[1] > 0 ? { bonus } : {}) });
+      // The first Strategic Phase of the player who begins: Lucky Charm.
+      for (const m of state.models) if (m.side === first && hasUpgrade(m, 'sog-lucky-charm')) out.push(luckEvent(m));
+      out.push(turnStart(state, 1, first));
       return out;
     }
     case 'ACTIVATE': {
@@ -1776,6 +1948,8 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
       if (!may(ctx, m.side)) fail('NOT_YOURS', 'That model belongs to the other player');
       if (isOut(m)) fail('CANNOT_ACT', `${m.name} is out of action`);
       if (m.ap < 1) fail('NO_AP', `${m.name} has no Activation Points left`);
+      if (state.pendingTurn) fail('ROLL_FIRST', `The turn has ended: ${SIDE_NAME[state.pendingTurn.side]} rolls the dice of its Strategic Phase`);
+      if (state.endPhase) fail('END_PHASE', 'A Ranger has made its End Phase Movement: no more Activations this turn');
       // Activating a model closes the Activation Sequence that was still open.
       const panic = panicRoll(state, m, ctx.d20);
       const closing = closeActivation(state, ctx);
@@ -1797,7 +1971,7 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
       const intent: Intent = cmd.intent === 'attack' || cmd.intent === 'dodge' ? cmd.intent : 'other';
       let weapon = 0;
       if (intent === 'attack') {
-        weapon = int(cmd.weapon, 0, 199, 'Weapon');
+        weapon = int(cmd.weapon, 0, 399, 'Weapon');
         if (!weaponAt(m, weapon)) fail('BAD_VALUE', 'That is not a weapon this model can attack with');
         if (m.states.includes('Blinded')) fail('CANNOT_ACT', 'A Blinded model cannot attack');
       }
@@ -1827,7 +2001,7 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
       // Charm: reacting against the charming model takes an INT roll; a failure leaves only Nothing.
       const charmer = findModel(state, a.id);
       const charmLevel = hasSkill(charmer, 'Charm II') ? 2 : hasSkill(charmer, 'Charm I') ? 1 : 0;
-      const charm = charmLevel > 0 && intent !== 'other' && !lost && !hasTrait(m, 'Construct') && !hasTrait(m, 'Elemental') ? rollDice(1, modelStats(m).int, 'Charm, INT', ctx.d20) : undefined;
+      const charm = charmLevel > 0 && intent !== 'other' && !lost && !hasTrait(m, 'Construct') && !hasTrait(m, 'Elemental') ? rollDice(1, intOf(state, m), 'Charm, INT', ctx.d20) : undefined;
       const charmed = charm !== undefined && charm.successes === 0;
       const final: Intent = lost ? 'dodge' : charmed ? 'other' : intent;
       const keep = !lost && !charmed;
@@ -1855,7 +2029,7 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
           if (gap(active, hidden) > awareness(st) + 0.005) fail('NO_ATTACK', `${hidden.name} is outside ${active.name}'s Awareness`);
           if (!sight(state, active, hidden).los) fail('NO_ATTACK', `${active.name} has no line of sight to it`);
           const tracker = hasSkill(active, 'Tracking') || hasTrait(active, 'Tracking');
-          const int = st.int + (tracker ? 3 : 0);
+          const int = intOf(state, active) + (tracker ? 3 : 0);
           let roll = rollDice(1, int, 'Perceive, INT', ctx.d20);
           const first = roll;
           if (tracker && roll.successes === 0) roll = rollDice(1, int, 'Perceive, INT (Tracking reroll)', ctx.d20);
@@ -1865,7 +2039,7 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
           ];
           const res = resolveAction(state, active, 'nothing', 0, null, NO_MODS, a.reactions, ctx.d20, a.moved, { seen: a.seen ? new Set(a.seen) : undefined });
           return [
-            { type: 'ACTION_RESOLVED', action: 'perceive', lines: [...lines, ...res.lines], results: res.results, used: res.used, dealt: res.dealt, ...(res.mana.length ? { mana: res.mana } : {}) },
+            { type: 'ACTION_RESOLVED', action: 'perceive', lines: [...lines, ...res.lines], results: res.results, used: res.used, dealt: res.dealt, ...(res.mana.length ? { mana: res.mana } : {}), ...kitOf(res) },
             ...(roll.successes ? [{ type: 'MODEL_STATE', id: hidden.id, state: 'Shrouded', on: false } as EventBody] : []),
           ];
         }
@@ -1879,8 +2053,9 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
           if (dist(active, k) - baseRadius(active.size) - MARKER_RADIUS > stats.ag + CONTACT) fail('NO_ATTACK', `The token is outside ${active.name}'s Awareness (${stats.ag}")`);
           const ghost: Model = { ...active, id: '-token-', side: other(active.side), x: k.x, y: k.y, size: 'small', states: [] };
           if (!sight(state, active, ghost).los) fail('NO_ATTACK', `${active.name} has no line of sight to the token`);
-          const roll = rollDice(1, stats.int, 'Perceive, INT', ctx.d20);
-          lines.push({ text: `${active.name} perceives the Intrigue token: 1d20 vs INT ${stats.int} – ${roll.successes ? 'revealed' : 'failed'}`, dice: roll });
+          const wit = intOf(state, active);
+          const roll = rollDice(1, wit, 'Perceive, INT', ctx.d20);
+          lines.push({ text: `${active.name} perceives the Intrigue token: 1d20 vs INT ${wit} – ${roll.successes ? 'revealed' : 'failed'}`, dice: roll });
           if (roll.successes) {
             const d = ctx.d20();
             extra.push({ type: 'MARKER_REVEALED', id: k.id, spell: sigilByRoll(d).name, roll: d, who: active.id });
@@ -1910,12 +2085,12 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
         const res = resolveAction(world, world.models.find((x) => x.id === active.id) ?? active, 'nothing', 0, null, NO_MODS, a.reactions, ctx.d20, a.moved, { seen: seenBy });
         const sigil = extra.filter((e) => e.type === 'EFFECT' || e.type === 'MARKER_SET');
         const rest = extra.filter((e) => e.type !== 'EFFECT' && e.type !== 'MARKER_SET');
-        return [...sigil, { type: 'ACTION_RESOLVED', action: cmd.action, lines: [...lines, ...res.lines], results: res.results, used: res.used, dealt: res.dealt, ...(res.mana.length ? { mana: res.mana } : {}) }, ...rest];
+        return [...sigil, { type: 'ACTION_RESOLVED', action: cmd.action, lines: [...lines, ...res.lines], results: res.results, used: res.used, dealt: res.dealt, ...(res.mana.length ? { mana: res.mana } : {}), ...kitOf(res) }, ...rest];
       }
       if (hasEnchant(active, 'Deep Freeze') && cmd.action !== 'nothing') fail('CANNOT_ACT', `${active.name} is in a Deep Freeze: it can only declare Nothing`);
       if (a.special && cmd.action !== 'nothing') fail('RAN', `${active.name} declared ${a.special === 'climb' ? 'Climb' : 'Jump'} (a Special Movement): it can only declare Nothing`);
-      if (cmd.action === 'cast' && typeof cmd.spell === 'string' && cmd.spell in ZONES) return zoneEvents(state, ctx, active, cmd.spell, cmd.at);
-      if (cmd.action === 'cast') return castEvents(state, ctx, active, cmd.spell, cmd.targets);
+      if (cmd.action === 'cast' && typeof cmd.spell === 'string' && cmd.spell in ZONES) return zoneEvents(state, ctx, active, cmd.spell, cmd.at, mods(cmd.mods));
+      if (cmd.action === 'cast') return castEvents(state, ctx, active, cmd.spell, cmd.targets, mods(cmd.mods));
       if (cmd.action === 'ritual') return ritualEvents(state, ctx, active, cmd);
       if (cmd.action === 'mount') return mountAction(state, ctx, active);
       const action = cmd.action === 'attack' || cmd.action === 'dodge' || cmd.action === 'deathblow' ? cmd.action : cmd.action === 'nothing' ? 'nothing' : fail('BAD_VALUE', 'Unknown action');
@@ -1938,7 +2113,7 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
             results: [...res.results.filter((r) => r.id !== victim.id), { id: victim.id, hp: 0, states }],
             used: res.used,
             dealt: res.dealt,
-            ...(res.mana.length ? { mana: res.mana } : {}),
+            ...(res.mana.length ? { mana: res.mana } : {}), ...kitOf(res),
             deathblow: victim.id,
           },
         ];
@@ -1947,7 +2122,7 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
       let weapon = 0;
       let target: Model | null = null;
       if (action === 'attack') {
-        weapon = int(cmd.weapon, 0, 199, 'Weapon');
+        weapon = int(cmd.weapon, 0, 399, 'Weapon');
         const item = weaponAt(active, weapon);
         const area = item ? areaOf(item) : null;
         const at = cmd.at && typeof cmd.at === 'object' ? { x: num(cmd.at.x, 0, state.width, 'x'), y: num(cmd.at.y, 0, state.height, 'y') } : null;
@@ -2031,7 +2206,7 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
       if ((state.strats ?? []).some((x) => x.seat !== m.side && x.name === 'Piercing Perception')) fail('CANCELLED', 'Piercing Perception cancels Taunt');
       const foes = state.models.filter((o) => o.side !== m.side && !isOut(o) && !(o.id in a.reactions) && (sight(state, o, m).los || gap(o, m) <= awareness(modelStats(o)) + 0.005));
       if (foes.length === 0) fail('NO_TARGET', 'No enemy sees or is aware of it');
-      return [{ type: 'TAUNTED', id: m.id, rolls: foes.map((o) => ({ id: o.id, dice: rollDice(1, modelStats(o).int, 'Taunt, INT', ctx.d20) })) }];
+      return [{ type: 'TAUNTED', id: m.id, rolls: foes.map((o) => ({ id: o.id, dice: rollDice(1, intOf(state, o), 'Taunt, INT', ctx.d20) })) }];
     }
     case 'MOUNT': {
       const m = findModel(state, cmd.id);
@@ -2078,6 +2253,42 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
       if (m.ap < n) fail('NO_AP', `${m.name} has ${m.ap} Activation Point${m.ap === 1 ? '' : 's'}`);
       return [{ type: 'MODEL_MANA', id: m.id, ap: m.ap - n, mana: (m.mana ?? 0) + n }];
     }
+    case 'USE_UPGRADE': {
+      const m = findModel(state, cmd.id);
+      if (!may(ctx, m.side)) fail('NOT_YOURS', 'That model belongs to the other player');
+      const up = text(cmd.upgrade, 60);
+      if (!hasUpgrade(m, up)) fail('BAD_VALUE', `${m.name} does not have that Upgrade (any more)`);
+      if (!strategicWindow(state, m.side)) fail('NOT_NOW', 'An Upgrade is discarded in your own Strategic Phase, before any model is activated');
+      if (isOut(m)) fail('CANNOT_ACT', `${m.name} is out of action`);
+      const spent = [...(m.spent ?? []), up];
+      if (up === 'neu-first-aid') {
+        // All States but Engaged, Crouched, Flying, Shrouded, Incapacitated and Dead leave an Alive model within Awareness.
+        const t = findModel(state, cmd.target ?? m.id);
+        if (t.side !== m.side) fail('BAD_TARGET', 'First Aid is for a model of your own party');
+        if (isOut(t)) fail('BAD_TARGET', `${t.name} is not Alive`);
+        if (t.id !== m.id && gap(m, t) > awareness(modelStats(m)) + CONTACT) fail('BAD_TARGET', `${t.name} is outside ${m.name}'s Awareness`);
+        const gone = t.states.filter((x) => CANCELLABLE.includes(x));
+        if (gone.length === 0) fail('BAD_TARGET', `${t.name} has no State that First Aid removes`);
+        const temp = { ...t.temp };
+        for (const g of gone) delete temp[g];
+        return [
+          { type: 'MODEL_KIT', id: m.id, spent, text: `${m.name} discards First Aid` },
+          { type: 'EFFECT', lines: [{ text: `First Aid: ${t.name} is no longer ${gone.join(', ')}` }], results: [{ id: t.id, hp: t.hp, states: t.states.filter((x) => !gone.includes(x)), temp }] },
+        ];
+      }
+      if (up === 'hel-surge-order') return [{ type: 'MODEL_KIT', id: m.id, spent, text: `${m.name} discards Expeditionary Tactics: Surge Order` }, { type: 'SURGE_ORDERED', seat: m.side, id: m.id }];
+      return fail('BAD_VALUE', 'That Upgrade is not discarded for an effect');
+    }
+    case 'PICK_UPGRADE': {
+      const m = findModel(state, cmd.id);
+      if (!may(ctx, m.side)) fail('NOT_YOURS', 'That model belongs to the other player');
+      if (state.phase !== 'setup') fail('STARTED', 'The choice of an Upgrade is made before the game starts');
+      const up = text(cmd.upgrade, 60);
+      const card = profileById(m.profileId);
+      const choice = (card ? upgradeChoices(card, m.upgrades).find((c) => c.id === up) : undefined) ?? fail('BAD_VALUE', `${m.name} has no choice to make there`);
+      const pick = int(cmd.pick, 0, choice.options.length - 1, 'Choice');
+      return [{ type: 'MODEL_KIT', id: m.id, picks: { ...m.picks, [up]: pick }, text: `${m.name}: ${choice.name} – ${choice.options[pick]}` }];
+    }
     case 'LEAVE_FIELD': {
       const a = state.activation;
       const m = findModel(state, cmd.id);
@@ -2109,6 +2320,7 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
     }
     case 'END_TURN': {
       if (state.phase !== 'playing') fail('NOT_STARTED', 'The game has not started yet');
+      if (state.pendingTurn) fail('ROLL_FIRST', `The turn has ended: ${SIDE_NAME[state.pendingTurn.side]} rolls the dice of its Strategic Phase`);
       if (!may(ctx, state.active)) fail('NOT_YOUR_TURN', `It is ${SIDE_NAME[state.active]}'s turn`);
       const out: EventBody[] = [...closeActivation(state, ctx)];
       if (!state.activation) out.push(...engagement(state));
@@ -2127,6 +2339,9 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
       const next = other(state.active);
       // Schemes that run "until your next Strategic Phase".
       out.push(...schemesDue(after(state, out), 'next-strategic', next));
+      // Dice to roll in that Strategic Phase: it waits for its player to roll them.
+      const waiting = strategicRolls(after(state, out), next);
+      if (waiting.length > 0) return [...out, { type: 'STRATEGIC_PENDING', seat: next, round: roundEnds ? state.round + 1 : state.round, rolls: waiting }];
       const strat = strategic(after(state, out), next, ctx.d20);
       out.push(...strat);
       out.push(...consequences(state, out));
@@ -2135,6 +2350,11 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
       if (!then.models.some((m) => m.side === next && standing(m))) return finish();
       out.push(turnStart(then, roundEnds ? state.round + 1 : state.round, next));
       return out;
+    }
+    case 'ROLL_STRATEGIC': {
+      const p = state.pendingTurn ?? fail('NO_ROLL', 'No Strategic Phase is waiting for its dice');
+      if (!may(ctx, p.side)) fail('NOT_YOURS', `${SIDE_NAME[p.side]} rolls the dice of its Strategic Phase`);
+      return beginTurn(state, p.side, p.round, ctx.d20);
     }
     case 'CONCEDE': {
       const side = ctx.solo && cmd.side !== undefined ? side01(cmd.side) : ctx.side;
@@ -2221,12 +2441,34 @@ const MOVE_VERB: Record<MoveMode, string> = {
 /** Events after which the last Movement can still be taken back. */
 const HARMLESS = new Set<GameEvent['type']>(['MODEL_MOVED', 'MODEL_ROTATED', 'MOVE_UNDONE']);
 
+/**
+ * WarBracket: when both sides have a model of the same name, both carry their side at the end of the name
+ * ("Citadel Guard (Blue)", "Citadel Guard (Red)") – the page shows the player's name there. So a line of the log
+ * always tells whose model it speaks of. Shrouded models are left out (and keep their plain name): what the other
+ * player may not know must not show in the names of their own models. Run after every event.
+ */
+export function ownerNames(state: TableState): void {
+  const base = (name: string): string => name.replace(/ \((?:Blue|Red)\)$/, '');
+  const names = [new Set<string>(), new Set<string>()];
+  for (const m of state.models) if (!m.states.includes('Shrouded')) names[m.side]!.add(base(m.name));
+  for (const m of state.models) {
+    const b = base(m.name);
+    const named = !m.states.includes('Shrouded') && names[m.side === 0 ? 1 : 0]!.has(b) ? `${b} (${SIDE_NAME[m.side]})` : b;
+    if (named !== m.name) m.name = named;
+  }
+}
+
 export function apply(state: TableState, ev: GameEvent): void {
+  applyEvent(state, ev);
+  ownerNames(state); // WarBracket
+}
+
+function applyEvent(state: TableState, ev: GameEvent): void {
   const before = ev.type === 'MODEL_MOVED' ? state.models.find((m) => m.id === ev.id) : undefined;
   // What a rollback restores: where the model stood and the Activation as it was.
   const snap =
     before && ev.type === 'MODEL_MOVED' && ev.mode !== 'free' && ev.mode !== 'follow'
-      ? { id: before.id, x: before.x, y: before.y, ...(before.z ? { z: before.z } : {}), facing: before.facing, activation: state.activation ? (JSON.parse(JSON.stringify(state.activation)) as Activation) : null, ...(state.schemes[before.side].moved ? { moved: [...state.schemes[before.side].moved!] } : {}) }
+      ? { ...(ev.bonus ? { bonus: { moved: state.bonus ? { ...state.bonus } : null, endPhase: state.endPhase === true, surge: state.surge ? [...state.surge.ids] : null } } : {}), id: before.id, x: before.x, y: before.y, ...(before.z ? { z: before.z } : {}), facing: before.facing, activation: state.activation ? (JSON.parse(JSON.stringify(state.activation)) as Activation) : null, ...(state.schemes[before.side].moved ? { moved: [...state.schemes[before.side].moved!] } : {}) }
       : undefined;
   applyCore(state, ev);
   if (snap) state.lastMove = snap;
@@ -2239,6 +2481,20 @@ function applyCore(state: TableState, ev: GameEvent): void {
     if (state.log.length > LIMITS.log) state.log.splice(0, state.log.length - LIMITS.log);
   };
   const find = (id: string) => state.models.find((x) => x.id === id);
+  /** Items and Luck counters an Action used up. */
+  const useKit = (list: KitUse[] | undefined): void => {
+    for (const k of list ?? []) {
+      const m = find(k.id);
+      if (!m) continue;
+      if (k.luck) m.luck = Math.max(0, (m.luck ?? 0) - k.luck);
+      if (!k.item || !k.n) continue;
+      const card = profileOf(m).weapons.find((x) => x.name === k.item);
+      const left = Math.max(0, (m.items?.[k.item] ?? (card ? quantityOf(card) : 1)) - k.n);
+      m.items = { ...m.items, [k.item]: left };
+      if (k.at) (m.thrown ??= []).push({ name: k.item, n: k.n, at: k.at });
+      log('info', `${m.name}: ${left} × ${k.item} left${k.at ? ` – the thrown ${k.n === 1 ? 'one' : 'ones'} can be picked up in Base Contact with the model it took down` : ''}`);
+    }
+  };
   const hpBefore = new Map(state.models.map((m) => [m.id, m.hp]));
   // A note about when a state ends goes with the state.
   for (const m of state.models) {
@@ -2309,6 +2565,11 @@ function applyCore(state: TableState, ev: GameEvent): void {
         else delete m.z;
       }
       const cost = ev.cost ?? ev.dist;
+      if (ev.bonus) {
+        (state.bonus ??= {})[m.id] = round2((state.bonus[m.id] ?? 0) + cost);
+        if (ev.bonus === 'ranger') state.endPhase = true;
+        else if (state.surge && !state.surge.ids.includes(m.id)) state.surge.ids.push(m.id);
+      }
       if (a && ev.mode === 'follow' && a.follow?.[m.id]) a.follow[m.id]!.moved = round2(a.follow[m.id]!.moved + cost);
       if (a && a.id === m.id && a.seen) notice(state, a, m, ev.from);
       // The route of the activated model, for Attacks of Opportunity.
@@ -2442,11 +2703,24 @@ function applyCore(state: TableState, ev: GameEvent): void {
       state.ready[ev.seat] = true;
       log('info', `${SIDE_NAME[ev.seat]} is ready`);
       break;
+    case 'INITIATIVE_PENDING':
+      state.initiative = { rolls: [null, null] };
+      log('turn', 'Both players are ready – the game begins with the Initiative Check: each rolls a d20 and adds the Morale of its Leader');
+      break;
+    case 'INITIATIVE_ROLLED':
+      if (state.initiative) state.initiative.rolls[ev.seat] = ev.roll;
+      break;
+    case 'STRATEGIC_PENDING':
+      state.pendingTurn = { side: ev.seat, round: ev.round, rolls: ev.rolls };
+      log('turn', `${SIDE_NAME[ev.seat]}'s Strategic Phase: ${ev.rolls.length} ${ev.rolls.length === 1 ? 'roll waits' : 'rolls wait'} for its player`);
+      break;
     case 'GAME_STARTED': {
+      delete state.initiative;
       state.phase = 'playing';
       state.first = ev.first;
       state.partySize = [state.models.filter((m) => m.side === 0 && !isSummoned(m)).length, state.models.filter((m) => m.side === 1 && !isSummoned(m)).length];
-      const line = ([0, 1] as const).map((s) => `${SIDE_NAME[s]} ${ev.rolls[s]}+${ev.morale[s]}=${ev.rolls[s] + ev.morale[s]}`).join(', ');
+      const line = ([0, 1] as const).map((s) => `${SIDE_NAME[s]} ${ev.rolls[s]}+${ev.morale[s]}${ev.bonus?.[s] ? `+${ev.bonus[s]} (Double Time)` : ''}=${ev.rolls[s] + ev.morale[s] + (ev.bonus?.[s] ?? 0)}`).join(', ');
+      for (const s of [0, 1] as const) log('dice', `${SIDE_NAME[s]}: Initiative Check, 1d20 + M ${ev.morale[s]}${ev.bonus?.[s] ? ` + ${ev.bonus[s]} (Double Time)` : ''} = ${ev.rolls[s] + ev.morale[s] + (ev.bonus?.[s] ?? 0)}`, { dice: [ev.rolls[s]], target: null, successes: null, crits: 0, label: 'Initiative' });
       log('turn', `Initiative Check: ${line} – ${SIDE_NAME[ev.first]} goes first`);
       break;
     }
@@ -2456,6 +2730,10 @@ function applyCore(state: TableState, ev: GameEvent): void {
       state.activation = null;
       state.used = {};
       state.acted = false;
+      delete state.pendingTurn;
+      delete state.bonus;
+      delete state.endPhase;
+      delete state.surge;
       state.stratUsed = [];
       if (state.stratBlocked !== ev.active) state.stratBlocked = undefined;
       // Treasure Hunt: a player who begins a turn in Broken Morale plays the last turn of the Quest.
@@ -2509,6 +2787,14 @@ function applyCore(state: TableState, ev: GameEvent): void {
       if (last.z) m.z = last.z;
       else delete m.z;
       state.activation = last.activation;
+      // A Ranger's End Phase Movement or one on Surge Order: as if it had not been made.
+      if (last.bonus) {
+        if (last.bonus.moved) state.bonus = last.bonus.moved;
+        else delete state.bonus;
+        if (last.bonus.endPhase) state.endPhase = true;
+        else delete state.endPhase;
+        if (state.surge && last.bonus.surge) state.surge.ids = last.bonus.surge;
+      }
       if (last.moved) state.schemes[m.side].moved = last.moved;
       delete state.lastMove;
       log('move', `${m.name}'s last Movement is taken back`);
@@ -2619,6 +2905,7 @@ function applyCore(state: TableState, ev: GameEvent): void {
         }
       }
       for (const u of ev.used ?? []) (state.used[u.id] ??= []).push(u.what);
+      useKit(ev.kit);
       if (ev.lines.length === 0 && ev.action === 'nothing') {
         const m = state.activation ? find(state.activation.id) : undefined;
         if (m) log('info', `${m.name} declares Nothing`);
@@ -2706,7 +2993,27 @@ function applyCore(state: TableState, ev: GameEvent): void {
       log('turn', gained >= 0 ? `${m.name} turns ${gained} AP into Mana (${m.mana} Mana, ${m.ap} AP left)` : `${m.name} spends ${-gained} Mana (${m.mana} left)`);
       break;
     }
+    case 'MODEL_KIT': {
+      const m = find(ev.id);
+      if (!m) break;
+      if (ev.items) m.items = { ...m.items, ...ev.items };
+      if (ev.luck !== undefined) m.luck = ev.luck;
+      if (ev.spent) m.spent = [...ev.spent];
+      if (ev.picks) m.picks = { ...m.picks, ...ev.picks };
+      if (ev.thrown) {
+        if (ev.thrown.length) m.thrown = [...ev.thrown];
+        else delete m.thrown;
+      }
+      if (ev.text) log('info', ev.text);
+      break;
+    }
+    case 'SURGE_ORDERED': {
+      state.surge = { side: ev.seat, ids: [] };
+      log('turn', `Surge Order: up to 3 Helian League models of ${SIDE_NAME[ev.seat]} may Walk, Climb or Jump now (drag them) – no Reactions`);
+      break;
+    }
     case 'EFFECT': {
+      useKit(ev.kit);
       for (const line of ev.lines) log('combat', line.text, line.dice);
       for (const r of ev.results) {
         const m = find(r.id);
@@ -2816,6 +3123,8 @@ function applyCore(state: TableState, ev: GameEvent): void {
       break;
     }
     case 'GAME_FINISHED':
+      delete state.initiative;
+      delete state.pendingTurn;
       state.phase = 'finished';
       state.winner = ev.winner;
       state.activation = null;

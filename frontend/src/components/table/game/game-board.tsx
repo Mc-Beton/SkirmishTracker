@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { baseRadius, SHELF, shelfRect } from "@/lib/eld/geometry.ts";
 import { MARKER_RADIUS } from "@/lib/eld/quests.ts";
 import type { Marker, Model, Pt, TableState } from "@/lib/eld/types.ts";
+import { ASSETS } from "@/lib/eld3d/assets";
 import { imageUrl } from "@/lib/table/api";
 import { deploymentZones } from "@/lib/table/deployment.ts";
 import type { GameMeta } from "@/lib/table/game-api";
@@ -12,7 +13,7 @@ import { SIDE_HEX } from "./colors";
 
 export type BoardMode = "select" | "measure" | "aim" | "token";
 
-type Props = {
+export type GameBoardProps = {
   /** The table as the viewer may see it (Shrouded figures masked, the hidden shelf end left out). */
   st: TableState;
   meta: GameMeta;
@@ -28,6 +29,8 @@ type Props = {
   template: TemplateShape | null;
   ariaLabel: string;
   shelfLabel: (side: 0 | 1) => string;
+  /** Text of the bar shown while the pictures of the map are on their way (2D board). */
+  loadingLabel?: (done: number, total: number) => string;
   previewMove: (m: Model, x: number, y: number) => Preview;
   onSelect: (id: string | null) => void;
   onMove: (id: string, x: number, y: number) => void;
@@ -41,20 +44,36 @@ type Props = {
 
 const images = new Map<string, HTMLImageElement>();
 
-function useImages(ids: (string | null | undefined)[]) {
+/** Pictures by their address: library images of a 2D map, or the ground and the elements of a 3D map seen from above. */
+function useImages(urls: (string | null | undefined)[]) {
   const [, setTick] = useState(0);
-  const key = ids.filter(Boolean).sort().join(",");
+  const key = [...new Set(urls.filter(Boolean))].sort().join("\n");
   useEffect(() => {
-    for (const id of key.split(",")) {
-      if (!id || images.has(id)) continue;
+    for (const url of key.split("\n")) {
+      if (!url || images.has(url)) continue;
       const img = new Image();
       img.onload = () => setTick((n) => n + 1);
-      img.src = imageUrl(id);
-      images.set(id, img);
+      img.onerror = () => {
+        failed.add(url);
+        setTick((n) => n + 1);
+      };
+      img.src = url;
+      images.set(url, img);
     }
   }, [key]);
-  return images;
+  // How many of the pictures have arrived (or failed): the board shows a bar until all of them have.
+  const wanted = key ? key.split("\n") : [];
+  const done = wanted.filter((url) => failed.has(url) || images.get(url)?.complete).length;
+  return { images, total: wanted.length, done };
 }
+
+const failed = new Set<string>();
+
+const libraryUrl = (id: string | null): string | null => (id ? imageUrl(id) : null);
+/** A model of a 3D map from above: the picture shows 1.1 times the model's width. */
+const TOP_SPAN = 1.1;
+const topUrl = (file: string): string => `${ASSETS}/tops/${file.replace(/\.glb$/, ".webp")}`;
+const PLAIN_FILL: Record<string, string> = { building: "#8a6f52", ruin: "#9a9486", rock: "#7d7f7c", forest: "rgba(46,110,60,.75)", water: "rgba(60,140,200,.7)", magic: "rgba(170,120,220,.4)" };
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 const TOKEN_R = 0.55;
@@ -69,7 +88,7 @@ type Measure = { a: Pt; b: Pt; aId: string | null; bId: string | null };
  * both table edges are part of the picture. Figures are dragged (the engine says what is allowed), the wheel
  * turns them.
  */
-export function GameBoard(props: Props) {
+export function GameBoard(props: GameBoardProps) {
   const { st, meta, viewer } = props;
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -78,7 +97,13 @@ export function GameBoard(props: Props) {
   const [tokenDrag, setTokenDrag] = useState<TokenDrag | null>(null);
   const [measure, setMeasure] = useState<Measure | null>(null);
   const [measuring, setMeasuring] = useState(false);
-  const imgs = useImages([meta.background.imageId, ...meta.placements.map((p) => p.imageId)]);
+  // A map of the game seen in 2D: it is in the state (painted ground, elements with models), not in the library.
+  const gameMap = !!meta.gameMap;
+  const groundUrl = gameMap && st.ground ? `${ASSETS}/grounds/${st.ground}` : null;
+  const { images: imgs, total: picturesTotal, done: picturesDone } = useImages([
+    libraryUrl(meta.background.imageId), ...meta.placements.map((p) => libraryUrl(p.imageId)),
+    groundUrl, ...(gameMap ? st.terrain.map((t) => (t.model ? topUrl(t.model.file) : null)) : []),
+  ]);
 
   useEffect(() => {
     const el = wrap.current;
@@ -175,8 +200,8 @@ export function GameBoard(props: Props) {
     // ---- the mat
     ctx.fillStyle = "#2b2a22";
     ctx.fillRect(X(0), Y(0), L(st.width), L(st.height));
-    const picture = (imageId: string | null, x: number, y: number, w: number, h: number, rot: number) => {
-      const img = imageId ? imgs.get(imageId) : undefined;
+    const picture = (url: string | null, x: number, y: number, w: number, h: number, rot: number) => {
+      const img = url ? imgs.get(url) : undefined;
       if (!img || !img.complete || !img.naturalWidth) return;
       ctx.save();
       ctx.translate(X(x), Y(y));
@@ -184,14 +209,33 @@ export function GameBoard(props: Props) {
       ctx.drawImage(img, -L(w) / 2, -L(h) / 2, L(w), L(h));
       ctx.restore();
     };
-    picture(meta.background.imageId, st.width / 2, st.height / 2, meta.background.widthIn, meta.background.heightIn, 0);
+    picture(libraryUrl(meta.background.imageId), st.width / 2, st.height / 2, meta.background.widthIn, meta.background.heightIn, 0);
+    picture(groundUrl, st.width / 2, st.height / 2, st.width, st.height, 0);
     ctx.lineWidth = dpr;
     for (let i = 0; i <= Math.max(st.width, st.height); i++) {
       ctx.strokeStyle = i % 6 === 0 ? "rgba(255,255,255,.12)" : "rgba(255,255,255,.04)";
       if (i <= st.width) { ctx.beginPath(); ctx.moveTo(X(i), Y(0)); ctx.lineTo(X(i), Y(st.height)); ctx.stroke(); }
       if (i <= st.height) { ctx.beginPath(); ctx.moveTo(X(0), Y(i)); ctx.lineTo(X(st.width), Y(i)); ctx.stroke(); }
     }
-    for (const p of meta.placements) picture(p.imageId, p.x, p.y, p.widthIn, p.heightIn, p.rotation);
+    for (const p of meta.placements) picture(libraryUrl(p.imageId), p.x, p.y, p.widthIn, p.heightIn, p.rotation);
+    if (gameMap) {
+      // Plain scenery of the map (no model): drawn from its shape – areas first, then what stands on them.
+      const plain = st.terrain.filter((t) => !t.model && !t.unseen && !t.painted && t.caster === undefined && t.until === undefined);
+      for (const t of [...plain.filter((x) => x.kind === "area"), ...plain.filter((x) => x.kind === "obstacle")]) {
+        path(t.shape);
+        ctx.fillStyle = PLAIN_FILL[t.env] ?? "#8a8a8a";
+        ctx.fill();
+        if (t.kind === "obstacle") {
+          ctx.strokeStyle = "rgba(0,0,0,.55)";
+          ctx.lineWidth = 1.5 * dpr;
+          ctx.stroke();
+        }
+      }
+      // Sculpted scenery: the model seen from above.
+      for (const t of st.terrain) {
+        if (t.model) picture(topUrl(t.model.file), t.model.x, t.model.y, t.model.size * TOP_SPAN, t.model.size * TOP_SPAN, t.model.turn);
+      }
+    }
 
     // ---- Deployment Zones
     if (props.showZones && st.phase === "setup") {
@@ -419,7 +463,7 @@ export function GameBoard(props: Props) {
       ctx.beginPath(); ctx.moveTo(X(measure.a.x), Y(measure.a.y)); ctx.lineTo(X(measure.b.x), Y(measure.b.y)); ctx.stroke();
       text(`${Math.max(0, d - ra - rb).toFixed(1)}″`, (measure.a.x + measure.b.x) / 2, (measure.a.y + measure.b.y) / 2 - 0.3, 0.45, "#33d3e0", 700);
     }
-  }, [cssW, cssH, scale, y0, shelves, st, meta, viewer, imgs, props, drag, tokenDrag, measure]);
+  }, [cssW, cssH, scale, y0, shelves, st, meta, viewer, imgs, props, drag, tokenDrag, measure, gameMap, groundUrl]);
 
   useEffect(() => {
     draw();
@@ -519,8 +563,17 @@ export function GameBoard(props: Props) {
     return () => window.clearTimeout(timer);
   }, [clearRuler]);
 
+  const loadingLabel = props.loadingLabel?.(picturesDone, picturesTotal);
   return (
-    <div ref={wrap} className="flex size-full items-center justify-center overflow-hidden">
+    <div ref={wrap} className="relative flex size-full items-center justify-center overflow-hidden">
+      {picturesDone < picturesTotal && loadingLabel && (
+        <div role="status" className="absolute left-1/2 top-1/2 z-10 grid w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 gap-2 rounded-xl border border-primary bg-card/95 p-4 text-sm shadow-2xl">
+          <span className="font-medium">{loadingLabel}</span>
+          <div className="h-2.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={picturesTotal} aria-valuenow={picturesDone}>
+            <div className="h-full rounded-full bg-primary transition-[width] duration-200" style={{ width: `${Math.max(3, Math.round((picturesDone / picturesTotal) * 100))}%` }} />
+          </div>
+        </div>
+      )}
       <canvas
         ref={canvas}
         role="img"

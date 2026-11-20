@@ -1,11 +1,11 @@
-import { buildMap, checkPlacements, MAPS } from '../../frontend/src/lib/eld/maps.ts';
+import { buildMap, checkPlacements, KITS, MAPS } from '../../frontend/src/lib/eld/maps.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DEFAULT_POINTS, defaultTerrain, deploySpot, FACTIONS, profilesOf, randomParty } from '../../frontend/src/lib/eld/content.ts';
 import { areaOf, areaVictims, artOptions, attackOptions, confront, formationArm, gap, immuneTo, moraleOf, isTargetless, NO_MODS, planAttack, pointTarget, resolveAction, UNARMED_INDEX, weaponAt } from '../../frontend/src/lib/eld/combat.ts';
 import { apply, checkMove, decide, deployDepthFor, emptyState, reactCheck, RuleError, rollDice, schemeScoring } from '../../frontend/src/lib/eld/engine.ts';
 import { engagers, sight } from '../../frontend/src/lib/eld/los.ts';
-import { baseRadius, inShallowWater, checkPath, checkPlacement, circleHitsPolygon, edgeDistance, facingTo, moveCost, pointInPolygon, rect, segmentDistance, onShelf, shelfHidden, shelfPlacement, surfaceAt } from '../../frontend/src/lib/eld/geometry.ts';
+import { baseRadius, heightProfile, inShallowWater, checkPath, checkPlacement, circleHitsPolygon, edgeDistance, facingTo, moveCost, pointInPolygon, rect, segmentDistance, onShelf, shelfHidden, shelfPlacement, surfaceAt } from '../../frontend/src/lib/eld/geometry.ts';
 import { limitIn, PARTY_FACTIONS, partyPoints, partyProblems, recruitPool } from '../../frontend/src/lib/eld/party.ts';
 import { figureKind, profileById, PROFILES } from '../../frontend/src/lib/eld/profiles.ts';
 import { drawSchemes, QUESTS, schemeByCode, SCHEMES } from '../../frontend/src/lib/eld/quests.ts';
@@ -35,6 +35,9 @@ function run(s: TableState, cmd: Command, o: Opts = {}): GameEvent[] {
     apply(s, ev);
     out.push(ev);
   }
+  // The dice that wait for a player are rolled right away: the Initiative Check, the next Strategic Phase.
+  if (cmd.type === 'READY' && s.initiative) out.push(...run(s, { type: 'ROLL_INITIATIVE' }, o));
+  if (cmd.type === 'END_TURN' && s.pendingTurn) out.push(...run(s, { type: 'ROLL_STRATEGIC' }, { ...o, solo: true }));
   return out;
 }
 
@@ -177,9 +180,15 @@ test('starting the game: ready, Initiative Check, Upkeep', () => {
   let ev = run(s, { type: 'READY' }, { side: 0, solo: false });
   assert.deepEqual(ev.map((e) => e.type), ['PLAYER_READY']);
   assert.equal(s.phase, 'setup');
-  const dice = [3, 9];
-  ev = run(s, { type: 'READY' }, { side: 1, solo: false, d20: () => dice.shift()! });
-  assert.deepEqual(ev.map((e) => e.type), ['PLAYER_READY', 'GAME_STARTED', 'TURN_STARTED']);
+  // Both ready: the Initiative Check waits for each player to roll their die (Red's is rolled at once here).
+  ev = run(s, { type: 'READY' }, { side: 1, solo: false, d20: () => 9 });
+  assert.deepEqual(ev.map((e) => e.type), ['PLAYER_READY', 'INITIATIVE_PENDING', 'INITIATIVE_ROLLED']);
+  assert.deepEqual([s.phase, s.initiative?.rolls], ['setup', [null, 9]]);
+  assert.equal(code(() => run(s, { type: 'ROLL_INITIATIVE' }, { side: 1, solo: false })), 'ROLLED');
+  assert.equal(code(() => run(s, { type: 'MOVE_MODEL', id: 'a1', x: 16, y: 31 }, { side: 0, solo: false })), 'ROLL_FIRST');
+  ev = run(s, { type: 'ROLL_INITIATIVE' }, { side: 0, solo: false, d20: () => 3 });
+  assert.deepEqual(ev.map((e) => e.type), ['INITIATIVE_ROLLED', 'GAME_STARTED', 'TURN_STARTED']);
+  assert.equal(s.initiative, undefined);
   // Blue 3 + M 17 = 20, Red 9 + M 14 = 23.
   assert.equal(s.first, 1);
   assert.deepEqual([s.phase, s.round, s.active], ['playing', 1, 1]);
@@ -481,7 +490,7 @@ test('attack options and what an attack needs', () => {
   const s = melee(0.5);
   const champ = model(s, 'a1');
   const guard = model(s, 'b1');
-  assert.deepEqual(attackOptions(champ).map((o) => o.weapon.name), ['Spear', 'Sword', 'Piercing Dagger', 'Unarmed']);
+  assert.deepEqual(attackOptions(champ).map((o) => o.weapon.name), ['Spear', 'Sword', 'Piercing Dagger', 'Unarmed', 'Spear (thrown)']);
   assert.deepEqual(attackOptions(guard).map((o) => o.index), [0, 1, UNARMED_INDEX], 'the Shield is not an attack');
 
   const none = { hit: 0, stk: 0, pw: 0 };
@@ -688,7 +697,8 @@ test('attack plans apply Class abilities, weapon Traits and Combat Arts', () => 
   assert.deepEqual(planAttack(s, champ, model(s, 'b1'), 1, { ...NO_MODS, art: 'Fencing IV' }, { reactive: false }).traits, ['Knockdown']);
   assert.match(planAttack(s, champ, model(s, 'b1'), 1, { ...NO_MODS, art: 'Archery I' }, { reactive: false }).reason, /cannot use Archery I/);
   assert.equal(planAttack(s, champ, model(s, 'b1'), 1, { ...NO_MODS, art: 'Fencing III' }, { reactive: false, foeDuelist: true }).stk, 3, 'a Duelist cancels Arts up to level III');
-  run(s, { type: 'SET_STATE', id: 'a1', state: 'Defensive Stance', on: true });
+  assert.equal(code(() => run(s, { type: 'SET_STATE', id: 'a1', state: 'Defensive Stance', on: true })), 'NOT_NOW', 'a Warrior shifts to it in its own Strategic Phase');
+  champ.states.push('Defensive Stance');
   assert.deepEqual([planAttack(s, champ, model(s, 'b1'), 1, NO_MODS, { reactive: false }).stk, planAttack(s, champ, model(s, 'b1'), 1, NO_MODS, { reactive: true }).stk], [2, 2], 'Defensive Stance: 1 (+Armsmaster) active, full Strike reactive');
 
   // Marksman who stood still, and Soldiers standing together.
@@ -758,7 +768,9 @@ test('Strategic Phase: Bleeding, Poisoned, Recovery Check, Regeneration', () => 
   run(s, { type: 'SET_STATE', id: 'a1', state: 'Poisoned', on: true });
   // Blue ends its turn: Red's Strategic Phase. Guard: Bleeding, T 12 – a 15 fails → Wound. Flameshaper: Recovery, T 8 – a 6 succeeds.
   let ev = run(s, { type: 'END_TURN' }, dice(15, 6));
-  assert.deepEqual(ev.map((e) => e.type), ['TURN_ENDED', 'STRATEGIC', 'TURN_STARTED']);
+  // The two rolls wait for Red (the test rolls them at once).
+  assert.deepEqual(ev.map((e) => e.type), ['TURN_ENDED', 'STRATEGIC_PENDING', 'STRATEGIC', 'TURN_STARTED']);
+  assert.deepEqual(ev[1]!.type === 'STRATEGIC_PENDING' && ev[1]!.rolls.map((r) => `${r.who}: ${r.what} ${r.target}`), ['Citadel Guard: Bleeding, T 12', 'Flameshaper: Recovery Check, T 8']);
   assert.equal(model(s, 'b1').hp, 1);
   assert.deepEqual([model(s, 'b2').hp, model(s, 'b2').states.includes('Incapacitated'), model(s, 'b2').states.includes('Weakened')], [1, false, true]);
   assert.equal(model(s, 'b2').ap, 1, 'recovered before the Upkeep: STA 2 − 1 (Weakened)');
@@ -798,7 +810,7 @@ function questGame(quest: string): TableState {
     run(s, { type: 'KEEP_SCHEME', code: 'no-quarter', side });
   }
   assert.deepEqual(s.schemes.map((x) => [x.drawn, x.kept, x.revealed]), [[2, true, null], [2, true, null]], 'Leader INT 13 → 2 cards each');
-  run(s, { type: 'READY' }, { d20: () => 10 }); // Blue 10 + 17 beats Red 10 + 16
+  run(s, { type: 'READY' }, dice(12, 10)); // Blue 12 + 17 beats Red 10 + 18 (M 16, +2 for the two Soldiers next to its Leader)
   assert.deepEqual([s.phase, s.active, s.partySize], ['playing', 0, [3, 3]]);
   return s;
 }
@@ -1672,7 +1684,7 @@ test('templates: a circular Spell aimed at a spot, a spray, Casting Aura', () =>
   assert.equal(code(() => run(s, { type: 'ACTION', action: 'attack', weapon: fireball, at: { x: 18, y: 5 } })), 'NO_ATTACK', 'out of its 16" Reach');
   // Attack roll 5 hits. a2: Damage fails. b1: 3 wounds it, Burn (1) fails. b2: its Dodge (AG 10) fails, Damage fails.
   // (The Flameshaper has Chain Attack and joins in with a Flare of its own: 20, a miss.)
-  const ev = run(s, { type: 'ACTION', action: 'attack', weapon: fireball, at: { x: 18, y: 20 } }, dice(5, 20, 20, 3, 20, 20, 20));
+  const ev = run(s, { type: 'ACTION', action: 'attack', weapon: fireball, at: { x: 18, y: 20 } }, dice(5, 10, 20, 20, 3, 20, 20, 20)); // the 10: the Flameshaper's Morale roll for Friendly Fire
   assert.deepEqual(ev.map((e) => e.type), ['ACTION_RESOLVED']);
   const texts = s.log.map((l) => l.text);
   assert.ok(texts.some((t) => /^Flameweaver Noble attacks a spot on the table with Fireball: 1d20 vs INT 14/.test(t)));
@@ -2208,8 +2220,9 @@ test('Attack of Opportunity on the route, and Impede', () => {
   assert.deepEqual([model(s, 'a1').x, model(s, 'a1').y], [12, 13], 'no Impede: it stays where it ran to');
   run(s, { type: 'ACTION', action: 'nothing' }, { d20: () => 5 });
   const text = s.log.map((l) => l.text);
-  assert.ok(text.includes('Onitaoshi: Attack of Opportunity where Bushi Attendant came into Reach'));
-  assert.ok(text.some((t) => t.startsWith('Onitaoshi attacks Bushi Attendant with Greatsword')), text.slice(-6).join(' | '));
+  // WarBracket: a name both sides have carries the side.
+  assert.ok(text.some((t) => /^Onitaoshi(?: \((?:Blue|Red)\))?: Attack of Opportunity where Bushi Attendant(?: \((?:Blue|Red)\))? came into Reach/.test(t)));
+  assert.ok(text.some((t) => /^Onitaoshi(?: \((?:Blue|Red)\))? attacks Bushi Attendant(?: \((?:Blue|Red)\))? with Greatsword/.test(t)), text.slice(-6).join(' | '));
   // Too far away all along the route: refused.
   const f = setup('sog-onitaoshi');
   run(f, { type: 'MOVE_MODEL', id: 'b1', x: 4, y: 18, free: true });
@@ -2272,7 +2285,7 @@ test('height: stepping, Climb, Jump, standing on scenery, Fall Damage, Reach up 
   assert.equal(model(s, 'a1').z, 8);
   run(s, { type: 'ACTIVATE', id: 'a1' });
   run(s, { type: 'MOVE_MODEL', id: 'a1', x: 30, y: 20.9, how: 'jump' }, dice(20, 20));
-  assert.ok(s.log.some((l) => /^Bushi Attendant falls 7\.\d": 2d20 vs AG 10 – 2 Wounds/.test(l.text)), s.log.slice(-3).map((l) => l.text).join(' | '));
+  assert.ok(s.log.some((l) => /^Bushi Attendant(?: \(Blue\))? falls 7\.\d": 2d20 vs AG 10 – 2 Wounds/ /* WarBracket: both sides have one, so the name carries the side */.test(l.text)), s.log.slice(-3).map((l) => l.text).join(' | '));
   assert.equal(model(s, 'a1').hp, 0);
 });
 
@@ -2778,4 +2791,261 @@ test('maps: the maps of the game build, the stream is Shallow Water, own maps ar
   assert.match(checkPlacements([{ kit: 'altar', x: 5, y: 5, size: 40, turn: 0 }]) as string, /between/);
   assert.match(checkPlacements(Array.from({ length: 31 }, () => ({ kit: 'rock', x: 5, y: 5, size: 4, turn: 0 }))) as string, /at most 30/);
   assert.match(checkPlacements('x') as string, /list/);
+});
+
+test('maps: the second set of scenery and the three painted maps', () => {
+  assert.equal(new Set(KITS.map((k) => k.id)).size, KITS.length, 'kit ids are unique');
+  for (const kit of KITS) {
+    assert.ok(kit.parts.length > 0 && kit.size[0] <= kit.size[1] && kit.size[1] <= kit.size[2], kit.id);
+    assert.ok(kit.parts.every((p) => p.shape.length >= 3 && p.shape.every((q) => Number.isFinite(q.x) && Number.isFinite(q.y))), kit.id);
+    // A sculpted element is one unit across: its shapes stay inside it.
+    if (kit.model) assert.ok(kit.parts.every((p) => p.shape.every((q) => Math.abs(q.x) <= 0.55 && Math.abs(q.y) <= 0.55)), kit.id);
+  }
+  for (const map of MAPS) {
+    if (!map.terrain) assert.deepEqual(checkPlacements(map.items), map.items, map.id);
+    assert.ok(buildMap(map).terrain.every((t) => t.shape.length >= 3), map.id);
+  }
+  const garden = buildMap(MAPS.find((m) => m.id === 'garden')!);
+  assert.equal(garden.ground, 'garden.jpg');
+  assert.equal(buildMap(MAPS.find((m) => m.id === 'desert')!).ground, 'desert.jpg');
+  const frozen = buildMap(MAPS.find((m) => m.id === 'frozen')!);
+  assert.equal(frozen.ground, 'frozen.jpg');
+  assert.ok(frozen.terrain.some((t) => t.env === 'water') && frozen.terrain.some((t) => t.env === 'forest' && t.unseen));
+  // The bridge over the garden stream: a deck with two short slabs up at each end. Every step is low enough for
+  // a Small figure to walk, and a figure on the deck does not stand in the water under it.
+  const g = table(garden.terrain);
+  assert.equal(surfaceAt(g, { x: 27.1, y: 9.9 }), 1.4);
+  const over = [0, ...heightProfile(g, { x: 23.5, y: 9.9 }, { x: 30.7, y: 9.9 })];
+  assert.equal(Math.max(...over), 1.4);
+  assert.ok(over.every((z, i) => i === 0 || Math.abs(z - over[i - 1]!) <= 0.5), 'no step higher than half an inch');
+  run(g, add('sog-bushi-attendant', 22, 9.9, 0, true));
+  const walker = model(g, 'a1');
+  Object.assign(walker, { x: 27.1, y: 9.9, z: 0 });
+  assert.equal(inShallowWater(g, walker), true, 'the stream runs under the bridge');
+  walker.z = 1.4;
+  assert.equal(inShallowWater(g, walker), false);
+  // The lotus pond is Shallow Water although a model is drawn for it.
+  Object.assign(walker, { x: 28.9, y: 30.6, z: 0 });
+  assert.equal(inShallowWater(g, walker), true);
+});
+
+// ---- Class abilities, items and Upgrade cards the table applies itself ----
+import { intOf, soldierBonus, THROWN_INDEX } from '../../frontend/src/lib/eld/combat.ts';
+import { SUMMONS } from '../../frontend/src/lib/eld/engine.ts';
+import { hasClass } from '../../frontend/src/lib/eld/stats.ts';
+import { hasUpgrade, upgradeChoices } from '../../frontend/src/lib/eld/upgrades.ts';
+
+const touching = 2 * baseRadius('medium') + 0.02;
+
+test('items: Throwing, Quantity and Consumables', () => {
+  const s = table([]);
+  run(s, add('the-hired-blade', 18, 24, 0, true)); // Short Sword, Dagger (Quantity 2)
+  run(s, add('hel-eonian-runner', 24, 24, 0, true)); // Javelin (Consumable, Quantity 4)
+  run(s, add('sog-bushi-attendant', 18, 18, 1, true));
+  const blade = model(s, 'a1');
+  blade.states = [];
+  blade.upgrades = ['neu-utility-tool'];
+  run(s, { type: 'READY' }, dice(20, 1));
+  assert.match(profileOf(blade).weapons[1]!.effect!, /Quantity 3/, 'Utility Tool: one more Dagger, not a second entry');
+  assert.deepEqual(attackOptions(blade).map((o) => o.weapon.name), ['Short Sword', 'Dagger', 'Unarmed', 'Dagger (thrown)']);
+  const thrown = attackOptions(blade).find((o) => o.weapon.thrown)!;
+  assert.equal(thrown.index, THROWN_INDEX + 1);
+  const plan = planAttack(s, blade, model(s, 'b1'), thrown.index, NO_MODS, { reactive: false });
+  assert.deepEqual([plan.ok, plan.ranged, plan.attrName, plan.stk], [true, true, 'ACC', 3], 'Reach T, one Strike for each Dagger');
+  // Two Daggers thrown, both miss: they are gone.
+  run(s, { type: 'ACTIVATE', id: 'a1' });
+  let ev = run(s, { type: 'ACTION', action: 'attack', weapon: thrown.index, target: 'b1', mods: { stk: -1 } }, dice(20, 20));
+  assert.deepEqual(ev[0]!.type === 'ACTION_RESOLVED' && ev[0]!.kit, [{ id: 'a1', item: 'Dagger', n: 2 }]);
+  assert.equal(blade.items!.Dagger, 1);
+  // The last one takes the Bushi down (a 1 is a Critical Hit; the Rogue's AG roll fails; Damage 5 vs PW 7).
+  model(s, 'b1').hp = 1;
+  run(s, { type: 'ACTIVATE', id: 'a1' });
+  ev = run(s, { type: 'ACTION', action: 'attack', weapon: THROWN_INDEX + 1, target: 'b1' }, dice(1, 20, 5));
+  assert.ok(model(s, 'b1').states.includes('Incapacitated'));
+  assert.deepEqual([blade.items!.Dagger, blade.thrown], [0, [{ name: 'Dagger', n: 1, at: 'b1' }]]);
+  assert.deepEqual(attackOptions(blade).map((o) => o.weapon.name), ['Short Sword', 'Unarmed'], 'no Dagger left, to stab or to throw');
+  // In Base Contact with the model it took down the Dagger is picked up again.
+  run(s, { type: 'MOVE_MODEL', id: 'a1', x: 18, y: 18 + touching, free: true });
+  assert.deepEqual([blade.items!.Dagger, blade.thrown], [1, undefined]);
+  // A Consumable: one is used up by each Attack, whatever its Strike.
+  run(s, { type: 'ACTIVATE', id: 'a2' });
+  run(s, { type: 'ACTION', action: 'attack', weapon: 1, target: 'b1' }, dice(16, 16)); // ACC 14 − 4: the Hired Blade is in Base Contact with the target
+  assert.equal(model(s, 'a2').items!.Javelin, 3);
+});
+
+test('Soldier: Morale and Intellect too, Companion of Hairon counts itself', () => {
+  const s = started(0);
+  const guard = model(s, 'b1');
+  const shaper = model(s, 'b2');
+  assert.equal(soldierBonus(s, guard), 1);
+  assert.deepEqual(moraleOf(s, guard), { m: 15, notes: ['Soldier +1'] });
+  assert.equal(intOf(s, shaper), 13);
+  guard.upgrades = ['hel-companion-of-hairon'];
+  assert.equal(soldierBonus(s, guard), 2);
+  shaper.states.push('Incapacitated');
+  assert.deepEqual([soldierBonus(s, guard), soldierBonus(s, shaper)], [1, 0]);
+});
+
+test('Ranger: a Normal Movement in the End Phase, then no more Activations', () => {
+  const s = table([]);
+  run(s, add('hel-eonian-runner', 18, 30));
+  run(s, add('sog-bushi-attendant', 22, 30));
+  run(s, add('sog-bushi-attendant', 18, 6, 1));
+  run(s, { type: 'READY' }, dice(20, 1));
+  assert.equal(code(() => run(s, { type: 'MOVE_MODEL', id: 'a1', x: 18, y: 26 })), 'NOT_ACTIVATED', 'not before a model has been activated');
+  run(s, { type: 'ACTIVATE', id: 'a2' });
+  run(s, { type: 'END_ACTIVATION' });
+  let ev = run(s, { type: 'MOVE_MODEL', id: 'a1', x: 18, y: 25 });
+  assert.equal(ev[0]!.type === 'MODEL_MOVED' && ev[0]!.bonus, 'ranger');
+  // Taken back, it is as if it had not been made: the turn goes on.
+  run(s, { type: 'UNDO_MOVE' });
+  assert.deepEqual([s.endPhase, s.bonus, model(s, 'a1').y], [undefined, undefined, 30]);
+  ev = run(s, { type: 'MOVE_MODEL', id: 'a1', x: 18, y: 25 });
+  assert.equal(s.endPhase, true);
+  assert.equal(code(() => run(s, { type: 'MOVE_MODEL', id: 'a1', x: 18, y: 23 })), 'TOO_FAR', 'SPD 6 in all');
+  assert.equal(code(() => run(s, { type: 'MOVE_MODEL', id: 'a2', x: 22, y: 28 })), 'NOT_ACTIVATED', 'the Bushi is no Ranger');
+  assert.equal(code(() => run(s, { type: 'ACTIVATE', id: 'a2' })), 'END_PHASE');
+  run(s, { type: 'END_TURN' });
+  assert.deepEqual([s.endPhase, s.bonus], [undefined, undefined]);
+});
+
+test('Mage: an Activation Point for the failed dice of a Spell', () => {
+  const s = table([]);
+  run(s, add('hel-flameweaver-noble', 18, 30, 0, true));
+  run(s, add('sog-bushi-attendant', 18, 20, 1, true));
+  run(s, { type: 'READY' }, dice(20, 1));
+  const fireball = spellWeapons(profileById('hel-flameweaver-noble')!).find((x) => x.weapon.name === 'Fireball')!.index;
+  run(s, { type: 'ACTIVATE', id: 'a1' });
+  assert.equal(model(s, 'a1').ap, 1);
+  run(s, { type: 'ACTION', action: 'attack', weapon: fireball, target: 'b1', mods: { mage: true } }, dice(20, 20, 20)); // the roll, its Scepter's reroll, the Mage's
+  assert.ok(s.log.some((l) => /Mage \(1 AP spent\) – rerolls 1 missed Attack roll/.test(l.text)), s.log.slice(-4).map((l) => l.text).join(' | '));
+  assert.equal(model(s, 'a1').ap, 0);
+});
+
+test('Friendly Fire: a roll of 17–20 hits the ally in Base Contact, which rolls Morale', () => {
+  const s = table([]);
+  run(s, add('sog-bushi-attendant', 18, 28, 0, true)); // Short Bow
+  run(s, add('sog-bushi-attendant', 18 + touching, 20, 0, true));
+  run(s, add('sog-bushi-attendant', 18, 20, 1, true));
+  run(s, { type: 'READY' }, dice(20, 1));
+  const plan = planAttack(s, model(s, 'a1'), model(s, 'b1'), 0, NO_MODS, { reactive: false });
+  assert.deepEqual([plan.attr, plan.friendly], [8, ['a2']], 'ACC 12, −4 for the ally');
+  run(s, { type: 'ACTIVATE', id: 'a1' });
+  // 17: the ally is hit (Morale 10 holds, Damage 3 wounds it). 5: a Hit on the target, its Damage roll fails.
+  run(s, { type: 'ACTION', action: 'attack', weapon: 0, target: 'b1' }, dice(17, 5, 10, 3, 20));
+  const texts = s.log.map((l) => l.text);
+  assert.ok(texts.some((t) => /^Friendly Fire: the roll of 17 hits Bushi Attendant/.test(t)), texts.slice(-6).join(' | '));
+  assert.ok(texts.some((t) => /Friendly Fire, M 16 – holds firm/.test(t)));
+  assert.deepEqual([model(s, 'a2').hp, model(s, 'b1').hp, model(s, 'a2').states.includes('Panicked')], [1, 2, false]);
+  assert.deepEqual(s.tally[0].melee + s.tally[0].reactive, 0, 'a Wound on an ally is nobody\'s score');
+});
+
+test('Lucky Charm: Luck counters and the dice they reroll', () => {
+  const s = table([]);
+  run(s, add('sog-bushi-attendant', 18, 20, 0, true));
+  run(s, add('sog-bushi-attendant', 18, 20 - touching, 1, true));
+  model(s, 'a1').upgrades = ['sog-lucky-charm'];
+  run(s, { type: 'READY' }, dice(20, 1));
+  assert.equal(model(s, 'a1').luck, 1, 'the first Strategic Phase of the player who begins');
+  const plan = planAttack(s, model(s, 'a1'), model(s, 'b1'), 1, NO_MODS, { reactive: false });
+  assert.equal(plan.ok, true, plan.reason);
+  run(s, { type: 'ACTIVATE', id: 'a1' });
+  const ev = run(s, { type: 'ACTION', action: 'attack', weapon: 1, target: 'b1', mods: { luck: true } }, dice(...Array(plan.stk).fill(20), 20));
+  assert.ok(s.log.some((l) => /Lucky Charm – rerolls 1 missed Attack roll/.test(l.text)));
+  assert.deepEqual(ev[0]!.type === 'ACTION_RESOLVED' && ev[0]!.kit, [{ id: 'a1', luck: 1 }]);
+  assert.equal(model(s, 'a1').luck, 0);
+  run(s, { type: 'END_TURN' });
+  run(s, { type: 'END_TURN' });
+  assert.equal(model(s, 'a1').luck, 1, 'one more in its next Strategic Phase');
+});
+
+test('First Aid, Double Time and Surge Order are discarded for their effect', () => {
+  const s = started(0);
+  model(s, 'a1').upgrades = ['neu-first-aid'];
+  model(s, 'b1').upgrades = ['neu-first-aid'];
+  model(s, 'a2').states.push('Bleeding');
+  assert.equal(code(() => run(s, { type: 'USE_UPGRADE', id: 'a1', upgrade: 'neu-first-aid', target: 'b2' })), 'BAD_TARGET');
+  run(s, { type: 'USE_UPGRADE', id: 'a1', upgrade: 'neu-first-aid', target: 'a2' });
+  assert.deepEqual([model(s, 'a2').states.includes('Bleeding'), hasUpgrade(model(s, 'a1'), 'neu-first-aid')], [false, false]);
+  assert.equal(code(() => run(s, { type: 'USE_UPGRADE', id: 'a1', upgrade: 'neu-first-aid', target: 'a2' })), 'BAD_VALUE');
+  // Red's Recovery Check: the Guard's First Aid makes it succeed without a roll.
+  Object.assign(model(s, 'b2'), { hp: 0, states: ['Incapacitated', 'Crouched'] });
+  run(s, { type: 'END_TURN' }, dice());
+  assert.deepEqual([model(s, 'b2').hp, model(s, 'b2').states.includes('Incapacitated'), hasUpgrade(model(s, 'b1'), 'neu-first-aid')], [1, false, false]);
+  assert.ok(s.log.some((l) => l.text === "Citadel Guard discards First Aid: Flameshaper's Recovery Check succeeds"));
+
+  // Double Time: +6 to the Initiative Check. Surge Order: up to 3 Helian League models move in the Strategic Phase.
+  const t = table();
+  run(t, add('sog-clan-champion', 16, 30));
+  run(t, add('hel-citadel-guard', 16, 6, 1));
+  run(t, add('hel-flameshaper', 20, 6, 1));
+  model(t, 'b1').upgrades = ['hel-double-time'];
+  model(t, 'b2').upgrades = ['hel-surge-order'];
+  run(t, { type: 'READY' }, dice(10, 10)); // Blue 10 + 17, Red 10 + 15 + 6
+  assert.equal(t.active, 1);
+  assert.ok(t.log.some((l) => /Red 10\+15\+6 \(Double Time\)=31/.test(l.text)), t.log.slice(-3).map((l) => l.text).join(' | '));
+  assert.equal(code(() => run(t, { type: 'MOVE_MODEL', id: 'b1', x: 16, y: 9 })), 'NOT_ACTIVATED');
+  run(t, { type: 'USE_UPGRADE', id: 'b2', upgrade: 'hel-surge-order' });
+  const ev = run(t, { type: 'MOVE_MODEL', id: 'b1', x: 16, y: 9 });
+  assert.equal(ev[0]!.type === 'MODEL_MOVED' && ev[0]!.bonus, 'surge');
+  assert.equal(code(() => run(t, { type: 'MOVE_MODEL', id: 'b1', x: 16, y: 12 })), 'TOO_FAR', 'SPD 4');
+  assert.deepEqual(t.surge, { side: 1, ids: ['b1'] });
+  run(t, { type: 'ACTIVATE', id: 'b1' });
+  run(t, { type: 'END_ACTIVATION' });
+  assert.equal(code(() => run(t, { type: 'MOVE_MODEL', id: 'b2', x: 20, y: 9 })), 'NOT_ACTIVATED', 'the Strategic Phase is over');
+});
+
+test('Smokescreen: the Haze Bomb leaves a Hazy area', () => {
+  const s = table([]);
+  run(s, add('sog-bushi-attendant', 18, 30, 0, true));
+  run(s, add('sog-bushi-attendant', 18, 14, 1, true));
+  model(s, 'a1').upgrades = ['neu-smokescreen'];
+  run(s, { type: 'READY' }, dice(20, 1));
+  const bomb = attackOptions(model(s, 'a1')).find((o) => o.weapon.name === 'Haze Bomb')!;
+  assert.equal(planAttack(s, model(s, 'b1'), model(s, 'a1'), 0, NO_MODS, { reactive: true }).ok, true);
+  run(s, { type: 'ACTIVATE', id: 'a1' });
+  const ev = run(s, { type: 'ACTION', action: 'attack', weapon: bomb.index, at: { x: 18, y: 22 } }, dice(5));
+  assert.deepEqual(ev.map((e) => e.type), ['ACTION_RESOLVED', 'TERRAIN_ADDED']);
+  assert.equal(model(s, 'a1').items!['Haze Bomb'], 0);
+  assert.equal(attackOptions(model(s, 'a1')).some((o) => o.weapon.name === 'Haze Bomb'), false);
+  assert.match(planAttack(s, model(s, 'b1'), model(s, 'a1'), 0, NO_MODS, { reactive: true }).reason, /Hazy area is in the way/);
+  // It lasts until the user's next Strategic Phase.
+  run(s, { type: 'END_TURN' });
+  assert.equal(s.terrain.some((p) => p.name === 'Haze'), true);
+  run(s, { type: 'END_TURN' });
+  assert.equal(s.terrain.some((p) => p.name === 'Haze'), false);
+});
+
+test('Upgrades with a choice, and what a summoner\'s Upgrades give its creatures', () => {
+  const mage = profileById('san-academy-expeditioner')!;
+  const before = mage.traits.find((x) => x.startsWith('Affinity'))!;
+  assert.deepEqual(upgradeChoices(mage, ['san-elemental-lineage']).map((c) => c.options), [['Fire', 'Water', 'Earth', 'Air']]);
+  for (const [i, el] of ['Fire', 'Water', 'Earth', 'Air'].entries()) {
+    const now = withUpgrades(mage, ['san-elemental-lineage'], { 'san-elemental-lineage': i }).traits.find((x) => x.startsWith('Affinity'))!;
+    assert.ok(now.includes(el) && (before.includes(el) ? now === before : now.length > before.length), `${before} + ${el} = ${now}`);
+    const swapped = withUpgrades(mage, ['san-mana-catalyst'], { 'san-mana-catalyst': i }).traits.find((x) => x.startsWith('Affinity'))!;
+    assert.ok(swapped.includes(el) && swapped.split(',').length === before.split(',').length, `${before} -> ${swapped}`);
+  }
+  const s = table([]);
+  run(s, add('san-vizier', 18, 30));
+  const vizier = model(s, 'a1');
+  vizier.upgrades = ['san-conjured-retinue', 'san-personal-guard', 'san-elemental-lineage'];
+  run(s, { type: 'PICK_UPGRADE', id: 'a1', upgrade: 'san-elemental-lineage', pick: 1 });
+  assert.ok(profileOf(vizier).traits.some((x) => /^Affinity \(.*Water/.test(x)));
+  assert.equal(code(() => run(s, { type: 'PICK_UPGRADE', id: 'a1', upgrade: 'san-conjured-retinue', pick: 0 })), 'BAD_VALUE');
+  assert.equal(SUMMONS['Summon Golem'], 'sum-golem');
+  run(s, { type: 'SUMMON', id: 'a1', spell: 'Summon Golem', at: { x: 22, y: 30 } });
+  const golem = s.models.find((m) => m.summonedBy === 'a1')!;
+  assert.deepEqual([hasClass(golem, 'Soldier'), hasClass(golem, 'Sentinel')], [true, true]);
+  assert.equal(partyProblems({ faction: 'Sand Kingdoms', models: ['san-vizier'], leader: 0, upgrades: [['san-retinue-soldier']] }, 100).some((p) => /cannot be bought/.test(p)), true);
+});
+
+test('Defensive Stance: a Warrior, in its own Strategic Phase, until the next one', () => {
+  const s = started(0);
+  assert.equal(code(() => run(s, { type: 'SET_STATE', id: 'b1', state: 'Defensive Stance', on: true })), 'CANNOT_ACT', 'the Citadel Guard is no Warrior');
+  run(s, { type: 'SET_STATE', id: 'a1', state: 'Defensive Stance', on: true });
+  run(s, { type: 'END_TURN' });
+  assert.equal(model(s, 'a1').states.includes('Defensive Stance'), true);
+  run(s, { type: 'END_TURN' });
+  assert.equal(model(s, 'a1').states.includes('Defensive Stance'), false);
 });

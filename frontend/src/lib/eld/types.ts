@@ -63,6 +63,16 @@ export interface Model {
   treasure?: number;
   /** Upgrade ids (shared/upgrades.ts) bought for this model. */
   upgrades?: string[];
+  /** Upgrades that were discarded when used (First Aid, Surge Order). */
+  spent?: string[];
+  /** The choice made for an Upgrade that offers one (which Spellcraft, weapon or Element): upgrade id -> index. */
+  picks?: Record<string, number>;
+  /** Items that run out (Throwing, Consumables): how many are left, by name. Absent = the Quantity on the card. */
+  items?: Record<string, number>;
+  /** Thrown items lying by the model they took down: in Base Contact with it they are picked up again. */
+  thrown?: { name: string; n: number; at: string }[];
+  /** Luck counters (Lucky Charm). */
+  luck?: number;
   /** Enchantments on the model. */
   enchants?: Enchant[];
   /** What its own or the enemy Leader's Stratagems give it until that player's next Strategic Phase. */
@@ -175,6 +185,23 @@ export interface SchemeSeat {
 export type Phase = 'setup' | 'playing' | 'finished';
 export type MoveMode = 'deploy' | 'walk' | 'run' | 'react' | 'retreat' | 'follow' | 'free' | 'climb' | 'jump';
 
+/** A roll of the Strategic Phase that waits for its player: whose, what for, against what number. */
+export interface PendingRoll {
+  id: string;
+  who: string;
+  what: string;
+  target: number;
+}
+
+/** What an Action used up: `n` of an item, a Luck counter; `at`: the thrown items lie by this model, which they took down. */
+export interface KitUse {
+  id: string;
+  item?: string;
+  n?: number;
+  luck?: number;
+  at?: string;
+}
+
 export type Intent = 'dodge' | 'attack' | 'other';
 export type ActionKind = 'attack' | 'dodge' | 'nothing' | 'deathblow' | 'perceive' | 'interact' | 'cast' | 'ritual' | 'mount';
 
@@ -213,6 +240,10 @@ export interface Mods {
   snipe?: boolean;
   /** Knockback: the spot the attacker pushes the target towards (default: straight away from the attacker). */
   push?: Pt;
+  /** Lucky Charm: spend a Luck counter if a die of this model fails (an Attack roll, a Dodge) or a Damage roll wounds it. */
+  luck?: boolean;
+  /** Mage: spend an Activation Point to reroll the failed dice of a Spell. */
+  mage?: boolean;
 }
 
 export interface Reaction {
@@ -321,9 +352,19 @@ export interface TableState {
   /** Victory Points each side has from the Quest so far (a Quest gives at most 10). */
   questVp?: [number, number];
   /** The last Movement, while it can still be taken back (nothing has happened since: no dice, no Reaction). */
-  lastMove?: { id: string; x: number; y: number; z?: number; facing: number; activation: Activation | null; moved?: string[] };
+  lastMove?: { id: string; x: number; y: number; z?: number; facing: number; activation: Activation | null; moved?: string[]; /** A Movement outside an Activation: what `bonus`, `endPhase` and the Surge Order list were before it. */ bonus?: { moved: Record<string, number> | null; endPhase: boolean; surge: string[] | null } };
   /** Stratagems declared in this Strategic Phase. */
   stratUsed?: string[];
+  /** Both players are ready: the Initiative Check waits for each of them to roll. */
+  initiative?: { rolls: [number | null, number | null] };
+  /** The turn has ended and the next player's Strategic Phase has dice to roll: it waits for that player. */
+  pendingTurn?: { side: Side; round: number; rolls: PendingRoll[] };
+  /** Inches moved this turn outside an Activation (a Ranger in the End Phase, Surge Order): model id -> inches. */
+  bonus?: Record<string, number>;
+  /** A Ranger has made its End Phase Movement: no more Activations this turn. */
+  endPhase?: boolean;
+  /** Surge Order was declared in this Strategic Phase: the models that have moved on it (up to 3). */
+  surge?: { side: Side; ids: string[] };
   /** Unconventional Tactics: this player's Leader rolls at the start of its next Strategic Phase / failed it this turn. */
   stratCheck?: Side;
   stratBlocked?: Side;
@@ -370,6 +411,14 @@ export type Command =
   | { type: 'LEAVE_FIELD'; id: string }
   /** A Mage turns Activation Points into Mana Counters. */
   | { type: 'CONVERT_MANA'; id: string; count?: number }
+  /** Roll your die of the Initiative Check (both players are ready). */
+  | { type: 'ROLL_INITIATIVE' }
+  /** Roll the dice of your Strategic Phase (Bleeding, Poisoned, Recovery Checks...): your turn begins. */
+  | { type: 'ROLL_STRATEGIC' }
+  /** Discard an Upgrade for its effect: First Aid (on `target`), Surge Order. */
+  | { type: 'USE_UPGRADE'; id: string; upgrade: string; target?: string }
+  /** Before the game: the choice an Upgrade offers (which Spellcraft, weapon or Element). */
+  | { type: 'PICK_UPGRADE'; id: string; upgrade: string; pick: number }
   | { type: 'END_ACTIVATION' }
   /** Answer to a declared Attack: the model with Protector that steps in, or nobody. */
   | { type: 'PROTECT'; id?: string | null }
@@ -391,7 +440,7 @@ export type EventBody =
   | { type: 'TABLE_CREATED'; name: string; width: number; height: number; deployDepth: number; deploy?: 'standard' | 'corner'; terrain: TerrainPiece[]; quest?: string | null; points?: number; /** Ground picture, relief (looks only) and the map's name. */ ground?: string; relief?: number; map?: string }
   | { type: 'PLAYER_JOINED'; seat: Side; name: string }
   | { type: 'MODEL_ADDED'; model: Model }
-  | { type: 'MODEL_MOVED'; id: string; from: Pt; to: Pt; facing: number; dist: number; cost?: number; mode?: MoveMode; /** Height it ends at (scenery top), when it changed. */ z?: number; /** Climb / Jump as a Special Movement: only Nothing may follow. */ special?: boolean }
+  | { type: 'MODEL_MOVED'; id: string; from: Pt; to: Pt; facing: number; dist: number; cost?: number; mode?: MoveMode; /** Height it ends at (scenery top), when it changed. */ z?: number; /** Climb / Jump as a Special Movement: only Nothing may follow. */ special?: boolean; /** A Movement outside an Activation: a Ranger's in the End Phase, or on Surge Order. */ bonus?: 'ranger' | 'surge' }
   | { type: 'MODEL_ROTATED'; id: string; facing: number }
   | { type: 'MODEL_HP'; id: string; hp: number; states?: StateName[] }
   | { type: 'MODEL_AP'; id: string; ap: number }
@@ -403,13 +452,19 @@ export type EventBody =
   | { type: 'DISMOUNTED'; id: string; why?: 'knockdown' | 'down' | 'choice' }
   | { type: 'DICE_ROLLED'; result: DiceResult }
   | { type: 'PLAYER_READY'; seat: Side }
-  | { type: 'GAME_STARTED'; rolls: [number, number]; morale: [number, number]; first: Side }
+  | { type: 'GAME_STARTED'; rolls: [number, number]; morale: [number, number]; first: Side; /** Double Time: +6 to the Initiative Check. */ bonus?: [number, number] }
+  /** What a model carries changed: items left, Luck counters, a discarded Upgrade, an Upgrade's choice, thrown items still lying about. */
+  | { type: 'MODEL_KIT'; id: string; items?: Record<string, number>; luck?: number; spent?: string[]; picks?: Record<string, number>; thrown?: { name: string; n: number; at: string }[]; text?: string }
+  | { type: 'SURGE_ORDERED'; seat: Side; id: string }
+  | { type: 'INITIATIVE_PENDING' }
+  | { type: 'INITIATIVE_ROLLED'; seat: Side; roll: number }
+  | { type: 'STRATEGIC_PENDING'; seat: Side; round: number; rolls: PendingRoll[] }
   | { type: 'TURN_STARTED'; round: number; active: Side; ap: Record<string, number>; rested: string[] }
   | { type: 'MODEL_ACTIVATED'; id: string; panic?: DiceResult; fled?: 'flee' | 'hold' }
   /** A Panicked model ran off the field: it is lost. */
   | { type: 'MODEL_FLED'; id: string }
   /** Something that hits several models outside an Attack (a Sigil going off). */
-  | { type: 'EFFECT'; lines: { text: string; dice?: DiceResult }[]; results: { id: string; hp: number; states: StateName[]; ap?: number; temp?: Partial<Record<StateName, Until>> }[] }
+  | { type: 'EFFECT'; lines: { text: string; dice?: DiceResult }[]; results: { id: string; hp: number; states: StateName[]; ap?: number; temp?: Partial<Record<StateName, Until>> }[]; kit?: KitUse[] }
   | { type: 'MARKER_REVEALED'; id: string; spell: string; roll: number; /** The model that revealed it. */ who?: string }
   | { type: 'MARKER_SET'; id: string; kind: MarkerKind }
   /** A model takes a Treasure: from a Cache it unlocked (which stays, opened) or loot lying on the ground. */
@@ -443,7 +498,7 @@ export type EventBody =
   | { type: 'TERRAIN_REMOVED'; ids: string[]; why?: string }
   | { type: 'TAUNTED'; id: string; rolls: { id: string; dice: DiceResult }[] }
   | { type: 'IMPEDED'; id: string; who: string; at: Pt }
-  | { type: 'ACTION_RESOLVED'; action: ActionKind; lines: { text: string; dice?: DiceResult }[]; results: { id: string; hp: number; states: StateName[]; ap?: number; temp?: Partial<Record<StateName, Until>>; /** Knockback: where the model was pushed. */ to?: Pt }[]; used?: { id: string; what: string }[]; dealt?: Dealt[]; mana?: { id: string; spent: number }[]; /** The Attack was made against an enemy without line of sight to the attacker. */ flank?: boolean; /** Death Blow: the model that was killed. */ deathblow?: string; /** For the picture on the table: who attacked with what, where, and the models it took effect on. */ fx?: { from: string; name: string; at: Pt; hit: string[] } }
+  | { type: 'ACTION_RESOLVED'; action: ActionKind; lines: { text: string; dice?: DiceResult }[]; results: { id: string; hp: number; states: StateName[]; ap?: number; temp?: Partial<Record<StateName, Until>>; /** Knockback: where the model was pushed. */ to?: Pt }[]; used?: { id: string; what: string }[]; dealt?: Dealt[]; mana?: { id: string; spent: number }[]; kit?: KitUse[]; /** The Attack was made against an enemy without line of sight to the attacker. */ flank?: boolean; /** Death Blow: the model that was killed. */ deathblow?: string; /** For the picture on the table: who attacked with what, where, and the models it took effect on. */ fx?: { from: string; name: string; at: Pt; hit: string[] } }
   | { type: 'ENGAGEMENT'; on: string[]; off: string[] }
   | { type: 'STRATEGIC'; lines: { text: string; dice?: DiceResult }[]; results: { id: string; hp: number; states: StateName[] }[] }
   | { type: 'ACTIVATION_ENDED' }

@@ -5,8 +5,8 @@
 
 import { useState } from "react";
 import { Minus, Plus, RotateCcw, RotateCw, Zap } from "lucide-react";
-import { gap, moraleOf } from "@/lib/eld/combat.ts";
-import { SUMMONS, ZONES } from "@/lib/eld/engine.ts";
+import { gap, itemsLeft, moraleOf, runsOut, soldierBonus } from "@/lib/eld/combat.ts";
+import { firstAidTargets, SUMMONS, ZONES } from "@/lib/eld/engine.ts";
 import { normDeg } from "@/lib/eld/geometry.ts";
 import { sight } from "@/lib/eld/los.ts";
 import { mountById } from "@/lib/eld/mounts.ts";
@@ -14,8 +14,9 @@ import { profileById, type Weapon } from "@/lib/eld/profiles.ts";
 import { roman, spellsOf, spellText, spellWeapons } from "@/lib/eld/spells.ts";
 import { baseStats, hasClass, hasSkill, modelStats, profileOf, STAT_LABEL, STATE_HINT, weaponNumbers, type StatKey } from "@/lib/eld/stats.ts";
 import { STATES, type Model, type StateName } from "@/lib/eld/types.ts";
-import { upgradeById } from "@/lib/eld/upgrades.ts";
+import { hasUpgrade, upgradeById, upgradeChoices } from "@/lib/eld/upgrades.ts";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { boonText, concealed, mayControl } from "@/lib/table/game-logic";
 import { ActionPanel, ReactionPanel, type PanelCtx } from "./action-panels";
 import { SIDE_TEXT } from "./colors";
@@ -47,6 +48,7 @@ function WeaponRow({ c, m, weapon, fillPower }: { c: PanelCtx; m: Model; weapon:
     <li className="grid gap-0.5 rounded-md border bg-background p-2">
       <div className="flex items-baseline gap-2">
         <strong>{weapon.name}</strong>
+        {runsOut(weapon) && <span className={`text-xs tabular-nums ${itemsLeft(m, weapon) > 0 ? "text-amber-400" : "text-red-400"}`} title={c.t("itemsLeft")}>× {itemsLeft(m, weapon)}</span>}
         <span className="text-xs text-muted-foreground">{weapon.type}</span>
         {c.viewer.canAct && stk !== null && (
           <Button type="button" size="sm" variant="outline" className={`ml-auto ${mini}`} title={c.t("justRoll", { n: stk, attr: STAT_LABEL[key], value: stats[key] })}
@@ -217,7 +219,11 @@ export function ModelCard({ c, m, showLos, sideName, fillDice, fillPower, onAtta
     if (m.side === st.active) {
       if (a?.id === m.id) panel = <ActionPanel c={c} m={m} onAttack={onAttack} />;
       else main = (
-        <Button type="button" size="sm" disabled={m.ap < 1 || !!a?.pending || !!a?.roll} onClick={() => c.send({ type: "ACTIVATE", id: m.id })}>
+        <Button type="button" size="sm" disabled={m.ap < 1 || !!a?.pending || !!a?.roll || !!st.pendingTurn}
+          onClick={() => (m.states.includes("Panicked")
+            // A Panicked model rolls Morale when it activates: through the dice window.
+            ? c.rollGate({ title: `${m.name}: Panicked`, sub: "Morale", dice: 1, target: moraleOf(st, m).m, attr: "M", notes: moraleOf(st, m).notes }, { type: "ACTIVATE", id: m.id })
+            : c.send({ type: "ACTIVATE", id: m.id }))}>
           <Zap aria-hidden /> {m.ap < 1 ? t("noAp") : t("activate")}
         </Button>
       );
@@ -231,6 +237,11 @@ export function ModelCard({ c, m, showLos, sideName, fillDice, fillPower, onAtta
       .map((x) => `${x.e.name} ${gap(m, x.e).toFixed(1)}″${x.v.cover === -4 ? " (Heavy Cover)" : x.v.cover === -2 ? " (Light Cover)" : ""}${x.v.forest ? " (Forest)" : ""}`)
     : null;
   const mor = moraleOf(st, m);
+  const soldiers = soldierBonus(st, m);
+  // Upgrades: the choice some of them offer (before the game), and the ones discarded for an effect in the Strategic Phase.
+  const card = profileById(m.profileId);
+  const choices = card ? upgradeChoices(card, m.upgrades) : [];
+  const usable = mine && st.phase === "playing" && st.active === m.side && !st.activation && !st.acted && !m.states.includes("Dead") && !m.states.includes("Incapacitated");
 
   const stat = (key: StatKey, rollable: boolean) => {
     const changed = stats[key] !== base[key];
@@ -288,6 +299,7 @@ export function ModelCard({ c, m, showLos, sideName, fillDice, fillPower, onAtta
       <div className="grid grid-cols-3 gap-1">{(["sta", "spd", "arm"] as const).map((k) => stat(k, false))}</div>
       <div className="grid grid-cols-7 gap-1">{(["off", "def", "acc", "int", "ag", "t", "m"] as const).map((k) => stat(k, true))}</div>
       {mor.notes.length > 0 && <p className="text-xs text-muted-foreground">{t("moraleAt", { m: mor.m })}: {mor.notes.join(", ")}</p>}
+      {soldiers > 0 && <p className="text-xs text-emerald-400">{t("soldierBonus", { n: soldiers })}</p>}
       {panel && <div className="rounded-lg border border-primary/50 bg-background p-2.5">{panel}</div>}
       {seen && <p className="text-xs"><span className="text-muted-foreground">{t("sees")} </span>{seen.length ? seen.join(" · ") : t("seesNobody")}</p>}
       <details open={statesOpen} onToggle={(e) => setStatesOpen((e.target as HTMLDetailsElement).open)}>
@@ -307,7 +319,36 @@ export function ModelCard({ c, m, showLos, sideName, fillDice, fillPower, onAtta
       {(m.upgrades?.length ?? 0) > 0 && (
         <div className="grid gap-0.5 text-xs">
           <p><span className="text-muted-foreground">{t("upgrades")} </span>{m.upgrades!.map((id) => upgradeById(id)?.name ?? id).join(" · ")}</p>
-          {m.upgrades!.map(upgradeById).map((u) => u && <p key={u.id} className="text-muted-foreground">{u.name}: {u.text}</p>)}
+          {m.upgrades!.map(upgradeById).map((u) => {
+            if (!u) return null;
+            const gone = (m.spent ?? []).includes(u.id);
+            const choice = choices.find((x) => x.id === u.id);
+            const pick = m.picks?.[u.id] ?? 0;
+            const aid = u.id === "neu-first-aid" && usable && hasUpgrade(m, u.id) ? firstAidTargets(st, m) : null;
+            return (
+              <div key={u.id} className="grid gap-1 text-muted-foreground">
+                <p><span className={gone ? "line-through" : ""}>{u.name}: {u.text}</span>{gone ? ` (${t("discarded")})` : ""}</p>
+                {choice && (mine && st.phase === "setup"
+                  ? (
+                    <NativeSelect className="h-7 px-2 text-xs" aria-label={u.name} value={String(pick)} onChange={(e) => c.send({ type: "PICK_UPGRADE", id: m.id, upgrade: u.id, pick: Number(e.target.value) })}>
+                      {choice.options.map((o, i) => <option key={i} value={i}>{o}</option>)}
+                    </NativeSelect>
+                  )
+                  : <p className="text-foreground">→ {choice.options[pick] ?? choice.options[0]}</p>)}
+                {aid && (
+                  <p className="flex flex-wrap items-center gap-1">
+                    {aid.length === 0 ? t("firstAidNobody") : aid.map((o) => (
+                      <Button key={o.id} type="button" size="sm" variant="outline" className={mini} onClick={() => c.send({ type: "USE_UPGRADE", id: m.id, upgrade: u.id, target: o.id })}>{t("firstAidOn", { name: o.id === m.id ? t("itself") : o.name })}</Button>
+                    ))}
+                  </p>
+                )}
+                {u.id === "hel-surge-order" && usable && hasUpgrade(m, u.id) && (
+                  <p><Button type="button" size="sm" variant="outline" className={mini} title={t("surgeHint")} onClick={() => c.send({ type: "USE_UPGRADE", id: m.id, upgrade: u.id })}>{t("surgeUse")}</Button></p>
+                )}
+                {u.id === "sog-lucky-charm" && <p className="text-foreground">{t("luckCounters", { n: m.luck ?? 0 })}</p>}
+              </div>
+            );
+          })}
         </div>
       )}
       {m.treasure ? <p className="text-xs text-amber-400">◆ {t("carriesTreasure", { n: m.treasure })}</p> : null}

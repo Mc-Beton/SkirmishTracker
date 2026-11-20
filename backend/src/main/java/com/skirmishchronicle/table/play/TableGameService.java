@@ -28,7 +28,7 @@ public class TableGameService {
     public record Meta(UUID id, String status, String mapName, String questCode, String deployment, double deploymentDepth,
                        TableView.Background background, List<TableView.Placed> placements, List<TableView.TerrainView> terrain,
                        List<TableView.Player> players, int you, String role, boolean creator, TableView.Player invited,
-                       boolean observersAllowed, UUID reportedGameId) {
+                       boolean observersAllowed, UUID reportedGameId, String viewMode, String gameMap) {
     }
 
     /** {@code hands}: [yours or null, …] – a player sees only their own Scheme cards (both while playing alone). */
@@ -75,11 +75,17 @@ public class TableGameService {
         boolean corner = t.getDeployment() == GameState.Deployment.CORNER;
         Meta meta = new Meta(t.getId(), t.getStatus().name(), t.getMapName(), t.getQuestCode(), t.getDeployment().name(),
                 corner ? GameState.CORNER_RADIUS : snap.deploymentDepth(),
-                new TableView.Background(snap.background().imageId(), snap.background().widthIn(), snap.background().heightIn()),
+                snap.background() == null ? new TableView.Background(null, snap.widthIn(), snap.heightIn())
+                        : new TableView.Background(snap.background().imageId(), snap.background().widthIn(), snap.background().heightIn()),
                 placed, terrain, tables.players(t), you, role.name(), t.isCreator(actor.id()),
                 t.isCreator(actor.id()) && t.getInvitedUserId() != null ? tables.player(t.getInvitedUserId(), 1) : null,
-                t.isObserversAllowed(), t.getReportedGameId());
-        return new GameView(meta, game.eventsAfter(t, Math.max(0, after)), handsFor(t, you), t.lastSeq());
+                t.isObserversAllowed(), t.getReportedGameId(), t.getViewMode(), t.getGameMap());
+        // While the second seat is empty the creator moves both sides and sees both; after that every viewer gets
+        // the events in the form kept for them (hidden models of others masked).
+        TableEventStore.Viewer viewer = you == 0 && t.getPlayerB() == null ? TableEventStore.Viewer.ALL
+                : you == 0 ? TableEventStore.Viewer.PLAYER_A : you == 1 ? TableEventStore.Viewer.PLAYER_B
+                : TableEventStore.Viewer.OTHER;
+        return new GameView(meta, game.eventsAfter(t, Math.max(0, after), viewer), handsFor(t, you), t.lastSeq());
     }
 
     /** One command of a player; returns the number of the last event. */

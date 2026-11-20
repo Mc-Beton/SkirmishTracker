@@ -33,8 +33,10 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/tables")
 public class TableController {
 
-    public record CreateRequest(@NotNull UUID mapId, @NotNull UUID listId, @Size(max = 60) String questCode,
-                                GameTable.MeasureMode measureMode, Boolean judge, Boolean observers, UUID opponentId) {
+    /** {@code mapId}: a WarBracket map (2D table) – or {@code gameMap}: a map of the game by its id (3D table). */
+    public record CreateRequest(UUID mapId, @NotNull UUID listId, @Size(max = 60) String questCode,
+                                GameTable.MeasureMode measureMode, Boolean judge, Boolean observers, UUID opponentId,
+                                @Size(max = 40) String gameMap, @Size(max = 2) String viewMode) {
     }
 
     public record InviteUserRequest(@NotNull UUID userId) {
@@ -203,7 +205,7 @@ public class TableController {
     @ResponseStatus(HttpStatus.CREATED)
     public TableService.Created create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateRequest body) {
         return tables.create(CurrentUser.from(jwt), body.mapId(), body.listId(), body.questCode(), body.measureMode(),
-                Boolean.TRUE.equals(body.judge()), Boolean.TRUE.equals(body.observers()), body.opponentId());
+                Boolean.TRUE.equals(body.judge()), Boolean.TRUE.equals(body.observers()), body.opponentId(), body.gameMap(), body.viewMode());
     }
 
     /** A free game: no map or lists up front; the creator may play both sides until somebody joins. */

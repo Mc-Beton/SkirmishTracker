@@ -22,6 +22,29 @@ git archive --format=tar HEAD | ssh "$SERVER" "set -e
   rm -rf $DIR/app.new && mkdir -p $DIR/app.new && tar -x -C $DIR/app.new
   echo $REV > $DIR/app.new/REVISION"
 
+# 3D terrain (about 370 MB, Git LFS): not in the archive – the files go to $DIR/terrain3d, served by Caddy.
+# They are sent only when the set of files (names and sizes) differs from what the server has.
+TERRAIN=frontend/public/terrain3d
+if [ -d "$TERRAIN" ]; then
+  FIRST="$(find "$TERRAIN" -type f -name '*.glb' | head -n 1)"
+  if [ -n "$FIRST" ] && head -c 200 "$FIRST" | grep -q 'git-lfs'; then
+    echo "W $TERRAIN są tylko wskaźniki Git LFS – uruchom: git lfs pull" >&2
+    exit 1
+  fi
+  SUM="$(cd "$TERRAIN" && find . -type f -printf '%P %s\n' | LC_ALL=C sort | sha1sum | cut -d' ' -f1)"
+  HAVE="$(ssh "$SERVER" "cat $DIR/terrain3d/.sum 2>/dev/null || true")"
+  if [ "$SUM" != "$HAVE" ]; then
+    echo "Wysyłam tereny 3D ($(du -sh "$TERRAIN" | cut -f1)) – to potrwa kilka minut ..."
+    tar -c -C "$TERRAIN" . | ssh "$SERVER" "set -e
+      mkdir -p $DIR/terrain3d && tar -x -C $DIR/terrain3d
+      chmod -R a+rX $DIR/terrain3d
+      echo $SUM > $DIR/terrain3d/.sum"
+  else
+    echo "Tereny 3D bez zmian."
+  fi
+fi
+ssh "$SERVER" "mkdir -p $DIR/terrain3d"
+
 ssh "$SERVER" "set -e
   cd $DIR
   rm -rf app.old

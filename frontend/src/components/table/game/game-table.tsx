@@ -5,20 +5,22 @@
 // the dice window, Stratagems, Spells, Schemes. The server decides and rolls; this page shows and asks.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Dices, Eye, Flag, Hand, Layers, MapPin, Minus, MousePointer2, Plus, Ruler, Send, SquareDashed, Target, Trash2, Undo2, UserPlus } from "lucide-react";
+import { ArrowLeft, Box, Dices, Eye, Flag, Hand, Layers, MapPin, Minus, MousePointer2, Plus, Ruler, Send, SquareDashed, Target, Trash2, Undo2, UserPlus } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useErrorMessage } from "@/components/auth/use-error-message";
 import { QuestView } from "@/components/game/quest-view";
 import { TableSharing } from "@/components/table/table-sharing";
 import { api, ApiError } from "@/lib/api";
 import { useGameContent } from "@/lib/content";
-import { AOE_POINT, areaOf, attackOptions, planAttack, weaponAt } from "@/lib/eld/combat.ts";
-import { summonSpotProblem, ZONES } from "@/lib/eld/engine.ts";
+import { AOE_POINT, areaOf, attackOptions, fallRolls, planAttack, weaponAt } from "@/lib/eld/combat.ts";
+import { checkMove, leaderMorale, summonSpotProblem, ZONES } from "@/lib/eld/engine.ts";
 import { baseRadius, normDeg } from "@/lib/eld/geometry.ts";
 import { profileById } from "@/lib/eld/profiles.ts";
 import { questByCode } from "@/lib/eld/quests.ts";
@@ -29,12 +31,22 @@ import {
   templateShape, withNames, type TemplateShape, type Ui, type Viewer,
 } from "@/lib/table/game-logic";
 import { useGame } from "@/lib/table/use-game";
+import { keepView3dSettings, presetOf, readView3dSettings, VIEW3D_PRESETS, type View3dSettings } from "@/lib/table/view3d-settings";
 import type { Aim, PanelCtx, RollGate } from "./action-panels";
 import { SIDE_TEXT } from "./colors";
 import { DiceChips, DiceWindow, type ComposeSpec, type PendingRow, type PendingSpec, type ResultRow, type ResultsSpec } from "./dice-window";
-import { GameBoard, type BoardMode } from "./game-board";
+import { GameBoard, type BoardMode, type GameBoardProps } from "./game-board";
 import { ModelCard } from "./model-card";
 import { EngineQuestBox, Roster, SchemesBox } from "./side-panels";
+
+// The 3D board brings three.js: loaded only when a 3D table is opened, never on the server.
+const GameBoard3D = dynamic(() => import("./game-board-3d").then((m) => m.GameBoard3D), { ssr: false, loading: () => <Board3dLoading /> });
+
+/** While the 3D code itself is on its way (before the scene can show its own progress bar). */
+function Board3dLoading() {
+  const t = useTranslations("table.view3d");
+  return <p role="status" className="m-auto animate-pulse rounded-lg border bg-card px-4 py-3 text-sm">{t("loading")}</p>;
+}
 
 type T = (key: string, values?: Record<string, string | number>) => string;
 type Tool = "select" | "measure" | "token";
@@ -42,7 +54,11 @@ type RightTab = "model" | "quest" | "log" | "share";
 
 const cap = (s: string): string => s[0]!.toUpperCase() + s.slice(1);
 /** Rolls of the game itself that tumble in the dice window for both players. */
-const ROLLED = ["ACTION_RESOLVED", "EFFECT", "TAUNTED", "MODEL_REACTED", "MODEL_MOVED", "MODEL_ACTIVATED"];
+const ROLLED = ["ACTION_RESOLVED", "EFFECT", "TAUNTED", "MODEL_REACTED", "MODEL_MOVED", "MODEL_ACTIVATED", "STRATEGIC", "GAME_STARTED"];
+/** How long an announcement (the game begins, whose turn it is) stays on the table. */
+const BANNER_MS = 3200;
+/** What is announced across the table. */
+type Banner = { kind: "start" } | { kind: "turn"; side: Side; round: number; first: boolean };
 const FRESH_MS = 15000;
 const ZONE_R = 120 / 25.4 / 2;
 
@@ -61,6 +77,30 @@ export function GameTable({ tableId }: { tableId: string }) {
   const [showAwareness, setShowAwareness] = useState(false);
   const [showZones, setShowZones] = useState(true);
   const [showTerrain, setShowTerrain] = useState(false);
+  // A 3D table can be looked at in 3D or from above in 2D: every player picks for themselves, per table and
+  // browser. null: not picked yet (asked when the table opens). A 2D table has no choice.
+  const [view, setView] = useState<"2D" | "3D" | null>(() => {
+    try {
+      const kept = typeof window === "undefined" ? null : window.localStorage.getItem(`wb.table.view.${tableId}`);
+      return kept === "2D" || kept === "3D" ? kept : null;
+    } catch {
+      return null;
+    }
+  });
+  // How the 3D picture is drawn (models, shadows, surroundings): asked with the view, kept when the player says so.
+  const [settings, setSettings] = useState<View3dSettings>(() => readView3dSettings() ?? VIEW3D_PRESETS.medium);
+  const [remember, setRemember] = useState(() => readView3dSettings() !== null);
+  const [configuring, setConfiguring] = useState(false);
+  const chooseView = (v: "2D" | "3D") => {
+    setConfiguring(false);
+    if (v === "3D") keepView3dSettings(remember ? settings : null);
+    setView(v);
+    try {
+      window.localStorage.setItem(`wb.table.view.${tableId}`, v);
+    } catch {
+      // private mode: asked again next time
+    }
+  };
   const [ui, setUi] = useState<Ui>(initialUi);
   const [rightTab, setRightTab] = useState<RightTab>("model");
   const [results, setResults] = useState<ResultsSpec | null>(null);
@@ -71,6 +111,10 @@ export function GameTable({ tableId }: { tableId: string }) {
   const [tokenLabel, setTokenLabel] = useState("");
   const [selectedToken, setSelectedToken] = useState<string | null>(null);
   const [confirmConcede, setConfirmConcede] = useState(false);
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [banner, setBanner] = useState<Banner | null>(null);
+  /** The event that started the game: the turn that follows it is the one the Initiative Check gave. */
+  const startedAt = useRef(-1);
   const [reporting, setReporting] = useState(false);
 
   // ---- the dice come first: an Attack's rolls are shown, and only then does the table take in what they did ----
@@ -89,7 +133,7 @@ export function GameTable({ tableId }: { tableId: string }) {
   }, [release]);
 
   const gate = (ev: GameEvent): Promise<void> | null => {
-    if ((ev.type !== "ACTION_RESOLVED" && ev.type !== "EFFECT") || Date.now() - ev.ts >= FRESH_MS) return null;
+    if ((ev.type !== "ACTION_RESOLVED" && ev.type !== "EFFECT" && ev.type !== "STRATEGIC") || Date.now() - ev.ts >= FRESH_MS) return null;
     // The window is only on the wide layout; a hidden tab would hold the table back for nothing.
     if (document.hidden || !window.matchMedia("(min-width: 1024px)").matches) return null;
     const rows: ResultRow[] = ev.lines.filter((l) => l.dice && l.dice.dice.length > 0).map((l) => ({ text: l.text, dice: l.dice! }));
@@ -111,25 +155,45 @@ export function GameTable({ tableId }: { tableId: string }) {
       setResults((r) => (r ? { id: r.id, rows: [...r.rows, ...rows], fresh: r.rows.length } : { id, rows, fresh: 0 }));
     }
     if (ev.type === "ROLL_PENDING") closeResults();
+    // Announcements: the game begins, whose turn starts.
+    if (Date.now() - ev.ts < FRESH_MS) {
+      if (ev.type === "INITIATIVE_PENDING") setBanner({ kind: "start" });
+      if (ev.type === "GAME_STARTED") startedAt.current = ev.seq;
+      if (ev.type === "TURN_STARTED") {
+        setConfirmEnd(false);
+        setBanner({ kind: "turn", side: ev.active, round: ev.round, first: startedAt.current >= 0 && ev.seq - startedAt.current <= 6 });
+      }
+    }
     // Follow the action: select whatever was just activated.
     if (ev.type === "MODEL_ACTIVATED") {
       setSelected(ev.id);
       setRightTab("model");
-      setUi((u) => ({ ...u, moveHow: "walk", snipe: {}, push: {}, composing: false }));
+      setUi((u) => ({ ...u, moveHow: "walk", snipe: {}, push: {}, luck: false, mage: false, composing: false }));
     }
   };
 
   const game = useGame(tableId, { gate, onEvent });
-  const st = game.state;
+  const engineState = game.state;
   const meta = game.meta;
 
   const names = useMemo<[string | null, string | null]>(() => {
-    const of = (side: number) => meta?.players.find((p) => p.side === side)?.name ?? st?.players[side as Side] ?? null;
+    const of = (side: number) => meta?.players.find((p) => p.side === side)?.name ?? engineState?.players[side as Side] ?? null;
     return [of(0), of(1)];
-  }, [meta, st?.players]);
+  }, [meta, engineState?.players]);
+  // A model both sides have carries its side in its name ("Citadel Guard (Red)"): shown with the player's name.
+  const st = useMemo<TableState | null>(() => {
+    if (!engineState || !engineState.models.some((m) => / \((?:Blue|Red)\)$/.test(m.name))) return engineState;
+    const owner = (name: string): string => name.replace(/ \((Blue|Red)\)$/, (_, c: string) => ` (${names[c === "Blue" ? 0 : 1] ?? (c === "Blue" ? "Player 1" : "Player 2")})`);
+    return { ...engineState, models: engineState.models.map((m) => ({ ...m, name: owner(m.name) })) };
+  }, [engineState, names]);
   const sideName = useCallback((side: Side) => names[side] ?? t("openSeat"), [names, t]);
   const nm = useCallback((text: string) => withNames(text, names), [names]);
 
+  useEffect(() => {
+    if (!banner) return;
+    const timer = window.setTimeout(() => setBanner(null), BANNER_MS);
+    return () => window.clearTimeout(timer);
+  }, [banner]);
   useEffect(() => {
     if (!flash) return;
     const timer = window.setTimeout(() => setFlash(null), 5000);
@@ -306,7 +370,56 @@ export function GameTable({ tableId }: { tableId: string }) {
       onCancel: () => send({ type: "CANCEL_ROLL" }),
     };
   }
-  const shownResults: ResultsSpec | null = results ? { ...results, rows: results.rows.map((r) => ({ ...r, text: nm(r.text) })) } : null;
+  // Both players are ready: the game begins with the Initiative Check, each rolls their own die.
+  if (!pending && st.initiative) {
+    const ini = st.initiative;
+    pending = {
+      title: `${t("gameBegins")} – ${t("initiativeCheck")}`,
+      rows: ([0, 1] as const).map((s) => ({ who: sideName(s), what: t("initiativeRoll", { m: leaderMorale(st, s) }), dice: 1, target: null, side: s, ready: ini.rolls[s] !== null })),
+      canRoll: viewer.canAct && (viewer.solo ? ini.rolls.includes(null) : ini.rolls[viewer.side] === null),
+      canCancel: false,
+      onRoll: () => send({ type: "ROLL_INITIATIVE" }),
+      onCancel: () => undefined,
+    };
+  }
+  // The turn has ended: the dice of the next player's Strategic Phase wait for that player.
+  if (!pending && st.pendingTurn) {
+    const p = st.pendingTurn;
+    pending = {
+      title: t("strategicOf", { name: sideName(p.side) }),
+      rows: p.rolls.map((r) => ({ who: nm(r.who), what: r.what, dice: 1, target: r.target, side: p.side, ready: false })),
+      canRoll: viewer.canAct && (viewer.solo || viewer.side === p.side),
+      canCancel: false,
+      onRoll: () => send({ type: "ROLL_STRATEGIC" }),
+      onCancel: () => undefined,
+    };
+  }
+  // AP the Active Player has not used: ending the turn asks first.
+  const unusedAp = st.models.filter((m) => m.side === st.active && !m.states.includes("Dead") && !m.states.includes("Incapacitated")).reduce((n, m) => n + m.ap, 0);
+  const endTurn = () => (unusedAp > 0 ? setConfirmEnd(true) : send({ type: "END_TURN" }));
+  // Whose roll a line is. Most lines start with the model that rolls ("Citadel Guard attacks …", "Helrin: Dodge …");
+  // Damage is rolled by the other side ("Damage on Helrin (…)"). Two models of one name on both sides: nobody's.
+  const sideOfLine = (text: string): 0 | 1 | undefined => {
+    const on = /^(?:Damage|Burn \(\d+\)|Trample) on /.exec(text);
+    const rest = on ? text.slice(on[0].length) : text;
+    let best = 0;
+    const sides = new Set<Side>();
+    // The lines carry the engine's names ("… (Red)"), not the ones shown.
+    for (const m of engineState?.models ?? []) {
+      if (!m.name || !rest.startsWith(m.name) || /[\p{L}\p{N}]/u.test(rest.charAt(m.name.length))) continue;
+      if (m.name.length > best) {
+        best = m.name.length;
+        sides.clear();
+      }
+      if (m.name.length === best) sides.add(m.side);
+    }
+    if (sides.size !== 1) return undefined;
+    const side = [...sides][0]!;
+    return on ? (side === 0 ? 1 : 0) : side;
+  };
+  const shownResults: ResultsSpec | null = results
+    ? { ...results, rows: results.rows.map((r) => { const side = sideOfLine(r.text); return { ...r, text: nm(r.text), ...(side !== undefined ? { side } : {}) }; }) }
+    : null;
 
   // ---- the table ----
   const mode: BoardMode = aim ? "aim" : tool === "measure" ? "measure" : tool === "token" ? "token" : "select";
@@ -345,7 +458,7 @@ export function GameTable({ tableId }: { tableId: string }) {
       if (caster && card && summonSpotProblem(st, caster, card, at, aim.start)) return;
       if (aim.start) send({ type: "SUMMON", id: aim.caster, spell: aim.spell, at });
       else send({ type: "ACTION", action: "ritual", spell: aim.spell, at });
-    } else if (aim.kind === "zone") send({ type: "ACTION", hold: true, action: "cast", spell: aim.spell, at });
+    } else if (aim.kind === "zone") send({ type: "ACTION", hold: true, action: "cast", spell: aim.spell, at, ...(ui.mage ? { mods: { mage: true } } : {}) });
     else if (aim.kind === "push") {
       if (a) setUi((u) => ({ ...u, push: { ...u.push, [a.id]: at } }));
     } else if (a) setUi((u) => ({ ...u, spot: { ...u.spot, [a.id]: at }, target: { ...u.target, [a.id]: AOE_POINT } }));
@@ -431,6 +544,45 @@ export function GameTable({ tableId }: { tableId: string }) {
       onClick={() => send({ type: "ADD_VP", side, delta })}>{delta > 0 ? <Plus aria-hidden /> : <Minus aria-hidden />}</Button>
   );
 
+  const boardProps: GameBoardProps = {
+    st: shown,
+    meta: meta,
+    viewer: viewer,
+    selected: selected,
+    selectedToken: selectedToken,
+    mode: mode,
+    freeMove: freeMove,
+    showZones: showZones,
+    showTerrain: showTerrain,
+    rings: rangeRings(st, visibleCurrent, showAwareness),
+    sight: showLos ? sightLines(st, visibleCurrent) : null,
+    template: template,
+    ariaLabel: tt("boardLabel"),
+    shelfLabel: (side) => t("shelfOf", { name: sideName(side) }),
+    loadingLabel: (done, total) => tt("mapLoading", { done, total }),
+    previewMove: (m, x, y) => previewMove(st, viewer, m, x, y, freeMove, howOf(m.id)),
+    onSelect: select,
+    onMove: (id, x, y) => {
+      const how = howOf(id);
+      const cmd: Command = { type: "MOVE_MODEL", id, x, y, ...(freeMove ? { free: true } : {}), ...(how ? { how } : {}) };
+      // A Jump that falls short: the Fall Damage rolls go through the dice window.
+      const m = st.models.find((o) => o.id === id);
+      const check = m && how === "jump" ? checkMove(st, viewer, m, { x, y }, freeMove, how) : null;
+      const falls = m && check?.ok && check.fall ? fallRolls(m, check.fall) : 0;
+      if (m && falls > 0) rollGate({ title: `${m.name}: Fall Damage`, sub: `${check!.ok && check!.fall ? check!.fall.toFixed(1) : ""}″`, dice: falls, target: modelStats(m).ag, attr: "AG" }, cmd);
+      else send(cmd);
+    },
+    onTurn: (id, degrees) => {
+      const m = st.models.find((x) => x.id === id);
+      if (m) turnBy(m, degrees);
+    },
+    onAim: onAim,
+    onAimMove: onAimMove,
+    onTokenSelect: setSelectedToken,
+    onTokenPlace: (x, y) => send({ type: "ADD_MARKER", x, y, ...(tokenLabel.trim() ? { name: tokenLabel.trim() } : {}) }),
+    onTokenMove: (id, x, y) => send({ type: "MOVE_MARKER", id, x, y }),
+  };
+
   return (
     <>
       <div className="mx-auto grid max-w-md gap-3 p-6 text-center lg:hidden">
@@ -511,6 +663,10 @@ export function GameTable({ tableId }: { tableId: string }) {
             <span className="h-2" />
             {rail(tt("deploymentZones"), <SquareDashed aria-hidden />, showZones, () => setShowZones((x) => !x))}
             {rail(tt("terrainOverlay"), <Layers aria-hidden />, showTerrain, () => setShowTerrain((x) => !x))}
+            {meta.viewMode === "3D" && view !== null && (<>
+              <span className="h-2" />
+              {rail(tt(view === "3D" ? "view3d.to2d" : "view3d.to3d"), <Box aria-hidden />, view === "3D", () => chooseView(view === "3D" ? "2D" : "3D"))}
+            </>)}
           </nav>
 
           <main className="flex min-w-0 flex-1 flex-col gap-2 p-2">
@@ -521,38 +677,82 @@ export function GameTable({ tableId }: { tableId: string }) {
               </div>
             )}
             <div className="relative flex min-h-0 flex-1">
-              <GameBoard
-                st={shown}
-                meta={meta}
-                viewer={viewer}
-                selected={selected}
-                selectedToken={selectedToken}
-                mode={mode}
-                freeMove={freeMove}
-                showZones={showZones}
-                showTerrain={showTerrain}
-                rings={rangeRings(st, visibleCurrent, showAwareness)}
-                sight={showLos ? sightLines(st, visibleCurrent) : null}
-                template={template}
-                ariaLabel={tt("boardLabel")}
-                shelfLabel={(side) => t("shelfOf", { name: sideName(side) })}
-                previewMove={(m, x, y) => previewMove(st, viewer, m, x, y, freeMove, howOf(m.id))}
-                onSelect={select}
-                onMove={(id, x, y) => {
-                  const how = howOf(id);
-                  send({ type: "MOVE_MODEL", id, x, y, ...(freeMove ? { free: true } : {}), ...(how ? { how } : {}) });
-                }}
-                onTurn={(id, degrees) => {
-                  const m = st.models.find((x) => x.id === id);
-                  if (m) turnBy(m, degrees);
-                }}
-                onAim={onAim}
-                onAimMove={onAimMove}
-                onTokenSelect={setSelectedToken}
-                onTokenPlace={(x, y) => send({ type: "ADD_MARKER", x, y, ...(tokenLabel.trim() ? { name: tokenLabel.trim() } : {}) })}
-                onTokenMove={(id, x, y) => send({ type: "MOVE_MARKER", id, x, y })}
-              />
-              <DiceWindow compose={compose} pending={pending} results={shownResults} onResultsDone={release} onResultsClose={closeResults} />
+              {meta.viewMode === "3D" && (view === null || configuring) ? (
+                <div className="m-auto grid max-h-full w-full max-w-2xl gap-4 overflow-auto rounded-lg border bg-card p-5">
+                  <div className="grid gap-1 text-center">
+                    <h2 className="font-display text-lg">{tt("view3d.chooseTitle")}</h2>
+                    <p className="text-sm text-muted-foreground">{tt("view3d.chooseHelp")}</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-[1fr_auto_14rem]">
+                    <div className="grid content-start gap-3 text-sm">
+                      <h3 className="font-medium">{tt("view3d.choice.3D")}</h3>
+                      <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label={tt("view3d.quality")}>
+                        {(["low", "medium", "high"] as const).map((p) => (
+                          <Button key={p} size="sm" variant={presetOf(settings) === p ? "default" : "outline"} role="radio" aria-checked={presetOf(settings) === p}
+                            onClick={() => setSettings(VIEW3D_PRESETS[p])}>{tt(`view3d.preset.${p}`)}</Button>
+                        ))}
+                      </div>
+                      <label className="grid gap-1">{tt("view3d.models")}
+                        <NativeSelect value={settings.models} onChange={(e) => setSettings({ ...settings, models: e.target.value === "full" ? "full" : "light" })}>
+                          <option value="light">{tt("view3d.modelsLight")}</option>
+                          <option value="full">{tt("view3d.modelsFull")}</option>
+                        </NativeSelect>
+                      </label>
+                      <label className="grid gap-1">{tt("view3d.shadows")}
+                        <NativeSelect value={settings.shadows} onChange={(e) => setSettings({ ...settings, shadows: e.target.value === "off" ? "off" : e.target.value === "high" ? "high" : "low" })}>
+                          <option value="off">{tt("view3d.shadowsOff")}</option>
+                          <option value="low">{tt("view3d.shadowsLow")}</option>
+                          <option value="high">{tt("view3d.shadowsHigh")}</option>
+                        </NativeSelect>
+                      </label>
+                      {(["sharp", "surroundings", "grass"] as const).map((k) => (
+                        <label key={k} className="flex items-start gap-2">
+                          <input type="checkbox" className="mt-1 size-4 accent-[var(--primary)]" checked={settings[k]} onChange={(e) => setSettings({ ...settings, [k]: e.target.checked })} />
+                          <span>{tt(`view3d.option.${k}`)}</span>
+                        </label>
+                      ))}
+                      <label className="flex items-start gap-2 border-t pt-3">
+                        <input type="checkbox" className="mt-1 size-4 accent-[var(--primary)]" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                        <span>{tt("view3d.remember")}</span>
+                      </label>
+                      <Button onClick={() => chooseView("3D")}>{tt("view3d.play3d")}</Button>
+                    </div>
+                    <span className="hidden w-px bg-border sm:block" />
+                    <div className="grid content-start gap-3 text-sm">
+                      <h3 className="font-medium">{tt("view3d.choice.2D")}</h3>
+                      <p className="text-muted-foreground">{tt("view3d.choiceHelp.2D")}</p>
+                      <Button variant="outline" onClick={() => chooseView("2D")}>{tt("view3d.play2d")}</Button>
+                    </div>
+                  </div>
+                </div>
+              ) : meta.viewMode === "3D" && view === "3D"
+                ? <GameBoard3D {...boardProps} settings={settings} onSwitch2d={() => chooseView("2D")} onSettings={() => setConfiguring(true)} />
+                : <GameBoard {...boardProps} />}
+              <DiceWindow names={[sideName(0), sideName(1)]} compose={compose} pending={pending} results={shownResults} onResultsDone={release} onResultsClose={closeResults} />
+              {banner && (
+                <div className="pointer-events-none absolute inset-x-0 top-[38%] z-40 flex justify-center px-4" role="status" aria-live="polite">
+                  <div className="rounded-2xl border-2 bg-card/95 px-10 py-5 text-center shadow-2xl" style={{ borderColor: banner.kind === "turn" ? SIDE_TEXT[banner.side] : "var(--primary)" }}>
+                    <p className="font-display text-3xl font-bold" style={banner.kind === "turn" ? { color: SIDE_TEXT[banner.side] } : undefined}>
+                      {banner.kind === "start" ? t("gameBegins") : t("turnOf", { name: sideName(banner.side) })}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {banner.kind === "start" ? t("initiativeHint") : banner.first ? t("wonInitiative", { name: sideName(banner.side) }) : t("roundN", { n: banner.round })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {confirmEnd && playing && myTurn && (
+                <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/60 p-4" role="alertdialog" aria-label={t("endTurn")}>
+                  <div className="grid max-w-sm gap-3 rounded-xl border border-primary bg-card p-5 text-center text-sm shadow-2xl">
+                    <p className="font-display text-lg font-bold">{t("endTurn")}?</p>
+                    <p className="text-muted-foreground">{t("endTurnConfirm", { n: unusedAp })}</p>
+                    <div className="flex justify-center gap-2">
+                      <Button onClick={() => { setConfirmEnd(false); send({ type: "END_TURN" }); }}>{t("yes")}</Button>
+                      <Button variant="outline" onClick={() => setConfirmEnd(false)}>{t("no")}</Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="mx-auto flex w-full max-w-5xl shrink-0 items-center gap-3">
               <p className="min-w-0 flex-1 text-muted-foreground">{hint}</p>
@@ -567,7 +767,7 @@ export function GameTable({ tableId }: { tableId: string }) {
               {playing && viewer.canAct && myTurn && a && !a.pending && !a.roll && (
                 <Button variant="outline" onClick={() => send({ type: "END_ACTIVATION" })}>{t("endActivation")}</Button>
               )}
-              {playing && viewer.canAct && myTurn && !a?.pending && !a?.roll && <Button onClick={() => send({ type: "END_TURN" })}>{t("endTurn")}</Button>}
+              {playing && viewer.canAct && myTurn && !a?.pending && !a?.roll && !st.pendingTurn && <Button onClick={endTurn}>{t("endTurn")}</Button>}
             </div>
           </main>
 

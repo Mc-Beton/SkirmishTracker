@@ -323,8 +323,9 @@ public class WarbandService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_WARBAND_SIZE");
         }
         Set<String> allowed = allowedUnits(faction, allied);
-        // Neutral items for everyone, faction items only for that faction's warbands; no per-item limits.
+        // Neutral items for everyone, faction items only for that faction's warbands; each up to its Limit per party.
         Set<String> allowedItems = content.itemsFor(faction.code());
+        Map<String, Integer> bought = new HashMap<>();
         int leaders = 0;
         int total = 0;
         List<StoredUnit> stored = new ArrayList<>();
@@ -352,6 +353,9 @@ public class WarbandService {
                         : content.item(i.item()).orElse(null);
                 if (item == null) {
                     throw new ApiException(HttpStatus.BAD_REQUEST, "ITEM_NOT_ALLOWED");
+                }
+                if (item.limit() != null && bought.merge(item.code(), 1, Integer::sum) > item.limit()) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "ITEM_LIMIT");
                 }
                 boolean reduced = i.reduced() && item.reducedPoints() != null;
                 total += reduced ? item.reducedPoints() : item.points();

@@ -11,8 +11,9 @@ The files are the game's `shared/` folder with three differences:
 1. imports carry the `.ts` extension, and `RuleError` has no parameter properties – so Node runs the
    files directly (type stripping) and no build step is needed;
 2. WarBracket additions, all marked `WarBracket` in the code: corner Deployment Zones (`deploy: 'corner'`),
-   `CONCEDE`, and tokens the players place by hand (`ADD_MARKER`, `MOVE_MARKER`, `REMOVE_MARKER`) for
-   Quests the engine does not run itself;
+   `CONCEDE`, tokens the players place by hand (`ADD_MARKER`, `MOVE_MARKER`, `REMOVE_MARKER`) for
+   Quests the engine does not run itself, and `ownerNames` (models of one name on both sides carry their side
+   in the name, so every line of the log tells whose model it means);
 3. nothing else. When the game's rules change, copy its `shared/*.ts` over these files again and re-apply 1–2
    (the tests in `/rules/tests` are the game's own and must stay green).
 

@@ -195,6 +195,9 @@ class TableGameIntegrationTest {
         // ---- both ready: the Initiative Check is rolled, the game starts
         cmd(a, table, "{\"type\":\"READY\"}");
         cmd(b, table, "{\"type\":\"READY\"}");
+        // both ready: each player rolls their die of the Initiative Check
+        cmd(a, table, "{\"type\":\"ROLL_INITIATIVE\"}");
+        cmd(b, table, "{\"type\":\"ROLL_INITIATIVE\"}");
         JsonNode playing = call(a, get("/api/tables/" + table + "/game"), null, status().isOk());
         assertThat(playing.get("meta").get("status").asText()).isEqualTo("PLAYING");
         assertThat(playing.get("events").toString()).contains("GAME_STARTED").contains("TURN_STARTED");
