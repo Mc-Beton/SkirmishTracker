@@ -28,3 +28,7 @@ Thumbs.db
 
 # Setup archive
 *.tar.gz
+
+# Photos of rulebook pages and old setup archives – never commit them.
+wb-scan-thumbs/
+*.tar
