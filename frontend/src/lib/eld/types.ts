@@ -325,6 +325,8 @@ export interface TableState {
   active: Side;
   activation: Activation | null;
   vp: [number, number];
+  /** Where the Victory Points came from, round by round (index 0 = round 1): for the Quest and for Schemes. Sums to `vp`. */
+  sheet?: Record<ScoreKind, [number[], number[]]>;
   winner: Side | 'draw' | null;
   /** Recruitment Points each party may spend. */
   points: number;
@@ -431,6 +433,8 @@ export type Command =
   | { type: 'MOVE_MARKER'; id: string; x: number; y: number }
   | { type: 'REMOVE_MARKER'; id: string }
   | { type: 'ADD_VP'; side: Side; delta: number }
+  /** One cell of the score sheet: this side's Quest or Scheme points of a round. */
+  | { type: 'SET_SCORE'; side: Side; round: number; kind: ScoreKind; value: number }
   // Schemes: `side` is only read in solo play (one player acting for both sides).
   | { type: 'DRAW_SCHEMES'; side?: Side }
   | { type: 'KEEP_SCHEME'; code: string; side?: Side }
@@ -489,7 +493,7 @@ export type EventBody =
   | { type: 'SCHEME_KEPT'; seat: Side }
   | { type: 'SCHEME_REVEALED'; seat: Side; code: string }
   /** End of the game: what a revealed Scheme is worth. `auto` false = the table cannot check it, score it by hand. */
-  | { type: 'SCHEME_SCORED'; seat: Side; code: string; delta: number; text: string; auto: boolean }
+  | { type: 'SCHEME_SCORED'; seat: Side; code: string; delta: number; text: string; auto: boolean; /** What the table makes the Scheme worth. Schemes are entered on the score sheet by the players: nothing is added (delta 0). */ worth?: number }
   | { type: 'MODEL_REACTED'; id: string; intent?: Intent; weapon?: number; mods?: Mods; panic?: DiceResult; forced?: boolean; at?: Pt; /** Charm: the INT roll to react against the activated model. */ charm?: DiceResult; charmLevel?: number; /** Declared by the table because the model was Taunted. */ taunt?: boolean }
   | { type: 'MOVE_UNDONE'; id: string }
   | { type: 'ROLL_PENDING'; cmd: Command; wait: Side[]; from: Side }
@@ -509,7 +513,7 @@ export type EventBody =
   | { type: 'MARKER_ADDED'; marker: Marker }
   | { type: 'MARKER_MOVED'; id: string; x: number; y: number }
   | { type: 'MARKER_REMOVED'; id: string }
-  | { type: 'VP_CHANGED'; team: Side; vp: number };
+  | { type: 'VP_CHANGED'; team: Side; vp: number; /** The cell of the score sheet the change belongs to (default: the Quest, this round). */ round?: number; kind?: ScoreKind };
 
 export type GameEvent = EventBody & {
   seq: number;
@@ -520,3 +524,6 @@ export type GameEvent = EventBody & {
 
 export const BASE_SIZES: BaseSize[] = ['small', 'medium', 'large', 'huge', 'gigantic', 'colossal', 'epic'];
 export const MAX_ROUNDS = 5;
+
+/** A column of the score sheet. */
+export type ScoreKind = 'quest' | 'scheme';

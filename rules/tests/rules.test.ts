@@ -1180,7 +1180,7 @@ test('Schemes the table can check are counted at the end of the game', () => {
     s.schemes[seat] = { drawn: 2, kept: true, revealed: code };
     const ev = schemeScoring(s).find((e) => e.type === 'SCHEME_SCORED' && e.seat === seat);
     s.schemes[seat] = { drawn: 0, kept: false, revealed: null };
-    return ev?.type === 'SCHEME_SCORED' ? [ev.delta, ev.auto] : [-1, false];
+    return ev?.type === 'SCHEME_SCORED' ? [ev.worth ?? 0, ev.auto] : [-1, false];
   };
   const blue: Record<string, number> = {
     'virtuous-commander': 2, 'no-quarter': 1, 'peacekeeping-paragon': 1, 'engetsu-formation': 1, 'breach-their-defenses': 2,
@@ -1199,12 +1199,12 @@ test('Schemes the table can check are counted at the end of the game', () => {
   s.schemes[0] = { drawn: 2, kept: true, revealed: null };
   const ev = run(s, { type: 'REVEAL_SCHEME', code: 'virtuous-commander', side: 0 });
   assert.deepEqual(ev.map((e) => e.type), ['SCHEME_REVEALED', 'SCHEME_SCORED']);
-  assert.deepEqual([s.vp, s.winner, s.schemes[0].scored], [[2, 0], 0, true]);
-  assert.match(s.log.at(-1)!.text, /The result is now: Blue wins 2:0/);
+  assert.deepEqual([s.vp, s.winner, s.schemes[0].scored], [[0, 0], 'draw', true]);
+  assert.match(s.log.at(-1)!.text, /by the table's count 2 VP/);
   assert.deepEqual(schemeScoring(s), [], 'counted once');
   // Schemes scored by hand: the VP buttons still work after the last turn.
   run(s, { type: 'ADD_VP', side: 1, delta: 2 });
-  assert.deepEqual([s.vp, s.winner], [[2, 2], 'draw']);
+  assert.deepEqual([s.vp, s.winner], [[0, 2], 1]);
 });
 
 test('who may react: line of sight during the move, Awareness, Stealth', () => {
@@ -1271,7 +1271,7 @@ test('Schemes counted during the game', () => {
     s.schemes[seat] = { drawn: 2, kept: true, revealed: null };
     return run(s, { type: 'REVEAL_SCHEME', code, side: seat }, o);
   };
-  const scored = (ev: GameEvent[]) => ev.filter((e) => e.type === 'SCHEME_SCORED').map((e) => (e.type === 'SCHEME_SCORED' ? [e.seat, e.code, e.delta] : []));
+  const scored = (ev: GameEvent[]) => ev.filter((e) => e.type === 'SCHEME_SCORED').map((e) => (e.type === 'SCHEME_SCORED' ? [e.seat, e.code, e.worth ?? 0] : []));
 
   // Relentless Advance: revealed at the start of the turn, counted in its End Phase.
   let s = started(0);
@@ -1280,7 +1280,7 @@ test('Schemes counted during the game', () => {
   run(s, { type: 'MOVE_MODEL', id: 'a2', x: 20, y: 10, free: true });
   let ev = run(s, { type: 'END_TURN' }, dice(20, 20));
   assert.deepEqual(scored(ev), [[0, 'relentless-advance', 1]]);
-  assert.deepEqual([s.vp, s.schemes[0].scored], [[1, 0], true]);
+  assert.deepEqual([s.vp, s.schemes[0].scored], [[0, 0], true]);
 
   // After a model has been activated the Strategic Phase is over.
   s = started(0);
@@ -3119,4 +3119,21 @@ test('Friendly Fire: the shooter names the ally a stray shot hits', () => {
   const other = plain.friendly[1]!;
   assert.equal(planAttack(s, shooter, model(s, 'b1'), index, { ...NO_MODS, ally: other }, { reactive: false }).friendly[0], other);
   assert.deepEqual(planAttack(s, shooter, model(s, 'b1'), index, { ...NO_MODS, ally: 'nobody' }, { reactive: false }).friendly, plain.friendly);
+});
+
+// ---- The score sheet ----
+import { tallyOf } from '../../frontend/src/lib/eld/engine.ts';
+
+test('Score sheet: Victory Points are kept by round, for the Quest and for Schemes', () => {
+  const s = started();
+  run(s, { type: 'ADD_VP', side: 0, delta: 2 });
+  assert.deepEqual(tallyOf(s).quest[0], [2, 0, 0, 0, 0]);
+  run(s, { type: 'SET_SCORE', side: 1, round: 3, kind: 'scheme', value: 2 });
+  run(s, { type: 'SET_SCORE', side: 0, round: 1, kind: 'quest', value: 1 });
+  assert.deepEqual(tallyOf(s).scheme[1], [0, 0, 2, 0, 0]);
+  assert.deepEqual(tallyOf(s).quest[0], [1, 0, 0, 0, 0]);
+  assert.deepEqual(s.vp, [1, 2]);
+  assert.deepEqual(run(s, { type: 'SET_SCORE', side: 0, round: 1, kind: 'quest', value: 1 }), []);
+  assert.equal(code(() => run(s, { type: 'SET_SCORE', side: 0, round: 6, kind: 'quest', value: 1 })), 'BAD_VALUE');
+  for (const side of [0, 1] as const) assert.equal(tallyOf(s).quest[side].reduce((a, b) => a + b, 0) + tallyOf(s).scheme[side].reduce((a, b) => a + b, 0), s.vp[side]);
 });

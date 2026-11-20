@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Box, Dices, Eye, Flag, Hand, Layers, MapPin, Minus, MousePointer2, Plus, Ruler, Send, SquareDashed, Target, Trash2, Undo2, UserPlus } from "lucide-react";
+import { ArrowLeft, Box, Dices, Eye, Flag, Hand, Layers, MapPin, MousePointer2, Ruler, Send, SquareDashed, Target, Trash2, Undo2, UserPlus } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { TableSharing } from "@/components/table/table-sharing";
 import { api, ApiError } from "@/lib/api";
 import { useGameContent } from "@/lib/content";
 import { AOE_POINT, areaOf, attackOptions, fallRolls, planAttack, weaponAt } from "@/lib/eld/combat.ts";
-import { checkMove, leaderMorale, moveRolls, summonSpotProblem, ZONES } from "@/lib/eld/engine.ts";
+import { checkMove, leaderMorale, moveRolls, summonSpotProblem, tallyOf, ZONES } from "@/lib/eld/engine.ts";
 import { baseRadius, normDeg } from "@/lib/eld/geometry.ts";
 import { profileById } from "@/lib/eld/profiles.ts";
 import { questByCode } from "@/lib/eld/quests.ts";
@@ -539,11 +539,7 @@ export function GameTable({ tableId }: { tableId: string }) {
   const iAmReady = meta.you >= 0 && st.ready[viewer.side];
   const lastRoll = [...st.log].reverse().find((l) => l.dice);
   const undoable = !!st.lastMove && mayControl(viewer, st.models.find((o) => o.id === st.lastMove!.id)?.side ?? 0);
-  const vpButton = (side: Side, delta: number) => (
-    <Button type="button" size="icon" variant="outline" className="size-7" disabled={setup} aria-label={t(delta > 0 ? "vpMore" : "vpLess", { name: sideName(side) })}
-      onClick={() => send({ type: "ADD_VP", side, delta })}>{delta > 0 ? <Plus aria-hidden /> : <Minus aria-hidden />}</Button>
-  );
-
+  const sheet = tallyOf(st);
   const boardProps: GameBoardProps = {
     st: shown,
     meta: meta,
@@ -812,14 +808,56 @@ export function GameTable({ tableId }: { tableId: string }) {
                 <>
                   <section className="grid gap-2 rounded-xl border bg-card p-3">
                     <h3 className="font-display text-base">{t("victoryPoints")}</h3>
-                    {([0, 1] as const).map((side) => (
-                      <div key={side} className="flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate font-semibold" style={{ color: SIDE_TEXT[side] }}>{sideName(side)}</span>
-                        {viewer.canAct && vpButton(side, -1)}
-                        <span className="min-w-8 text-center font-mono text-base tabular-nums">{st.vp[side]}</span>
-                        {viewer.canAct && vpButton(side, 1)}
-                      </div>
-                    ))}
+                    {/* The score sheet: Quest and Scheme points of each side, round by round; the cells can be typed in. */}
+                    <table className="w-full table-fixed border-collapse text-center text-sm tabular-nums">
+                      <thead>
+                        <tr>
+                          <th className="w-12" />
+                          {([0, 1] as const).map((side) => (
+                            <th key={side} colSpan={2} className="truncate px-1 pb-1 font-semibold" style={{ color: SIDE_TEXT[side] }}>{sideName(side)}</th>
+                          ))}
+                        </tr>
+                        <tr className="text-xs font-normal text-muted-foreground">
+                          <th className="pb-1 text-left font-normal">{t("scoreRound")}</th>
+                          {([0, 1] as const).flatMap((side) => (["quest", "scheme"] as const).map((kind) => (
+                            <th key={`${side}${kind}`} className="pb-1 font-normal">{t(kind === "quest" ? "scoreQuest" : "scoreScheme")}</th>
+                          )))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: MAX_ROUNDS }, (_, i) => (
+                          <tr key={i} className={st.phase === "playing" && st.round === i + 1 ? "bg-primary/10" : undefined}>
+                            <td className="py-0.5 text-left font-semibold">{i + 1}</td>
+                            {([0, 1] as const).flatMap((side) => (["quest", "scheme"] as const).map((kind) => {
+                              const value = sheet[kind][side][i] ?? 0;
+                              return (
+                                <td key={`${side}${kind}`} className="p-0.5">
+                                  {viewer.canAct && !setup ? (
+                                    <input key={value} type="number" inputMode="numeric" min={-10} max={20} defaultValue={value}
+                                      aria-label={t("scoreCell", { name: sideName(side), round: i + 1, kind: t(kind === "quest" ? "scoreQuest" : "scoreScheme") })}
+                                      className="h-7 w-full rounded-md border bg-background px-1 text-center font-mono"
+                                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                                      onBlur={(e) => {
+                                        const n = Math.max(-10, Math.min(20, Math.trunc(Number(e.target.value) || 0)));
+                                        if (n !== value) send({ type: "SET_SCORE", side, round: i + 1, kind, value: n });
+                                        else e.target.value = String(value);
+                                      }} />
+                                  ) : <span className="font-mono">{value}</span>}
+                                </td>
+                              );
+                            }))}
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t font-semibold">
+                          <td className="pt-1 text-left">{t("scoreTotal")}</td>
+                          {([0, 1] as const).map((side) => (
+                            <td key={side} colSpan={2} className="pt-1 font-mono text-base" style={{ color: SIDE_TEXT[side] }}>{st.vp[side]}</td>
+                          ))}
+                        </tr>
+                      </tfoot>
+                    </table>
                     <p className="text-xs text-muted-foreground">{engineQuest ? t("vpAuto") : t("vpByHand")}</p>
                     {finished && meta.you >= 0 && (
                       meta.reportedGameId ? (

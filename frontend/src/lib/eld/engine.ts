@@ -12,7 +12,7 @@ import { awareness, hasBoon, hasClass, hasEnchant, hasSkill, hasTrait, modelStat
 import { stratagemFor, type Boon, type Stratagem } from './stratagems.ts';
 import { mountById } from './mounts.ts';
 import { PROFILES } from './profiles.ts';
-import type { Activation, Command, DiceResult, EventBody, GameEvent, Intent, KitUse, LogLine, PendingRoll, Marker, Model, Mods, MoveMode, Pt, Side, StateName, TableState, Until , TerrainPiece } from './types.ts';
+import type { Activation, Command, DiceResult, EventBody, GameEvent, Intent, KitUse, LogLine, PendingRoll, Marker, Model, Mods, MoveMode, Pt, ScoreKind, Side, StateName, TableState, Until , TerrainPiece } from './types.ts';
 import { MAX_ROUNDS, STATES } from './types.ts';
 
 export const LIMITS = {
@@ -1363,7 +1363,8 @@ function schemesDue(state: TableState, moment: SchemeMoment, seat?: Side): Event
     // A Scheme with its own moment that was only turned over when the game ended is worth nothing.
     const late = moment === 'game-end' && timed && (!sc.at || when !== 'next-strategic');
     const value = late ? ([0, 'it was not revealed in time'] as [number, string]) : schemeValue(state, s, sc.revealed);
-    out.push({ type: 'SCHEME_SCORED', seat: s, code: sc.revealed, delta: value?.[0] ?? 0, text: value?.[1] ?? '', auto: value !== null });
+    // Scheme points are written on the score sheet by the players; the table only says what it makes of the Scheme.
+    out.push({ type: 'SCHEME_SCORED', seat: s, code: sc.revealed, delta: 0, text: value?.[1] ?? '', auto: value !== null, ...(value ? { worth: value[0] } : {}) });
   }
   return out;
 }
@@ -1679,6 +1680,21 @@ function consequences(state: TableState, bodies: EventBody[]): EventBody[] {
   const now = after(then, [...riders, ...tidy]);
   const scored = bounties(now);
   return [...held, ...riders, ...tidy, ...scored, ...morale(after(now, scored))];
+}
+
+/** The score sheet: Victory Points for the Quest and for Schemes, by side and round (index 0 = round 1). */
+export function tallyOf(state: Pick<TableState, 'sheet'>): Record<ScoreKind, [number[], number[]]> {
+  const row = (list?: number[]): number[] => Array.from({ length: MAX_ROUNDS }, (_, i) => list?.[i] ?? 0);
+  return { quest: [row(state.sheet?.quest[0]), row(state.sheet?.quest[1])], scheme: [row(state.sheet?.scheme[0]), row(state.sheet?.scheme[1])] };
+}
+
+/** Victory Points go on the score sheet, in the given round (default: the current one). */
+function tallied(state: TableState, kind: ScoreKind, side: Side, delta: number, round?: number): void {
+  if (!delta) return;
+  const at = Math.max(1, Math.min(MAX_ROUNDS, round ?? state.round)) - 1;
+  const sheet = tallyOf(state);
+  sheet[kind][side][at]! += delta;
+  state.sheet = sheet;
 }
 
 /**
@@ -2442,6 +2458,16 @@ function decideCore(state: TableState, cmd: Command, ctx: DecideContext): EventB
     case 'REMOVE_MARKER': {
       const k = state.markers.find((x) => x.id === cmd.id && x.kind === 'token') ?? fail('NO_MARKER', 'That token is not on the table');
       return [{ type: 'MARKER_REMOVED', id: k.id }];
+    }
+    case 'SET_SCORE': {
+      const side = side01(cmd.side);
+      const round = int(cmd.round, 1, MAX_ROUNDS, 'Round');
+      const kind = cmd.kind === 'scheme' ? 'scheme' : 'quest';
+      const value = int(cmd.value, -10, 20, 'Victory Points');
+      const vp = state.vp[side] + value - tallyOf(state)[kind][side][round - 1]!;
+      if (vp < -20 || vp > 40) fail('BAD_VALUE', 'Victory Points out of range');
+      if (vp === state.vp[side]) return [];
+      return [{ type: 'VP_CHANGED', team: side, vp, round, kind }];
     }
     case 'ADD_VP': {
       const side = side01(cmd.side);
@@ -3210,6 +3236,7 @@ function applyCore(state: TableState, ev: GameEvent): void {
       const delta = ev.delta > 0 ? Math.min(ev.delta, Math.max(0, QUEST_VP_LIMIT - got[ev.team])) : ev.delta;
       got[ev.team] += delta;
       state.vp[ev.team] += delta;
+      tallied(state, 'quest', ev.team, delta);
       if (ev.mark) state.scored.push(ev.mark);
       log('turn', `${SIDE_NAME[ev.team]} ${ev.delta >= 0 ? 'scores' : 'loses'} ${Math.abs(delta)} VP – ${ev.text}${delta !== ev.delta ? ` (the Quest gives at most ${QUEST_VP_LIMIT})` : ''} (now ${state.vp[ev.team]})`);
       break;
@@ -3237,8 +3264,10 @@ function applyCore(state: TableState, ev: GameEvent): void {
       const name = schemeByCode(ev.code)?.name ?? ev.code;
       state.schemes[ev.seat].scored = true;
       state.vp[ev.seat] += ev.delta;
-      if (ev.auto) log('turn', `${SIDE_NAME[ev.seat]} scores ${ev.delta} VP for ${name} – ${ev.text} (now ${state.vp[ev.seat]})`);
-      else log('turn', `${name} (${SIDE_NAME[ev.seat]}) is scored by hand – use the VP buttons`);
+      tallied(state, 'scheme', ev.seat, ev.delta);
+      if (ev.worth !== undefined) log('turn', `${name} (${SIDE_NAME[ev.seat]}): by the table's count ${ev.worth} VP – ${ev.text}. Enter Scheme points on the score sheet`);
+      else if (ev.auto) log('turn', `${SIDE_NAME[ev.seat]} scores ${ev.delta} VP for ${name} – ${ev.text} (now ${state.vp[ev.seat]})`);
+      else log('turn', `${name} (${SIDE_NAME[ev.seat]}) is scored by hand – enter it on the score sheet`);
       finalScore();
       break;
     }
@@ -3250,7 +3279,8 @@ function applyCore(state: TableState, ev: GameEvent): void {
     case 'VP_CHANGED': {
       // Events saved before the field was renamed only have `side` (the player who clicked).
       const team = ev.team ?? ev.side ?? 0;
-      log('info', `${SIDE_NAME[team]}: ${state.vp[team]} → ${ev.vp} VP`);
+      log('info', `${SIDE_NAME[team]}: ${state.vp[team]} → ${ev.vp} VP${ev.round ? ` (round ${ev.round}, ${ev.kind === 'scheme' ? 'Scheme' : 'Quest'})` : ''}`);
+      tallied(state, ev.kind ?? 'quest', team, ev.vp - state.vp[team], ev.round);
       state.vp[team] = ev.vp;
       finalScore();
       break;
