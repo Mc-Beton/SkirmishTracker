@@ -3049,3 +3049,32 @@ test('Defensive Stance: a Warrior, in its own Strategic Phase, until the next on
   run(s, { type: 'END_TURN' });
   assert.equal(model(s, 'a1').states.includes('Defensive Stance'), false);
 });
+
+// ---- Quest tokens on maps with scenery ----
+import { tokenSpot } from '../../frontend/src/lib/eld/engine.ts';
+
+test('Quest tokens never lie inside scenery on any built-in map', () => {
+  for (const def of MAPS) {
+    const built = buildMap(def);
+    for (const quest of QUESTS) {
+      const s = emptyState();
+      apply(s, { seq: 1, at: 0, type: 'TABLE_CREATED', name: 't', width: 36, height: 36, deployDepth: 8, terrain: built.terrain, quest: quest.code } as GameEvent);
+      assert.equal(s.markers.length, quest.markers.length);
+      for (const k of s.markers.filter((x) => x.kind)) {
+        assert.equal(s.terrain.some((t) => t.kind === 'obstacle' && circleHitsPolygon(k, 0.5, t.shape)), false, `${def.id}: ${k.id} is inside scenery`);
+        // Only along the centre line: both players stay equally far from it.
+        assert.equal(k.y, 18, `${def.id}: ${k.id} left the centre line`);
+      }
+      const obelisk = s.markers.find((x) => x.id === 'obelisk');
+      if (obelisk) assert.deepEqual([obelisk.x, obelisk.y], [18, 18]);
+    }
+  }
+});
+
+test('A token on open ground stays where the Quest puts it', () => {
+  assert.deepEqual(tokenSpot([], 36, 36, { x: 12, y: 18 }), { x: 12, y: 18 });
+  const wall: TerrainPiece = { id: 'w', kind: 'obstacle', env: 'NONE' as TerrainPiece['env'], name: 'Wall', shape: rect(12, 18, 2, 2), height: 2 };
+  const spot = tokenSpot([wall], 36, 36, { x: 12, y: 18 });
+  assert.equal(spot.y, 18);
+  assert.ok(Math.abs(spot.x - 12) >= 1.5 && Math.abs(spot.x - 12) <= 2);
+});

@@ -391,3 +391,9 @@ Smokescreen, Expedition Leader, Raid Leader.
 ### Testy
 `cd rules; npm test` (85 testów zasad gry + 10 testów usługi). `TableGameIntegrationTest` (backend) uruchamia się tylko,
 gdy usługa zasad odpowiada na `localhost:8090` (w CI startuje ją job backendu).
+
+### Znaczniki misji i figurki na rzeźbionym terenie (2026-11-20)
+
+- **Żetony misji** (Treasure Hunt: Intrigue / Sigil / Cache) nie mogą leżeć w przeszkodzie. `tokenSpot()` w `engine.ts` przesuwa żeton, który wypadłby w przeszkodzie, na najbliższe wolne miejsce – najpierw wzdłuż linii środkowej (obaj gracze mają do niego równie daleko), dopiero potem w dowolnym kierunku. Obelisk zostaje na środku stołu (bywa na podeście).
+- **Widok 3D**: znaczniki są rysowane na wierzchu tego, co pod nimi stoi (`markerLift`), żetony mają smugę światła i podpis – model terenu ich nie zasłania.
+- **Figurki** stoją na rzeźbionym modelu terenu (kamienie, podstawy latarni), a nie w nim: `sculptTop()` w `scene.ts` szuka powierzchni modelu do 1,8" nad wysokością z reguł. To tylko wygląd – wysokość w regułach nadal wynika z kształtów przeszkód (`surfaceAt`).

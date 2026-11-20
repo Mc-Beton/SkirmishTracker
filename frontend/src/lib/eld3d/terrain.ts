@@ -209,6 +209,8 @@ export function buildTerrain(piece: TerrainPiece, w: number, h: number, lift = 0
           mesh.castShadow = true;
           mesh.receiveShadow = true;
           mesh.raycast = () => undefined;
+          // The scene asks these meshes how high they are under a figure (it stands on them, not in them).
+          mesh.userData.sculpt = true;
           const m = mesh.material as THREE.MeshStandardMaterial;
           m.metalness = Math.min(m.metalness, 0.2);
           m.side = THREE.DoubleSide;

@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SIDE_COLORS } from '@/lib/eld/content.ts';
-import { baseHeight, baseRadius, dist, SHELF, shelfRect } from '@/lib/eld/geometry.ts';
+import { baseHeight, baseRadius, dist, SHELF, shelfRect, surfaceAt } from '@/lib/eld/geometry.ts';
 import type { BaseSize, Marker, Model, Pt, TableState } from '@/lib/eld/types.ts';
 import { ASSETS } from './assets';
 import { buildFigure, buildHidden, buildRing, figureKey } from './figures';
@@ -117,6 +117,10 @@ const SIDE_LABEL = [
 ] as const;
 
 /** The 3D table: draws the state, and turns mouse input into "select", "move here", "aim here" and tokens. */
+/** How far above the surface a figure stands on the scene looks for sculpted scenery to put it on (inches). */
+const STEP_UP = 1.8;
+const DOWN = new THREE.Vector3(0, -1, 0);
+
 export class TableScene {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
@@ -561,8 +565,10 @@ export class TableScene {
     const solid = (color: number, emissive = 0x000000, glow = 0) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, emissive, emissiveIntensity: glow });
     for (const k of state.markers) {
       const at = this.toWorld(k);
+      // On top of whatever stands there, so that scenery never hides it.
+      const lift = this.markerLift(state, k);
       const add = (mesh: THREE.Mesh, y: number): void => {
-        mesh.position.set(at.x, y, at.z);
+        mesh.position.set(at.x, lift + y, at.z);
         mesh.castShadow = true;
         this.markerGroup.add(mesh);
       };
@@ -572,10 +578,18 @@ export class TableScene {
         disc.userData.tokenId = k.id;
         add(disc, 0.05);
         this.tokenMeshes.set(k.id, disc);
-        this.markerLabel(k, 0.7);
+        this.markerLabel(k, lift + 0.7);
         continue;
       }
-      if (k.kind === undefined) this.markerLabel(k, 2.9);
+      if (k.kind === undefined) this.markerLabel(k, lift + 2.9);
+      else if (k.kind === 'intrigue' || k.kind === 'sigil' || k.kind === 'cache') this.markerLabel(k, lift + 1.4);
+      if (k.kind === 'intrigue' || k.kind === 'sigil' || k.kind === 'cache') {
+        // A thin beam of light: the token is easy to find among tall scenery.
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 6, 8), new THREE.MeshBasicMaterial({ color: 0xc9a5ff, transparent: true, opacity: 0.35, depthWrite: false }));
+        beam.position.set(at.x, lift + 3, at.z);
+        beam.raycast = () => undefined;
+        this.markerGroup.add(beam);
+      }
       if (k.kind === undefined) {
         // An objective: a stone marker and its scoring ring.
         add(new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.49, 2.4, 6), solid(0xd8d2c0, 0x6b5a1e, 0.5)), 1.2);
@@ -708,9 +722,74 @@ export class TableScene {
 
   // ---- coordinates ----
 
-  /** How high a figure stands: on scenery at its height, otherwise on the ground as it rises and falls. */
+  /**
+   * How high a figure stands: on scenery at its height, otherwise on the ground as it rises and falls – and never
+   * inside sculpted scenery: where the model of a terrain piece is higher there (a mound, rocks, steps), on top of it.
+   */
   private standY(state: TableState, m: Model): number {
-    return (m.z ?? 0) > 0.01 ? m.z! : reliefAt(state, m.x, m.y);
+    const base = (m.z ?? 0) > 0.01 ? m.z! : reliefAt(state, m.x, m.y);
+    return this.sculptTop(m, m.size, base);
+  }
+
+  private readonly plumb = new THREE.Raycaster();
+  private readonly downFrom = new THREE.Vector3();
+  private sculpts: THREE.Mesh[] = [];
+  private sculptKey = -1;
+  private sculptTick = 0;
+  private readonly sculptTops = new Map<string, number>();
+
+  /**
+   * The top of the sculpted scenery under a base standing at `at`, looking no higher than a step above `base`
+   * (what is further up – a roof, a canopy – is over the figure, not under it). `base` when nothing is there.
+   */
+  private sculptTop(at: Pt, size: BaseSize, base: number, rays = 5): number {
+    if (this.sculpts.length === 0) return base;
+    const key = `${at.x}|${at.y}|${size}|${base}|${rays}`;
+    const known = this.sculptTops.get(key);
+    if (known !== undefined) return known;
+    const c = this.toWorld(at);
+    const r = baseRadius(size) * 0.6;
+    let top = base;
+    const hits: THREE.Intersection[] = [];
+    for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]].slice(0, rays) as [number, number][]) {
+      this.plumb.set(this.downFrom.set(c.x + dx, base + STEP_UP, c.z + dz), DOWN);
+      this.plumb.far = STEP_UP;
+      hits.length = 0;
+      // The meshes do not answer the mouse (too many triangles for every pointer move): ask them directly.
+      for (const mesh of this.sculpts) THREE.Mesh.prototype.raycast.call(mesh, this.plumb, hits);
+      for (const h of hits) if (h.point.y > top) top = h.point.y;
+    }
+    if (this.sculptTops.size > 800) this.sculptTops.clear();
+    this.sculptTops.set(key, top);
+    return top;
+  }
+
+  /** How far above the table a marker is drawn: on the scenery under it. */
+  private markerLift(state: TableState, k: Pt): number {
+    const z = surfaceAt(state, k);
+    const base = z > 0.01 ? z : reliefAt(state, k.x, k.y);
+    const top = this.sculptTop(k, 'small', base, 1);
+    return top > base + 0.01 || z > 0.01 ? Math.max(0, top - this.markerGroup.position.y) : 0;
+  }
+
+  /** Sculpted scenery loads piece by piece: when the set of its meshes changes, the figures are stood on it again. */
+  private watchSculpts(): void {
+    if (this.sculptTick++ % 30 !== 0) return;
+    const found: THREE.Mesh[] = [];
+    let key = 0;
+    this.tableGroup.traverse((o) => {
+      if (!o.userData.sculpt) return;
+      found.push(o as THREE.Mesh);
+      key += o.id;
+    });
+    if (key === this.sculptKey && found.length === this.sculpts.length) return;
+    this.sculptKey = key;
+    this.sculpts = found;
+    this.sculptTops.clear();
+    const state = this.state;
+    if (!state) return;
+    for (const f of this.figures.values()) f.target.setY(this.standY(state, f.model));
+    this.buildMarkers(state);
   }
 
   private toWorld(p: Pt): THREE.Vector3 {
@@ -921,7 +1000,8 @@ export class TableScene {
     const r = baseRadius(size);
     const hgt = baseHeight(size);
     this.ghost.scale.set(r, hgt, r);
-    this.ghost.position.copy(this.toWorld(at)).setY(hgt / 2);
+    // On sculpted scenery the preview stands on it too (one ray: this runs with every pointer move).
+    this.ghost.position.copy(this.toWorld(at)).setY(hgt / 2 + this.sculptTop({ x: Math.round(at.x * 4) / 4, y: Math.round(at.y * 4) / 4 }, size, 0, 1));
     (this.ghost.material as THREE.MeshBasicMaterial).color.setHex(ok ? 0x4ade80 : 0xf87171);
     this.ghost.visible = true;
   }
@@ -987,6 +1067,7 @@ export class TableScene {
     const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
     this.world.update(now / 1000, dt, this.camera);
+    this.watchSculpts();
     for (const f of this.figures.values()) {
       // No animation: a figure slides to where it now stands.
       if (f.group.position.distanceTo(f.target) > 1e-3) f.group.position.lerp(f.target, 0.22);

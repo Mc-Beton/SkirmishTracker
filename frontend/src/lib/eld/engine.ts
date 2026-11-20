@@ -1,4 +1,4 @@
-import { baseHeight, checkPath, checkPlacement, dist, distToSegment, facingTo, heightProfile, inDeployZone, ladderAt, moveCost, ngon, normDeg, onShelf, pointInPolygon, round2, SHELF, shelfPlacement, shelfSpot, surfaceAt } from './geometry.ts';
+import { baseHeight, checkPath, checkPlacement, circleHitsPolygon, dist, distToSegment, facingTo, heightProfile, inDeployZone, ladderAt, moveCost, ngon, normDeg, onShelf, pointInPolygon, round2, SHELF, shelfPlacement, shelfSpot, surfaceAt } from './geometry.ts';
 import { areaOf, areaVictims, attackOptions, CONTACT, fallRolls, walkToward, gap, HAZE, intOf, manaBill, manaPool, moraleOf, immuneTo, isTargetless, NO_MODS, planAttack, pointTarget, quantityOf, resolveAction, soldierBonus, spellReach, weaponAt, woundOnce } from './combat.ts';
 import { GUARD, hasUpgrade, RETINUE, upgradeChoices } from './upgrades.ts';
 import { spellsOf, type Spell } from './spells.ts';
@@ -1635,6 +1635,30 @@ function consequences(state: TableState, bodies: EventBody[]): EventBody[] {
   return [...held, ...riders, ...tidy, ...scored, ...morale(after(now, scored))];
 }
 
+/**
+ * Where a Quest token goes: its own spot, or – when scenery stands there – the nearest open ground.
+ * It slides along the centre line first, so that both players stay equally far from it.
+ */
+export function tokenSpot(terrain: TerrainPiece[], width: number, height: number, at: Pt): Pt {
+  const room = MARKER_RADIUS + 0.1;
+  const open = (p: Pt): boolean =>
+    p.x >= room && p.y >= room && p.x <= width - room && p.y <= height - room && !terrain.some((t) => t.kind === 'obstacle' && circleHitsPolygon(p, room, t.shape));
+  if (open(at)) return at;
+  for (let d = 0.25; d <= 9; d += 0.25) {
+    for (const s of [-1, 1]) {
+      const p = { x: round2(at.x + s * d), y: at.y };
+      if (open(p)) return p;
+    }
+  }
+  for (let d = 0.25; d <= 9; d += 0.25) {
+    for (let i = 0; i < 16; i++) {
+      const p = { x: round2(at.x + Math.cos((i * Math.PI) / 8) * d), y: round2(at.y + Math.sin((i * Math.PI) / 8) * d) };
+      if (open(p)) return p;
+    }
+  }
+  return at;
+}
+
 /** Awaiting Reinforcements: who holds the Obelisk at the end of the round. */
 function roundScoring(state: TableState): EventBody[] {
   const obelisk = state.markers.find((k) => k.id === 'obelisk');
@@ -2527,7 +2551,12 @@ function applyCore(state: TableState, ev: GameEvent): void {
       if (ev.map) state.map = ev.map;
       state.quest = ev.quest ?? null;
       state.points = ev.points ?? DEFAULT_POINTS;
-      state.markers = (questByCode(state.quest)?.markers ?? []).map((k) => ({ id: k.id, name: k.name, x: round2(ev.width * k.at.x), y: round2(ev.height * k.at.y), radius: k.radius, ...(k.kind ? { kind: k.kind } : {}) }));
+      state.markers = (questByCode(state.quest)?.markers ?? []).map((k) => {
+        const at = { x: round2(ev.width * k.at.x), y: round2(ev.height * k.at.y) };
+        // The Obelisk is where the map has it (often on a dais); a token has to lie where a model can get to it.
+        const spot = k.kind ? tokenSpot(ev.terrain, ev.width, ev.height, at) : at;
+        return { id: k.id, name: k.name, x: spot.x, y: spot.y, radius: k.radius, ...(k.kind ? { kind: k.kind } : {}) };
+      });
       log('info', `Table "${ev.name}" created${state.quest ? ` – Quest: ${questByCode(state.quest)?.name ?? state.quest}` : ''}`);
       break;
     case 'PLAYER_JOINED':
