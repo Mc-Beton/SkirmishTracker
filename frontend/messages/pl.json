@@ -1707,7 +1707,8 @@
       "down": "istotny spadek",
       "howToRead": "Zmiana to różnica wyniku (po − przed). „Istotna” oznacza, że różnica przekracza 95% margines błędu obu okresów (test dwóch proporcji). Kolumna udziału/wyboru pokazuje, jak zmieniła się popularność."
     },
-    "program": "Program oficjalny"
+    "program": "Program oficjalny",
+    "tooLittle": "Za mało danych, żeby pokazać wyniki: wiersz pojawia się, gdy stoi za nim co najmniej {n} różnych graczy."
   },
   "seasons": {
     "title": "Sezony",

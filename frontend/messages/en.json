@@ -1707,7 +1707,8 @@
       "down": "significant drop",
       "howToRead": "Change is the score difference (after − before). “Significant” means the difference exceeds the 95% error margin of both periods (two-proportion test). The share / pick column shows how popularity changed."
     },
-    "program": "Official program"
+    "program": "Official program",
+    "tooLittle": "Too little data to show results: a row appears once at least {n} different players stand behind it."
   },
   "seasons": {
     "title": "Seasons",

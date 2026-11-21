@@ -159,6 +159,7 @@ export function ReportsView() {
             <>
               <Factions report={report} t={t} fName={fName} onCsv={() => csv("factions")} />
               <SectionCard title={t("matchups.title")} lead={t("matchups.lead")} onCsv={() => csv("matchups")} csvLabel={t("csv")}>
+                {report.factions.length === 0 && <TooLittle report={report} t={t} />}
                 <HeatMatrix rows={report.factions.map((f) => f.faction)} cols={report.factions.map((f) => f.faction)}
                   cells={report.matchups} rowLabel={fName} colLabel={fName} corner={t("matchups.corner")}
                   diagonal={t("matchups.mirror")} uncertain={t("uncertain")} />
@@ -184,6 +185,12 @@ export function ReportsView() {
 }
 
 type T = ReturnType<typeof useTranslations<"reports">>;
+
+/** An empty table: there are games, but too few players stand behind every row to show it (privacy threshold). */
+const tooLittle = (report: MetaReport, t: T): string => t("tooLittle", { n: report.thresholds.minPlayers });
+function TooLittle({ report, t }: { report: MetaReport; t: T }) {
+  return <p className="text-sm text-muted-foreground">{tooLittle(report, t)}</p>;
+}
 
 function stamp(f: ReportFilter): string {
   return [f.from || "start", f.to || "now", f.source, f.country, f.tier, f.minElo && `elo${f.minElo}`].filter(Boolean).join("_");
@@ -287,6 +294,7 @@ function Factions({ report, t, fName, onCsv }: { report: MetaReport; t: T; fName
   return (
     <SectionCard title={t("factions.title")} lead={t("factions.lead")} onCsv={onCsv} csvLabel={t("csv")}>
       <Legend t={t} />
+      {report.factions.length === 0 && <TooLittle report={report} t={t} />}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -334,7 +342,7 @@ function Units({ report, t, fName, unitName, onCsv }: {
   const rows = report.units.filter((u) => u.faction === faction);
   return (
     <SectionCard title={t("units.title")} lead={t("units.lead")} onCsv={onCsv} csvLabel={t("csv")}>
-      {factions.length === 0 ? <p className="text-sm text-muted-foreground">{t("units.empty")}</p> : (
+      {factions.length === 0 ? <p className="text-sm text-muted-foreground">{report.summary.gamesWithLists > 0 ? tooLittle(report, t) : t("units.empty")}</p> : (
         <>
           <div className="grid max-w-xs gap-1.5">
             <Label className="text-xs" htmlFor="units-faction">{t("factions.faction")}</Label>
@@ -462,7 +470,7 @@ function Items({ report, t, armies, fName, unitName, onCsv }: {
 
   return (
     <SectionCard title={t("items.title")} lead={t("items.lead")} onCsv={onCsv} csvLabel={t("csv")}>
-      {factions.length === 0 ? <p className="text-sm text-muted-foreground">{t("items.empty")}</p> : (
+      {factions.length === 0 ? <p className="text-sm text-muted-foreground">{report.summary.gamesWithLists > 0 ? tooLittle(report, t) : t("items.empty")}</p> : (
         <>
           <div className="grid max-w-xs gap-1.5">
             <Label className="text-xs" htmlFor="items-faction">{t("factions.faction")}</Label>
@@ -586,7 +594,7 @@ function Missions({ report, t, fName, questName, onCsv, onCsvMatrix }: {
   return (
     <>
       <SectionCard title={t("missions.title")} lead={t("missions.lead")} onCsv={onCsv} csvLabel={t("csv")}>
-        {report.missions.length === 0 ? <p className="text-sm text-muted-foreground">{t("missions.empty")}</p> : (
+        {report.missions.length === 0 ? <p className="text-sm text-muted-foreground">{report.summary.games > 0 ? tooLittle(report, t) : t("missions.empty")}</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
