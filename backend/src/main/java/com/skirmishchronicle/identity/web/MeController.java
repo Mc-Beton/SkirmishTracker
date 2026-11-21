@@ -55,8 +55,7 @@ public class MeController {
         if (body.locale() != null) {
             user.setLocale(body.locale());
         }
-        // Club and city are always sent by the profile form; empty clears them.
-        user.setClub(body.club());
+        // The team name comes from the player's team (ClubService), not from the profile form any more.
         user.setHomeCity(body.homeCity());
         if (body.confirmResults() != null) {
             user.setConfirmResults(body.confirmResults());

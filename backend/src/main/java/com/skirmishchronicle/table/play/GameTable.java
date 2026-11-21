@@ -146,6 +146,13 @@ public class GameTable extends AbstractEntity {
     @Column(name = "match_reported", nullable = false)
     private boolean matchReported;
 
+    /** After the game: the players who have confirmed the result at the table (A, B). */
+    @Column(name = "result_ok_a", nullable = false)
+    private boolean resultOkA;
+
+    @Column(name = "result_ok_b", nullable = false)
+    private boolean resultOkB;
+
     @Column(name = "next_seq", nullable = false)
     private long nextSeq = 1;
 
@@ -404,6 +411,29 @@ public class GameTable extends AbstractEntity {
 
     public UUID getReportedGameId() {
         return reportedGameId;
+    }
+
+    /** A player confirms the result of the finished game. */
+    public void confirmResult(int side) {
+        if (side == 0) {
+            this.resultOkA = true;
+        } else {
+            this.resultOkB = true;
+        }
+        touch();
+    }
+
+    public boolean isResultOk(int side) {
+        return side == 0 ? resultOkA : resultOkB;
+    }
+
+    /** Something changed on the table after the game: what was confirmed is no longer the result. */
+    public void resultChanged() {
+        if (resultOkA || resultOkB) {
+            this.resultOkA = false;
+            this.resultOkB = false;
+            touch();
+        }
     }
 
     public void reported(UUID gameId) {

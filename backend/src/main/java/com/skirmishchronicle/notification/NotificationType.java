@@ -20,6 +20,10 @@ public enum NotificationType {
     GAME_CONFIRMED,
     GAME_REJECTED,
     TABLE_INVITATION,
+    // players' teams
+    CLUB_INVITATION,
+    CLUB_REQUEST,
+    CLUB_DECISION,
     LEAGUE_SUBMISSION,
     LEAGUE_DECISION,
     // organizer

@@ -412,3 +412,10 @@ gdy usługa zasad odpowiada na `localhost:8090` (w CI startuje ją job backendu)
 - **Wejście do stołu**: `GET /api/tournaments/{id}/online-tables` (gracz: własne mecze, organizator/admin: wszystkie; wymaga logowania), przycisk w wierszu meczu. Dostęp do samego stołu sprawdza stół (gracz / sędzia / admin).
 - **Wynik**: gdy gra na stole się kończy, `TableGameService.command` wpisuje VP do meczu (`RoundService.resultFromTable`) – tylko gdy mecz nie ma wyniku i runda trwa; organizator może go poprawić. Stołu turniejowego nie da się zgłosić do „Moich gier”.
 - **Do zrobienia (krok 3)**: limit czasu – po końcu zegara rundy stoły kończą bieżącą rundę gry i zamykają grę.
+
+### Tabela punktów i zatwierdzanie wyniku przy stole (2026-11-20)
+
+- **Tabela punktów**: `state.sheet` (Misja / Scheme, runda po rundzie, obie strony), komenda `SET_SCORE`, suma = `state.vp`. Punkty za Scheme'y wpisują gracze; stół podaje w dzienniku tylko własne wyliczenie (`SCHEME_SCORED.worth`, `delta` 0).
+- **Wynik do ELO i statystyk**: po końcu gry każdy gracz klika „Zatwierdź wynik” (`POST /api/tables/{id}/confirm-result`, `game_tables.result_ok_a/b`, migracja V31). Gdy zatwierdzą obaj, `FriendlyGameService.recordConfirmed` zapisuje grę własną od razu jako CONFIRMED, z punktami runda po rundzie (`friendly_turn_scores`); nikt nie potwierdza jej drugi raz w „Moich grach”. Każda komenda po zatwierdzeniu cofa oba zatwierdzenia.
+- **Poddanie**: liczy się jako przegrana poddającego – zwycięzca dostaje co najmniej 1 punkt, poddający najwyżej o 1 mniej; punkty ze stołu są w notatce gry.
+- Stoły turniejowe i wolne gry nie mają zatwierdzania (turniej: wynik idzie do meczu).

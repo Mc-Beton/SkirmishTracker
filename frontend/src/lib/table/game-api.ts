@@ -32,6 +32,10 @@ export type GameMeta = {
   invited: GamePlayer | null;
   observersAllowed: boolean;
   reportedGameId: string | null;
+  /** After the game: who has confirmed the result at the table (A, B). */
+  resultOk?: boolean[];
+  /** A table of a tournament match: its result goes to the match by itself. */
+  matchTable?: boolean;
   /** 2D: a WarBracket map from above; 3D: a map of the game drawn with models (chosen when the table was created). */
   viewMode: "2D" | "3D";
   /** The table plays on a map of the game (built-in or made by an admin): its field, ground and models are in the

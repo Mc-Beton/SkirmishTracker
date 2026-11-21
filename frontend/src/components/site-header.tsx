@@ -30,6 +30,7 @@ export function SiteHeader() {
     { href: "/tournaments", label: t("nav.tournaments") },
     { href: "/leagues", label: t("nav.leagues") },
     { href: "/players", label: t("nav.ranking") },
+    ...(me ? [{ href: "/teams", label: t("nav.teams") }] : []),
     // Information modules, own games, online play and the official program are Eldfall-only.
     ...(eldfall ? [{ href: "/seasons", label: t("nav.seasons") }, { href: "/scenarios", label: t("nav.scenarios") }] : []),
     ...(me && eldfall ? [{ href: "/games", label: t("nav.games") }, { href: "/lists", label: t("nav.lists") },

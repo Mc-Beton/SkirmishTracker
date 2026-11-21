@@ -328,6 +328,8 @@ export interface TableState {
   /** Where the Victory Points came from, round by round (index 0 = round 1): for the Quest and for Schemes. Sums to `vp`. */
   sheet?: Record<ScoreKind, [number[], number[]]>;
   winner: Side | 'draw' | null;
+  /** WarBracket: the side that gave the game up. */
+  conceded?: Side;
   /** Recruitment Points each party may spend. */
   points: number;
   /** The faction each side plays (decides its Scheme table); null until a party is deployed. */

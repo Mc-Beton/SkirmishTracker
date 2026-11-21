@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
@@ -36,7 +37,6 @@ function AccountForms({ me }: { me: Me }) {
 
   const [displayName, setDisplayName] = useState(me.displayName);
   const [locale, setLocaleValue] = useState<"pl" | "en">(me.locale);
-  const [club, setClub] = useState(me.club ?? "");
   const [homeCity, setHomeCity] = useState(me.homeCity ?? "");
   const [confirmResults, setConfirmResults] = useState(me.confirmResults);
   const [profileMsg, setProfileMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -48,7 +48,7 @@ function AccountForms({ me }: { me: Me }) {
     e.preventDefault();
     setProfileMsg(null);
     try {
-      await api<Me>("PATCH", "/api/me", { displayName, locale, club, homeCity, confirmResults });
+      await api<Me>("PATCH", "/api/me", { displayName, locale, homeCity, confirmResults });
       await setLocale(locale);
       await reload();
       router.refresh();
@@ -100,8 +100,8 @@ function AccountForms({ me }: { me: Me }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid content-start gap-2">
                 <Label htmlFor="club">{t("club")}</Label>
-                <Input id="club" maxLength={80} value={club} onChange={(e) => setClub(e.target.value)} />
-                <p className="text-xs text-muted-foreground">{t("clubHint")}</p>
+                <Input id="club" readOnly disabled value={me.club ?? "—"} />
+                <p className="text-xs text-muted-foreground">{t.rich("clubManaged", { link: (chunks) => <Link className="underline" href="/teams">{chunks}</Link> })} {t("clubHint")}</p>
               </div>
               <div className="grid content-start gap-2">
                 <Label htmlFor="homeCity">{t("homeCity")}</Label>

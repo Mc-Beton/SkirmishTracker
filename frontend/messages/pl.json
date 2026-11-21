@@ -22,7 +22,8 @@
     "lists": "Moje rozpiski",
     "tables": "Gra online",
     "tableLibrary": "Teren",
-    "maps3d": "Mapy 3D"
+    "maps3d": "Mapy 3D",
+    "teams": "Drużyny"
   },
   "home": {
     "headline": "Prowadź turnieje bez kartki i kalkulatora",
@@ -78,8 +79,8 @@
     "passwordChanged": "Hasło zmienione. Zaloguj się ponownie.",
     "logoutAll": "Wyloguj ze wszystkich urządzeń",
     "memberSince": "Konto od",
-    "club": "Klub",
-    "clubHint": "Używany do unikania parowań z kolegami z klubu (jeśli organizator to włączy).",
+    "club": "Drużyna",
+    "clubHint": "Służy też do unikania parowań z kolegami z drużyny (jeśli organizator to włączy).",
     "homeCity": "Miejscowość",
     "confirmResults": {
       "title": "Wyniki wpisywane przez przeciwnika",
@@ -87,7 +88,8 @@
       "noHint": "Wynik wpisany przez przeciwnika (także zakończenie gry w trybie szczegółowym) od razu jest ostateczny. Dostajesz tylko powiadomienie.",
       "yes": "Chcę potwierdzać wynik",
       "yesHint": "Wynik wpisany przez przeciwnika albo zakończenie gry z takim wynikiem czeka na Twoje potwierdzenie lub zgłoszenie błędu."
-    }
+    },
+    "clubManaged": "Drużynę zakładasz lub zmieniasz w zakładce <link>Drużyny</link>."
   },
   "errors": {
     "INVALID_CREDENTIALS": "Nieprawidłowy e-mail lub hasło.",
@@ -378,7 +380,19 @@
     "GAME_MAP_TOO_MANY": "Jest już maksymalna liczba map 3D. Usuń którąś, żeby dodać nową.",
     "GAME_MAP_NOT_FOUND": "Nie ma takiej mapy.",
     "GAME_MAP_BAD": "Niepoprawne dane mapy.",
-    "ITEM_LIMIT": "To wzmocnienie ma limit na drużynę – w rozpisce jest ich za dużo."
+    "ITEM_LIMIT": "To wzmocnienie ma limit na drużynę – w rozpisce jest ich za dużo.",
+    "CLUB_NOT_FOUND": "Nie ma takiej drużyny.",
+    "CLUB_NAME_TAKEN": "Drużyna o tej nazwie już istnieje.",
+    "CLUB_NAME_INVALID": "Nazwa drużyny musi mieć od 3 do 80 znaków.",
+    "CLUB_ALREADY_IN_TEAM": "Ten gracz należy już do drużyny – najpierw trzeba ją opuścić.",
+    "CLUB_PLAYER_HAS_TEAM": "Ten gracz należy już do innej drużyny.",
+    "CLUB_OWNER_ONLY": "To może zrobić tylko właściciel drużyny.",
+    "CLUB_FULL": "Drużyna ma już komplet członków.",
+    "CLUB_INVITE_INVALID": "Zaproszenie jest nieważne.",
+    "CLUB_NO_REQUEST": "Ten gracz nie prosi już o przyjęcie.",
+    "CLUB_OWNER_CANNOT_LEAVE": "Właściciel nie może opuścić drużyny – przekaż ją innemu członkowi albo rozwiąż.",
+    "CLUB_NOT_MEMBER": "Ten gracz nie należy do drużyny.",
+    "CLUB_TOO_MANY_OPEN": "Za dużo otwartych zaproszeń lub próśb – poczekaj, aż część zostanie rozpatrzona."
   },
   "tournaments": {
     "title": "Turnieje",
@@ -1371,7 +1385,10 @@
       "JUDGE_CALL": "{tournament}: runda {round}, stół {table} ({players}) wzywa sędziego.",
       "RESULT_RECORDED": "{tournament}: {opponent} wpisał(a) wynik Waszej gry – {score}.",
       "GAME_STARTED": "{player} rozpoczął(-ęła) z Tobą grę – możesz wpisywać punkty.",
-      "TABLE_INVITATION": "{player} zaprasza Cię do gry online na mapie {map}."
+      "TABLE_INVITATION": "{player} zaprasza Cię do gry online na mapie {map}.",
+      "CLUB_INVITATION": "{player} zaprasza Cię do drużyny {team}.",
+      "CLUB_REQUEST": "{player} prosi o przyjęcie do drużyny {team}.",
+      "CLUB_DECISION": "Drużyna {team}: {accepted, select, true {zostałeś(-aś) przyjęty(-a)} other {prośba o przyjęcie została odrzucona}}."
     }
   },
   "offline": {
@@ -2168,6 +2185,12 @@
     "endProposedBy": "{name} proponuje koniec gry.",
     "acceptEnd": "Zgoda – koniec gry",
     "reported": "Wynik zgłoszony – przeciwnik potwierdza go w <link>Moich grach</link>.",
+    "resultSaved": "Wynik zatwierdzony – gra jest w <link>Moich grach</link> i liczy się do ELO i statystyk.",
+    "confirmResult": "Zatwierdź wynik",
+    "resultWaiting": "Wynik zatwierdzony przez Ciebie – czekamy na przeciwnika.",
+    "resultOtherConfirmed": "Przeciwnik zatwierdził już wynik.",
+    "confirmResultHelp": "Uzupełnijcie tabelę punktów (także Scheme'y z ostatniej rundy), potem każdy zatwierdza wynik. Gdy zrobią to obaj gracze, gra od razu liczy się do ELO i statystyk. Zmiana punktów cofa zatwierdzenie. Poddana gra liczy się jako przegrana poddającego.",
+    "resultToMatch": "Stół turniejowy: wynik gry trafił do meczu w turnieju.",
     "reportResult": "Zgłoś wynik jako grę własną",
     "reportHelp": "Wynik z punktów zwycięstwa i obie rozpiski trafią do Moich gier; po potwierdzeniu przez przeciwnika liczą się do ELO, lig i statystyk.",
     "sprayNeedsModel": "Najpierw wybierz model, który używa szablonu Spray.",
@@ -2792,5 +2815,54 @@
     "elements": "Dodaj element",
     "plain": "bryła",
     "noWebgl": "Ta przeglądarka albo to urządzenie nie obsługuje grafiki 3D (WebGL)."
+  },
+  "teams": {
+    "title": "Drużyny",
+    "loading": "Wczytywanie…",
+    "youOwn": "Twoja drużyna",
+    "owner": "właściciel",
+    "ownerIs": "właściciel: {name}",
+    "membersN": "{n, plural, one {# członek} few {# członków} many {# członków} other {# członka}}",
+    "transfer": "Przekaż drużynę",
+    "transferConfirm": "Przekazać drużynę graczowi {name}? Przestaniesz być właścicielem.",
+    "remove": "Usuń",
+    "removeNamed": "Usuń gracza {name} z drużyny",
+    "removeConfirm": "Usunąć gracza {name} z drużyny?",
+    "requestsTitle": "Prośby o przyjęcie",
+    "accept": "Przyjmij",
+    "decline": "Odrzuć",
+    "inviteTitle": "Zaproś graczy",
+    "invite": "Zaproś",
+    "invited": "zaproszony(-a), czeka na odpowiedź",
+    "cancel": "Anuluj",
+    "makeLink": "Utwórz link z zaproszeniem",
+    "newLink": "Nowy link (stary przestanie działać)",
+    "closeLink": "Wyłącz link",
+    "linkLabel": "Link z zaproszeniem do drużyny",
+    "copy": "Kopiuj",
+    "copied": "Skopiowano",
+    "linkHint": "Kto otworzy link będąc zalogowanym, od razu dołącza do drużyny. Link widać tylko raz – po odświeżeniu strony utwórz nowy.",
+    "rename": "Zmień nazwę",
+    "dissolve": "Rozwiąż drużynę",
+    "dissolveConfirm": "Rozwiązać drużynę {name}? Wszyscy członkowie zostaną bez drużyny.",
+    "name": "Nazwa drużyny",
+    "save": "Zapisz",
+    "ownerHint": "Właściciel nie może opuścić drużyny: przekaż ją innemu członkowi albo rozwiąż.",
+    "leave": "Opuść drużynę",
+    "leaveConfirm": "Opuścić drużynę {name}?",
+    "myInvitations": "Zaproszenia do drużyn",
+    "join": "Dołącz",
+    "createTitle": "Załóż drużynę",
+    "create": "Załóż",
+    "createHint": "Zostaniesz właścicielem drużyny. Każdy gracz może należeć do jednej drużyny; jej nazwa jest widoczna w profilu i rankingach.",
+    "findTitle": "Dołącz do istniejącej drużyny",
+    "findPlaceholder": "Szukaj po nazwie…",
+    "noTeams": "Brak drużyn o takiej nazwie.",
+    "ask": "Poproś o przyjęcie",
+    "withdraw": "Wycofaj prośbę",
+    "askHint": "Prośbę musi zatwierdzić właściciel drużyny.",
+    "loginRequired": "Drużyny są dla zalogowanych graczy.",
+    "loginToJoin": "Zaloguj się, a potem otwórz link z zaproszeniem jeszcze raz, żeby dołączyć do drużyny.",
+    "login": "Zaloguj się"
   }
 }

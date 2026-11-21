@@ -4,7 +4,7 @@
 // for the whole log (NEED_LOG) and rebuilds.
 
 import { randomInt } from 'node:crypto';
-import { apply, decide, emptyState, RuleError, schemeScoring } from '../frontend/src/lib/eld/engine.ts';
+import { apply, decide, emptyState, RuleError, schemeScoring, tallyOf } from '../frontend/src/lib/eld/engine.ts';
 import { BASES, buildMap, checkPlacements, KITS, MAPS, type GameMap, type Placement } from '../frontend/src/lib/eld/maps.ts';
 import { drawSchemes } from '../frontend/src/lib/eld/quests.ts';
 import type { Command, EventBody, GameEvent, Model, Side, TableState } from '../frontend/src/lib/eld/types.ts';
@@ -138,9 +138,13 @@ export interface Summary {
   winner: Side | 'draw' | null;
   factions: [string | null, string | null];
   seq: number;
+  /** Victory Points round by round (index 0 = round 1), for the Quest and for Schemes, by side. */
+  sheet: ReturnType<typeof tallyOf>;
+  /** The side that gave the game up. */
+  conceded?: Side;
 }
 
-const summary = (s: TableState): Summary => ({ phase: s.phase, round: s.round, active: s.active, vp: s.vp, winner: s.winner, factions: s.factions, seq: s.seq });
+const summary = (s: TableState): Summary => ({ phase: s.phase, round: s.round, active: s.active, vp: s.vp, winner: s.winner, factions: s.factions, seq: s.seq, sheet: tallyOf(s), ...(s.conceded !== undefined ? { conceded: s.conceded } : {}) });
 
 const name = (v: unknown, fallback: string): string => {
   // eslint-disable-next-line no-control-regex

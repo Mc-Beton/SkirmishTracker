@@ -303,6 +303,14 @@ public class TableController {
         return tables.command(CurrentUser.from(jwt), id, body.toCommand(), body.asSide());
     }
 
+    /** A player confirms the result at the table; once both have, the game is saved (gameId), else gameId is null. */
+    @PostMapping("/{id}/confirm-result")
+    public Map<String, Object> confirmResult(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        Map<String, Object> out = new java.util.HashMap<>();
+        out.put("gameId", tables.confirmResult(CurrentUser.from(jwt), id));
+        return out;
+    }
+
     /** Reports the finished game as an own game (the opponent confirms it). */
     @PostMapping("/{id}/report")
     public Map<String, UUID> report(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {

@@ -754,6 +754,80 @@ public class TableService {
         return gameId;
     }
 
+    /**
+     * A player confirms the result of the finished game at the table. When both have, the game is saved as a confirmed
+     * own game (ELO, leagues' own games aside, statistics) with its points round by round, and the table is closed.
+     * A game that was given up counts as lost by the player who gave it up, whatever the points were. Returns the id of
+     * the saved game, or null while the other player has not confirmed yet.
+     */
+    @Transactional
+    public UUID confirmResult(CurrentUser actor, UUID id) {
+        GameTable t = tables.findByIdForUpdate(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TABLE_NOT_FOUND"));
+        int side = t.sideOf(actor.id());
+        if (side < 0) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "TABLE_NOT_FOUND");
+        }
+        if (t.getReportedGameId() != null || t.getMatchId() != null) {
+            // already saved, or a tournament table (its result goes to the match)
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_ALREADY_REPORTED");
+        }
+        if (t.isSandbox() || !t.isGame()) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_SANDBOX_NO_REPORT");
+        }
+        com.fasterxml.jackson.databind.JsonNode sum = game.summary(t);
+        if (!"finished".equals(sum.path("phase").asText()) || t.getPlayerB() == null || t.getPlayerB().equals(t.getPlayerA())) {
+            throw new ApiException(HttpStatus.CONFLICT, "TABLE_NOT_FINISHED");
+        }
+        t.confirmResult(side);
+        UUID gameId = null;
+        if (t.isResultOk(0) && t.isResultOk(1)) {
+            gameId = saveConfirmed(t, sum);
+            t.reported(gameId);
+        }
+        live.tableChangedAfterCommit(t.getId(), 0);
+        return gameId;
+    }
+
+    private UUID saveConfirmed(GameTable t, com.fasterxml.jackson.databind.JsonNode sum) {
+        int a = Math.max(0, sum.path("vp").path(0).asInt(0));
+        int b = Math.max(0, sum.path("vp").path(1).asInt(0));
+        String notes = "Online: " + t.getMapName();
+        List<FriendlyGameService.TurnPoints> turns = new ArrayList<>();
+        com.fasterxml.jackson.databind.JsonNode conceded = sum.path("conceded");
+        if (conceded.isInt()) {
+            // given up: lost by that player whatever the points were (the points at the table go into the notes)
+            notes += " – poddana / conceded (" + a + ":" + b + ")";
+            boolean loserA = conceded.asInt() == 0;
+            int win = Math.max(1, loserA ? b : a);
+            int lose = Math.min(loserA ? a : b, win - 1);
+            a = loserA ? lose : win;
+            b = loserA ? win : lose;
+        } else {
+            com.fasterxml.jackson.databind.JsonNode sheet = sum.path("sheet");
+            boolean whole = sheet.isObject();
+            for (int s = 0; s < 2 && whole; s++) {
+                for (int i = 0; i < sheet.path("quest").path(s).size(); i++) {
+                    int quest = sheet.path("quest").path(s).path(i).asInt(0);
+                    int scheme = sheet.path("scheme").path(s).path(i).asInt(0);
+                    if (quest < 0 || scheme < 0) {
+                        whole = false; // a penalty (negative points) does not fit the turn sheet: only the totals are kept
+                        break;
+                    }
+                    if (quest > 0 || scheme > 0) {
+                        turns.add(new FriendlyGameService.TurnPoints(s, i + 1, quest, scheme));
+                    }
+                }
+            }
+            if (!whole) {
+                turns.clear();
+            }
+        }
+        return friendly.recordConfirmed(t.getPlayerA(), t.getPlayerB(), a, b,
+                java.time.LocalDate.now(java.time.ZoneId.of("Europe/Warsaw")), t.getQuestCode(), t.getFaction(0), t.getFaction(1),
+                notes, gameList(t.getFaction(0), t.getAllied(0), t.getListA()), gameList(t.getFaction(1), t.getAllied(1), t.getListB()),
+                turns);
+    }
+
     private GameList gameList(GameState.Party party, String unitsJson) {
         return party == null ? null : gameList(party.faction(), party.alliedFaction(), unitsJson);
     }

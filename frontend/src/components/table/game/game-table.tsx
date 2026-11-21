@@ -474,7 +474,7 @@ export function GameTable({ tableId }: { tableId: string }) {
   const report = async (): Promise<void> => {
     setReporting(true);
     try {
-      await api("POST", `/api/tables/${tableId}/report`);
+      await api("POST", `/api/tables/${tableId}/confirm-result`);
       game.reload();
     } catch (e) {
       setFlash(errorMessage(e));
@@ -861,12 +861,21 @@ export function GameTable({ tableId }: { tableId: string }) {
                     <p className="text-xs text-muted-foreground">{engineQuest ? t("vpAuto") : t("vpByHand")}</p>
                     {finished && meta.you >= 0 && (
                       meta.reportedGameId ? (
-                        <p className="text-xs">{tt.rich("reported", { link: (chunks) => <Link className="underline" href="/games">{chunks}</Link> })}</p>
+                        <p className="text-xs">{tt.rich("resultSaved", { link: (chunks) => <Link className="underline" href="/games">{chunks}</Link> })}</p>
                       ) : (
+meta.matchTable ? (
+                          <p className="text-xs text-muted-foreground">{tt("resultToMatch")}</p>
+                        ) : (
                         <>
-                          <Button size="sm" disabled={reporting} onClick={() => void report()}><Send aria-hidden /> {tt("reportResult")}</Button>
-                          <p className="text-xs text-muted-foreground">{tt("reportHelp")}</p>
+                          {meta.resultOk?.[meta.you] ? (
+                            <p className="text-xs font-semibold text-primary">{tt("resultWaiting")}</p>
+                          ) : (
+                            <Button size="sm" disabled={reporting} onClick={() => void report()}><Send aria-hidden /> {tt("confirmResult")}</Button>
+                          )}
+                          {meta.resultOk?.[1 - meta.you] && !meta.resultOk?.[meta.you] && <p className="text-xs font-semibold">{tt("resultOtherConfirmed")}</p>}
+                          <p className="text-xs text-muted-foreground">{tt("confirmResultHelp")}</p>
                         </>
+                        )
                       )
                     )}
                   </section>

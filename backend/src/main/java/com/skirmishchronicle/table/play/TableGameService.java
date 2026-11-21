@@ -28,7 +28,9 @@ public class TableGameService {
     public record Meta(UUID id, String status, String mapName, String questCode, String deployment, double deploymentDepth,
                        TableView.Background background, List<TableView.Placed> placements, List<TableView.TerrainView> terrain,
                        List<TableView.Player> players, int you, String role, boolean creator, TableView.Player invited,
-                       boolean observersAllowed, UUID reportedGameId, String viewMode, String gameMap) {
+                       boolean observersAllowed, UUID reportedGameId, String viewMode, String gameMap,
+                       /** Who has confirmed the result after the game (A, B); a tournament table has none to confirm. */
+                       List<Boolean> resultOk, boolean matchTable) {
     }
 
     /** {@code hands}: [yours or null, …] – a player sees only their own Scheme cards (both while playing alone). */
@@ -81,7 +83,8 @@ public class TableGameService {
                         : new TableView.Background(snap.background().imageId(), snap.background().widthIn(), snap.background().heightIn()),
                 placed, terrain, tables.players(t), you, role.name(), t.isCreator(actor.id()),
                 t.isCreator(actor.id()) && t.getInvitedUserId() != null ? tables.player(t.getInvitedUserId(), 1) : null,
-                t.isObserversAllowed(), t.getReportedGameId(), t.getViewMode(), t.getGameMap());
+                t.isObserversAllowed(), t.getReportedGameId(), t.getViewMode(), t.getGameMap(),
+                List.of(t.isResultOk(0), t.isResultOk(1)), t.getMatchId() != null);
         // While the second seat is empty the creator moves both sides and sees both; after that every viewer gets
         // the events in the form kept for them (hidden models of others masked).
         TableEventStore.Viewer viewer = you == 0 && t.getPlayerB() == null ? TableEventStore.Viewer.ALL
@@ -111,6 +114,8 @@ public class TableGameService {
             throw new ApiException(HttpStatus.CONFLICT, "TABLE_ALREADY_REPORTED");
         }
         long seq = game.command(t, t.sideOf(actor.id()), actor.id(), tables.player(actor.id(), 0).name(), cmd);
+        // what a player confirmed after the game was the result before this change
+        t.resultChanged();
         if (t.getMatchId() != null && !t.isMatchReported()) {
             // a tournament table: when the game is over, its Victory Points are the result of the match
             JsonNode sum = game.summary(t);

@@ -3227,7 +3227,10 @@ function applyCore(state: TableState, ev: GameEvent): void {
       state.phase = 'finished';
       state.winner = ev.winner;
       state.activation = null;
-      if (ev.conceded !== undefined) log('turn', `${SIDE_NAME[ev.conceded]} concedes the game`);
+      if (ev.conceded !== undefined) {
+        state.conceded = ev.conceded;
+        log('turn', `${SIDE_NAME[ev.conceded]} concedes the game`);
+      }
       log('turn', ev.winner === 'draw' ? `Game over – a draw, ${state.vp[0]}:${state.vp[1]}` : `Game over – ${SIDE_NAME[ev.winner]} wins ${state.vp[0]}:${state.vp[1]}`);
       break;
     case 'QUEST_SCORED': {

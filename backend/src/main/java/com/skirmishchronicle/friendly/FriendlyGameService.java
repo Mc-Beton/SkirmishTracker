@@ -157,6 +157,43 @@ public class FriendlyGameService {
         return g.getId();
     }
 
+    /** Points of one side in one round of a game played at an online table. */
+    public record TurnPoints(int side, int turn, int scenarioVp, int schemeVp) {
+    }
+
+    /**
+     * A game played at an online table whose result both players have confirmed there: saved as confirmed right away
+     * (ELO, statistics), with its points round by round. Nobody has to confirm it again.
+     */
+    @Transactional
+    public UUID recordConfirmed(UUID playerA, UUID playerB, int scoreA, int scoreB, LocalDate playedOn,
+                                String scenarioCode, String factionA, String factionB, String notes,
+                                GameList listA, GameList listB, List<TurnPoints> turns) {
+        if (scoreA < 0 || scoreB < 0 || scoreA > 1000 || scoreB > 1000) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_SCORE");
+        }
+        checkGame(new CurrentUser(playerA, false), playerB, playedOn, scenarioCode, factionA, factionB, null);
+        GameList la = validateList(listA);
+        GameList lb = validateList(listB);
+        FriendlyGame g = new FriendlyGame(playerA, playerB, scoreA, scoreB, playedOn, scenarioCode,
+                la != null ? la.faction() : factionA, lb != null ? lb.faction() : factionB, null,
+                notes == null || notes.isBlank() ? null : notes.strip());
+        g.setLists(write(la), write(lb));
+        g.decide(true);
+        games.save(g);
+        for (TurnPoints p : turns) {
+            if (p.turn() < 1 || p.turn() > content.turns() || p.scenarioVp() < 0 || p.schemeVp() < 0
+                    || p.scenarioVp() > MAX_TURN_VP || p.schemeVp() > MAX_TURN_VP) {
+                continue;
+            }
+            FriendlyTurnScore s = new FriendlyTurnScore(g.getId(), p.side() == 0 ? playerA : playerB, p.turn());
+            s.set(p.scenarioVp(), p.schemeVp(), playerA);
+            turnScores.save(s);
+        }
+        audit.record(playerA, AUDIT_TYPE, g.getId(), "CONFIRMED_AT_TABLE", scoreA + ":" + scoreB);
+        return g.getId();
+    }
+
     /** Starts a game played in the app; the opponent is told and can enter points on their phone too. */
     @Transactional
     public UUID start(CurrentUser actor, Start r) {

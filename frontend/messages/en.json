@@ -22,7 +22,8 @@
     "lists": "My lists",
     "tables": "Online play",
     "tableLibrary": "Terrain",
-    "maps3d": "3D maps"
+    "maps3d": "3D maps",
+    "teams": "Teams"
   },
   "home": {
     "headline": "Run tournaments without paper and calculators",
@@ -78,8 +79,8 @@
     "passwordChanged": "Password changed. Please sign in again.",
     "logoutAll": "Sign out of all devices",
     "memberSince": "Member since",
-    "club": "Club",
-    "clubHint": "Used to avoid pairing club mates (if the organizer enables it).",
+    "club": "Team",
+    "clubHint": "Also used to avoid pairings with teammates (if the organizer turns it on).",
     "homeCity": "Home town",
     "confirmResults": {
       "title": "Results entered by your opponent",
@@ -87,7 +88,8 @@
       "noHint": "A result your opponent enters (including finishing a detailed game) is final at once. You only get a notification.",
       "yes": "I want to confirm",
       "yesHint": "A result your opponent enters, or finishing the game with that result, waits for you to confirm or dispute it."
-    }
+    },
+    "clubManaged": "You found or change your team on the <link>Teams</link> page."
   },
   "errors": {
     "INVALID_CREDENTIALS": "Wrong e-mail or password.",
@@ -378,7 +380,19 @@
     "GAME_MAP_TOO_MANY": "There are already as many 3D maps as allowed. Delete one to add another.",
     "GAME_MAP_NOT_FOUND": "There is no such map.",
     "GAME_MAP_BAD": "The map data is not valid.",
-    "ITEM_LIMIT": "This upgrade has a limit per party – the list has too many of it."
+    "ITEM_LIMIT": "This upgrade has a limit per party – the list has too many of it.",
+    "CLUB_NOT_FOUND": "There is no such team.",
+    "CLUB_NAME_TAKEN": "A team with this name already exists.",
+    "CLUB_NAME_INVALID": "The name of a team has 3 to 80 characters.",
+    "CLUB_ALREADY_IN_TEAM": "This player is already in a team – they have to leave it first.",
+    "CLUB_PLAYER_HAS_TEAM": "This player is already in another team.",
+    "CLUB_OWNER_ONLY": "Only the owner of the team can do this.",
+    "CLUB_FULL": "The team is full.",
+    "CLUB_INVITE_INVALID": "The invitation is not valid.",
+    "CLUB_NO_REQUEST": "This player is no longer asking to join.",
+    "CLUB_OWNER_CANNOT_LEAVE": "The owner cannot leave the team – hand it over to another member or dissolve it.",
+    "CLUB_NOT_MEMBER": "This player is not in the team.",
+    "CLUB_TOO_MANY_OPEN": "Too many open invitations or requests – wait until some are answered."
   },
   "tournaments": {
     "title": "Tournaments",
@@ -1371,7 +1385,10 @@
       "JUDGE_CALL": "{tournament}: round {round}, table {table} ({players}) is calling a judge.",
       "RESULT_RECORDED": "{tournament}: {opponent} entered the result of your game – {score}.",
       "GAME_STARTED": "{player} started a game with you – you can enter points.",
-      "TABLE_INVITATION": "{player} invites you to an online game on {map}."
+      "TABLE_INVITATION": "{player} invites you to an online game on {map}.",
+      "CLUB_INVITATION": "{player} invites you to the team {team}.",
+      "CLUB_REQUEST": "{player} asks to join the team {team}.",
+      "CLUB_DECISION": "Team {team}: {accepted, select, true {you have been accepted} other {your request was declined}}."
     }
   },
   "offline": {
@@ -2168,6 +2185,12 @@
     "endProposedBy": "{name} proposes to end the game.",
     "acceptEnd": "Agree – end the game",
     "reported": "Result reported – the opponent confirms it in <link>My games</link>.",
+    "resultSaved": "Result confirmed – the game is in <link>My games</link> and counts for ELO and statistics.",
+    "confirmResult": "Confirm the result",
+    "resultWaiting": "You have confirmed the result – waiting for your opponent.",
+    "resultOtherConfirmed": "Your opponent has already confirmed the result.",
+    "confirmResultHelp": "Fill in the score sheet (also the Schemes of the last round), then each player confirms the result. Once both have, the game counts for ELO and statistics right away. Changing the points takes the confirmation back. A game that was given up counts as lost by the player who gave it up.",
+    "resultToMatch": "Tournament table: the result of the game went to the match of the tournament.",
     "reportResult": "Report the result as an own game",
     "reportHelp": "The Victory Points result and both lists go to My games; once the opponent confirms, it counts for ELO, leagues and statistics.",
     "sprayNeedsModel": "Pick the model using the Spray template first.",
@@ -2792,5 +2815,54 @@
     "elements": "Add an element",
     "plain": "plain",
     "noWebgl": "This browser or device does not support 3D graphics (WebGL)."
+  },
+  "teams": {
+    "title": "Teams",
+    "loading": "Loading…",
+    "youOwn": "Your team",
+    "owner": "owner",
+    "ownerIs": "owner: {name}",
+    "membersN": "{n, plural, one {# member} other {# members}}",
+    "transfer": "Hand over",
+    "transferConfirm": "Hand the team over to {name}? You will no longer be its owner.",
+    "remove": "Remove",
+    "removeNamed": "Remove {name} from the team",
+    "removeConfirm": "Remove {name} from the team?",
+    "requestsTitle": "Requests to join",
+    "accept": "Accept",
+    "decline": "Decline",
+    "inviteTitle": "Invite players",
+    "invite": "Invite",
+    "invited": "invited, waiting for an answer",
+    "cancel": "Cancel",
+    "makeLink": "Create an invitation link",
+    "newLink": "New link (the old one stops working)",
+    "closeLink": "Switch the link off",
+    "linkLabel": "Invitation link to the team",
+    "copy": "Copy",
+    "copied": "Copied",
+    "linkHint": "Whoever opens the link while signed in joins the team right away. The link is shown once – create a new one after reloading the page.",
+    "rename": "Rename",
+    "dissolve": "Dissolve the team",
+    "dissolveConfirm": "Dissolve the team {name}? All its members will be without a team.",
+    "name": "Team name",
+    "save": "Save",
+    "ownerHint": "The owner cannot leave the team: hand it over to another member or dissolve it.",
+    "leave": "Leave the team",
+    "leaveConfirm": "Leave the team {name}?",
+    "myInvitations": "Invitations to teams",
+    "join": "Join",
+    "createTitle": "Found a team",
+    "create": "Found",
+    "createHint": "You will be the owner of the team. A player can be in one team; its name shows in the profile and rankings.",
+    "findTitle": "Join an existing team",
+    "findPlaceholder": "Search by name…",
+    "noTeams": "No teams with such a name.",
+    "ask": "Ask to join",
+    "withdraw": "Withdraw the request",
+    "askHint": "The owner of the team has to accept the request.",
+    "loginRequired": "Teams are for signed-in players.",
+    "loginToJoin": "Sign in, then open the invitation link again to join the team.",
+    "login": "Sign in"
   }
 }
